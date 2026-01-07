@@ -1,0 +1,24 @@
+{
+  "name": "latoapps",
+  "version": "1.0.0",
+  "description": "Centro de aplicações Lato",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.3",
+    "electron": "^29.0.0",
+    "electron-builder": "^24.13.3",
+    "electron-reload": "^2.0.0-alpha.1"
+  },
+  "build": {
+    "appId": "com.lato.apps",
+    "productName": "LatoApps",
+    "win": {
+      "target": "nsis",
+      "signAndEditExecutable": false
+    }
+  }
+}

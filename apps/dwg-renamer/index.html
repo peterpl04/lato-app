@@ -117,13 +117,50 @@
     .titulo {
       text-align: center;
     }
+
+    .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #374151;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox input {
+  display: none;
+}
+
+.checkmark {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border 0.2s;
+}
+
+.checkbox input:checked + .checkmark {
+  background: #2563eb;
+}
+
+.checkbox input:checked + .checkmark::after {
+  content: "✓";
+  color: white;
+  font-size: 13px;
+  font-weight: bold;
+}
+
   </style>
 </head>
 
 <body>
 
   <div class="container">
-    <h1 class="titulo">Renomeador</h1>
+    <h1 class="titulo">Renomear Arquivos</h1>
 
     <div class="card">
       <button id="btnOrigem">Selecionar pasta de ORIGEM</button>
@@ -139,6 +176,15 @@
       <label>Multiplicador</label>
         <input type="number" id="multiplicador" placeholder="Informe o multiplicador" min="1" />
     </div>
+
+    <div class="card">
+      <label class="checkbox">
+        <input type="checkbox" id="deleteOrigem" />
+        <span class="checkmark"></span>
+        Excluir arquivos da pasta de origem após concluir
+      </label>
+    </div>
+
 
     <div class="card">
       <button id="btnProcessar">Processar arquivos</button>

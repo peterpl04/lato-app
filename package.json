@@ -20,5 +20,8 @@
       "target": "nsis",
       "signAndEditExecutable": false
     }
+  },
+  "dependencies": {
+    "archiver": "^7.0.1"
   }
 }

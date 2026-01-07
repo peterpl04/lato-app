@@ -38,9 +38,22 @@ document.getElementById("btnProcessar").onclick = async () => {
   }
 
   try {
-    await window.api.processar(origem, destino, multiplicador);
+    const deleteOrigem =
+      document.getElementById("deleteOrigem").checked;
+
+    await window.api.processar(
+      origem,
+      destino,
+      multiplicador,
+      deleteOrigem
+    );
 
     statusEl.innerText = "✅ Arquivos processados com sucesso.";
+
+    setTimeout(() => {
+      window.close();
+    }, 1000);
+
     statusEl.classList.add("success");
   } catch (err) {
     statusEl.innerText = "❌ Erro ao processar os arquivos.";

@@ -12,10 +12,25 @@ const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
 
+let loginWindow;
 let mainWindow;
 
+function createLoginWindow() {
+  loginWindow = new BrowserWindow({
+    width: 390,
+    height: 460,
+    resizable: false,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js")
+    }
+  });
+
+  loginWindow.loadFile("login.html");
+}
+
 function createMainWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 900,
     height: 600,
     resizable: false,
@@ -26,9 +41,10 @@ function createMainWindow() {
     }
   });
 
-  win.setMenu(null);
-  win.loadFile("index.html");
+  mainWindow.setMenu(null);
+  mainWindow.loadFile("index.html");
 }
+
 
 
 function openDWGRenamer() {
@@ -74,6 +90,16 @@ function zipDestino(destino) {
 
 
 /* ===== IPC ===== */
+
+ipcMain.handle("login-success", () => {
+  if (loginWindow) {
+    loginWindow.close();
+    loginWindow = null;
+  }
+
+  createMainWindow();
+});
+
 
 ipcMain.handle("open-dwg-renamer", () => {
   openDWGRenamer();
@@ -169,7 +195,7 @@ ipcMain.handle(
 
 /* ===== APP ===== */
 
-app.whenReady().then(createMainWindow);
+app.whenReady().then(createLoginWindow);
 
 app.on("window-all-closed", () => {
   app.quit();

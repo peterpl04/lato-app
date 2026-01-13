@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Gerenciador de Projetos</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Gerenciador de Projetos</h1>
+      <span>Cadastro e organização</span>
+    </header>
+
+    <!-- LISTAGEM -->
+    <div class="list">
+      <div class="list-header">
+        <h2>Projetos</h2>
+        <button onclick="openModal()">+ Novo Registro</button>
+      </div>
+
+      <table class="grid">
+        <thead>
+          <tr>
+            <th>Obra</th>
+            <th>Local</th>
+            <th>Alimentador</th>
+            <th>Observação</th>
+            <th>Girafa</th>
+            <th>Esteira</th>
+            <th>Entrega</th>
+            <th>Instalação</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody id="items"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-bg" id="modal">
+    <div class="modal modal-large">
+      <h3>OBRA</h3>
+
+      <div class="form-grid">
+        <input id="obra" placeholder="Obra *">
+        <input id="local" placeholder="Local *">
+        <input id="alimentador" placeholder="Alimentador">
+        <input id="observacao" placeholder="Observação *">
+        <input id="girafa" placeholder="Girafa">
+        <input id="esteira" placeholder="Esteira">
+        <div class="field">
+          <label>Data de Entrega</label>
+          <input id="entrega" type="date">
+        </div>
+        <div class="field">
+          <label>Data de Instalação</label>
+          <input id="instalacao" type="date">
+        </div>
+
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>
+        <button type="button" onclick="save()">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- MODAL CONFIRMAÇÃO -->
+  <div class="modal-bg" id="confirmModal">
+    <div class="modal">
+      <h3>Confirmar exclusão</h3>
+      <p class="modal-text">
+        Tem certeza que deseja excluir este item?
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" class="cancel" onclick="closeConfirm()">Cancelar</button>
+        <button type="button" class="danger" onclick="confirmDelete()">Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL VALIDAÇÃO -->
+  <div class="modal-bg" id="validationModal">
+    <div class="modal">
+      <h3>Campos obrigatórios</h3>
+
+      <p class="modal-text" id="validationMessage">
+        Preencha os campos obrigatórios.
+      </p>
+
+      <div class="modal-actions">
+        <button type="button" onclick="closeValidation()">Ok</button>
+      </div>
+    </div>
+  </div>
+
+
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

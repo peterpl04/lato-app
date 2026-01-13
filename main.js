@@ -11,6 +11,7 @@ const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
+const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 
 let loginWindow;
 let mainWindow;
@@ -63,6 +64,40 @@ function openDWGRenamer() {
   win.loadFile("apps/dwg-renamer/index.html");
 }
 
+function openProjectManager() {
+  const win = new BrowserWindow({
+    width: 1100,
+    height: 700,
+    resizable: true,
+    parent: mainWindow,
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js")
+    }
+  });
+
+  win.setMenu(null);
+  win.loadFile("apps/project-manager/index.html");
+}
+
+function readProjectData() {
+  if (!fs.existsSync(DATA_PATH)) {
+    fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
+    fs.writeFileSync(
+      DATA_PATH,
+      JSON.stringify({ obras: [], locais: [], alimentadores: [] }, null, 2)
+    );
+  }
+
+  return JSON.parse(fs.readFileSync(DATA_PATH, "utf-8"));
+}
+
+function writeProjectData(data) {
+  fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+}
+
+
+
 function zipDestino(destino) {
   return new Promise((resolve, reject) => {
     const zipPath = path.join(destino, "MUDAR_NOME.zip");
@@ -104,6 +139,20 @@ ipcMain.handle("login-success", () => {
 ipcMain.handle("open-dwg-renamer", () => {
   openDWGRenamer();
 });
+
+ipcMain.handle("open-project-manager", () => {
+  openProjectManager();
+});
+
+ipcMain.handle("load-project-data", () => {
+  return readProjectData();
+});
+
+ipcMain.handle("save-project-data", (_, data) => {
+  writeProjectData(data);
+  return true;
+});
+
 
 ipcMain.handle("select-folder", async () => {
   const result = await dialog.showOpenDialog({

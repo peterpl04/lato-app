@@ -2,7 +2,7 @@ const users = [
   { user: "Luiz", pass: "luiz@adm" },
   { user: "Carlos", pass: "carlos@adm" },
   { user: "João", pass: "joao@proj" },
-  { user: "adm", pass: "adm"}
+  { user: "1", pass: "1"}
 ];
 
 const button = document.querySelector("button");

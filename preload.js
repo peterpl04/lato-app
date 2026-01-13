@@ -1,17 +1,16 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
+
+  loginSuccess: () => ipcRenderer.invoke("login-success"),
+
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
-  selectFolder: () => ipcRenderer.invoke("select-folder"),
-  processar: (origem, destino, multiplicador, deleteOrigem) =>
-    ipcRenderer.invoke("processar", origem, destino, multiplicador, deleteOrigem),
+  openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
 
-  loginSuccess: () => ipcRenderer.invoke("login-success")
-});
+  loadProjectData: () => ipcRenderer.invoke("load-project-data"),
+  saveProjectData: (data) =>
+    ipcRenderer.invoke("save-project-data", data),
 
-
-contextBridge.exposeInMainWorld("api", {
-  openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   selectFolder: () => ipcRenderer.invoke("select-folder"),
   processar: (origem, destino, multiplicador, deleteOrigem) =>
     ipcRenderer.invoke(
@@ -22,4 +21,3 @@ contextBridge.exposeInMainWorld("api", {
       deleteOrigem
     )
 });
-

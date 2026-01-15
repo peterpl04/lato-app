@@ -13,6 +13,9 @@ const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 
+app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
+
+
 let loginWindow;
 let mainWindow;
 
@@ -20,6 +23,7 @@ function createLoginWindow() {
   loginWindow = new BrowserWindow({
     width: 390,
     height: 460,
+    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
     resizable: false,
     autoHideMenuBar: true,
     webPreferences: {

@@ -1,66 +1,85 @@
-let data = {
-  obras: [],
-  locais: [],
-  alimentadores: []
-};
+/* =========================
+   CONFIG
+========================= */
 
-let currentType = "obras";
+const API_URL = "https://lato-app-production.up.railway.app";
+let projects = [];
 let editingId = null;
 let deleteId = null;
-let modal;
-let list;
-let count;
 
+const modal = document.getElementById("modal");
 
 /* =========================
-   🚀 CARREGA DADOS AO ABRIR
+   SOCKET.IO
 ========================= */
-window.onload = async () => {
-  modal = document.getElementById("modal");
-  count = document.getElementById("count-obras");
-  data = await window.api.loadProjectData();
-  render();
-};
 
+const socket = io(API_URL);
+
+socket.on("connect", () => {
+  console.log("🟢 Conectado ao servidor em tempo real");
+});
+
+socket.on("projects:update", () => {
+  loadProjects();
+});
 
 /* =========================
-   📂 ABRIR GERENCIADOR
+   INIT
 ========================= */
-function openManager(type) {
-  currentType = type;
-  editingId = null;
-  render();
+
+document.addEventListener("DOMContentLoaded", () => {
+  loadProjects();
+});
+
+/* =========================
+   API
+========================= */
+
+async function loadProjects() {
+  try {
+    const res = await fetch(`${API_URL}/projects`);
+    projects = await res.json();
+    renderTable();
+  } catch (err) {
+    console.error("Erro ao carregar projetos:", err);
+  }
+}
+
+async function createProject(project) {
+  await fetch(`${API_URL}/projects`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(project)
+  });
+}
+
+async function updateProject(id, project) {
+  await fetch(`${API_URL}/projects/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(project)
+  });
+}
+
+async function deleteProject(id) {
+  await fetch(`${API_URL}/projects/${id}`, {
+    method: "DELETE"
+  });
 }
 
 /* =========================
-   ➕✏️ MODAL
+   MODAL
 ========================= */
+
 function openModal(id = null) {
   modal.style.display = "flex";
-  editingId = null;
+  editingId = id;
 
-  document.getElementById("obra").value = "";
-  document.getElementById("local").value = "";
-  document.getElementById("alimentador").value = "";
-  document.getElementById("observacao").value = "";
-  document.getElementById("girafa").value = "";
-  document.getElementById("esteira").value = "";
-  document.getElementById("entrega").value = "";
-  document.getElementById("instalacao").value = "";
+  clearForm();
 
   if (id) {
-    const item = data[currentType].find(i => i.id === id);
-    if (item) {
-      editingId = id;
-      document.getElementById("obra").value = item.obra;
-      document.getElementById("local").value = item.local;
-      document.getElementById("alimentador").value = item.alimentador;
-      document.getElementById("observacao").value = item.observacao;
-      document.getElementById("girafa").value = item.girafa;
-      document.getElementById("esteira").value = item.esteira;
-      document.getElementById("entrega").value = item.entrega || "";
-      document.getElementById("instalacao").value = item.instalacao || "";
-    }
+    const p = projects.find(p => p.id === id);
+    if (p) fillForm(p);
   }
 
   setTimeout(() => {
@@ -69,7 +88,71 @@ function openModal(id = null) {
   }, 0);
 }
 
+function closeModal() {
+  modal.style.display = "none";
+  editingId = null;
+}
 
+function clearForm() {
+  [
+    "obra",
+    "local",
+    "alimentador",
+    "observacao",
+    "girafa",
+    "esteira",
+    "entrega",
+    "instalacao"
+  ].forEach(id => (document.getElementById(id).value = ""));
+}
+
+function fillForm(p) {
+  document.getElementById("obra").value = p.obra;
+  document.getElementById("local").value = p.local;
+  document.getElementById("alimentador").value = p.alimentador || "";
+  document.getElementById("observacao").value = p.observacao;
+  document.getElementById("girafa").value = p.girafa || "";
+  document.getElementById("esteira").value = p.esteira || "";
+  document.getElementById("entrega").value = p.entrega ? p.entrega.split("T")[0] : "";
+  document.getElementById("instalacao").value = p.instalacao ? p.instalacao.split("T")[0] : "";
+}
+
+/* =========================
+   SAVE (CREATE / UPDATE)
+========================= */
+
+async function save() {
+  const project = {
+    obra: document.getElementById("obra").value.trim(),
+    local: document.getElementById("local").value.trim(),
+    alimentador: document.getElementById("alimentador").value.trim(),
+    observacao: document.getElementById("observacao").value.trim(),
+    girafa: document.getElementById("girafa").value.trim(),
+    esteira: document.getElementById("esteira").value.trim(),
+    entrega: document.getElementById("entrega").value || null,
+    instalacao: document.getElementById("instalacao").value || null
+  };
+
+  if (!project.obra || !project.local || !project.observacao) {
+    showValidation("Obra, Local e Observação são obrigatórios.");
+    return;
+  }
+
+  try {
+    if (editingId) {
+      await updateProject(editingId, project);
+    } else {
+      await createProject(project);
+    }
+    closeModal();
+  } catch (err) {
+    console.error("Erro ao salvar:", err);
+  }
+}
+
+/* =========================
+   DELETE
+========================= */
 
 function askDelete(id) {
   deleteId = id;
@@ -81,151 +164,72 @@ function closeConfirm() {
   document.getElementById("confirmModal").style.display = "none";
 }
 
-
-
-function closeModal() {
-  modal.style.display = "none";
-  editingId = null;
-}
-
-
-
-
-/* =========================
-   💾 SALVAR (CREATE / UPDATE)
-========================= */
-async function save() {
-  const item = {
-    id: editingId || Date.now(),
-    obra: document.getElementById("obra").value.trim(),
-    local: document.getElementById("local").value.trim(),
-    alimentador: document.getElementById("alimentador").value.trim(),
-    observacao: document.getElementById("observacao").value.trim(),
-    girafa: document.getElementById("girafa").value.trim(),
-    esteira: document.getElementById("esteira").value.trim(),
-    entrega: document.getElementById("entrega").value,
-    instalacao: document.getElementById("instalacao").value
-  };
-
-  if (!item.obra || !item.local || !item.observacao) {
-    showValidation("Obra, Local e Observação são obrigatórios.");
-    return;
-  }
-
-  if (editingId) {
-    const index = data[currentType].findIndex(i => i.id === editingId);
-    data[currentType][index] = item;
-  } else {
-    data[currentType].push(item);
-  }
-
-  await window.api.saveProjectData(data);
-  closeModal();
-  render();
-}
-
-
-
-/* =========================
-   🗑️ REMOVER
-========================= */
-async function removeItem(id) {
-  // ❌ NÃO usar confirm() em Electron
-  const ok = true; // depois trocamos por modal próprio
-  if (!ok) return;
-
-  data[currentType] = data[currentType].filter(i => i.id !== id);
-  editingId = null;
-
-  await window.api.saveProjectData(data);
-  render();
-}
-
 async function confirmDelete() {
   if (!deleteId) return;
 
-  data[currentType] = data[currentType].filter(i => i.id !== deleteId);
-  deleteId = null;
+  try {
+    await deleteProject(deleteId);
+  } catch (err) {
+    console.error("Erro ao excluir:", err);
+  }
 
-  await window.api.saveProjectData(data);
+  deleteId = null;
   document.getElementById("confirmModal").style.display = "none";
-  render();
 }
 
-
-
-
 /* =========================
-   📋 RENDER
+   RENDER TABLE
 ========================= */
-function render() {
+
+function renderTable() {
   const tbody = document.getElementById("items");
   tbody.innerHTML = "";
 
-  const items = data[currentType];
-
-  if (!items.length) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td colspan="9" style="color:#94a3b8; text-align:center;">
-        Nenhum registro cadastrado
-      </td>
+  if (!projects.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" style="text-align:center; color:#94a3b8;">
+          Nenhum registro cadastrado
+        </td>
+      </tr>
     `;
-    tbody.appendChild(tr);
     return;
   }
 
-  items.forEach(i => {
+  projects.forEach(p => {
     const tr = document.createElement("tr");
-      tr.innerHTML = `
-    <td>${i.obra}</td>
-    <td>${i.local}</td>
-    <td>${i.alimentador}</td>
-    <td>${i.observacao}</td>
-    <td>${i.girafa}</td>
-    <td>${i.esteira}</td>
-    <td>${formatDateBR(i.entrega)}</td>
-    <td>${formatDateBR(i.instalacao)}</td>
-    <td>
-      <button onclick="openModal(${i.id})">✏️</button>
-      <button onclick="askDelete(${i.id})">🗑️</button>
-    </td>
-  `;
+
+    tr.innerHTML = `
+      <td>${p.obra}</td>
+      <td>${p.local}</td>
+      <td>${p.alimentador || "-"}</td>
+      <td>${p.observacao}</td>
+      <td>${p.girafa || "-"}</td>
+      <td>${p.esteira || "-"}</td>
+      <td>${formatDateBR(p.entrega)}</td>
+      <td>${formatDateBR(p.instalacao)}</td>
+      <td>
+        <button onclick="openModal(${p.id})">✏️</button>
+        <button onclick="askDelete(${p.id})">🗑️</button>
+      </td>
+    `;
 
     tbody.appendChild(tr);
   });
 }
 
+/* =========================
+   HELPERS
+========================= */
 
-function enableKeyboardNavigation() {
-  const fields = Array.from(
-    document.querySelectorAll("#modal [data-field]")
-  );
-
-  fields.forEach((field, index) => {
-    field.addEventListener("keydown", e => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-
-        if (e.shiftKey) {
-          // volta
-          if (index > 0) fields[index - 1].focus();
-        } else {
-          // avança
-          if (index < fields.length - 1) {
-            fields[index + 1].focus();
-          } else {
-            save(); // último campo → salva
-          }
-        }
-      }
-
-      if (e.key === "Escape") {
-        closeModal();
-      }
-    });
-  });
+function formatDateBR(date) {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString("pt-BR");
 }
+
+/* =========================
+   VALIDATION MODAL
+========================= */
 
 function showValidation(message) {
   document.getElementById("validationMessage").textContent = message;
@@ -234,18 +238,29 @@ function showValidation(message) {
 
 function closeValidation() {
   document.getElementById("validationModal").style.display = "none";
-
-  // devolve foco ao primeiro campo obrigatório
-  setTimeout(() => {
-    document.getElementById("obra").focus();
-  }, 0);
+  setTimeout(() => document.getElementById("obra").focus(), 0);
 }
 
-function formatDateBR(date) {
-  if (!date) return "-";
-  const [year, month, day] = date.split("-");
-  return `${day}/${month}/${year}`;
+/* =========================
+   KEYBOARD NAVIGATION
+========================= */
+
+function enableKeyboardNavigation() {
+  const fields = Array.from(
+    document.querySelectorAll("#modal input")
+  );
+
+  fields.forEach((field, index) => {
+    field.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (index < fields.length - 1) {
+          fields[index + 1].focus();
+        } else {
+          save();
+        }
+      }
+      if (e.key === "Escape") closeModal();
+    });
+  });
 }
-
-
-

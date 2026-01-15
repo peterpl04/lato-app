@@ -14,11 +14,17 @@
     "electron-reload": "^2.0.0-alpha.1"
   },
   "build": {
-    "appId": "com.lato.apps",
+    "appId": "com.lato.latoapps.v3",
     "productName": "LatoApps",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*"
+    ],
     "win": {
       "target": "nsis",
-      "signAndEditExecutable": false
+      "icon": "assets/icons/lato-infinite.ico"
     }
   },
   "dependencies": {
@@ -26,6 +32,7 @@
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "pg": "^8.17.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   }
 }

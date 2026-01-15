@@ -2,6 +2,7 @@ const users = [
   { user: "Luiz", pass: "luiz@adm" },
   { user: "Carlos", pass: "carlos@adm" },
   { user: "João", pass: "joao@proj" },
+  { user: "Pedro", pass: "pedro@dev" },
   { user: "1", pass: "1"}
 ];
 
@@ -9,7 +10,6 @@ const button = document.querySelector("button");
 const wrapper = document.querySelector(".login-wrapper");
 
 function login() {
-  // 🎯 animação de botão
   button.classList.add("press");
   setTimeout(() => button.classList.remove("press"), 120);
 
@@ -22,9 +22,8 @@ function login() {
   if (!valid) {
     error.textContent = "Usuário ou senha inválidos";
 
-    // ❌ shake no erro
     wrapper.classList.remove("shake");
-    void wrapper.offsetWidth; // reset animation
+    void wrapper.offsetWidth;
     wrapper.classList.add("shake");
 
     return;
@@ -33,7 +32,6 @@ function login() {
   window.api.loginSuccess();
 }
 
-/* ⌨️ ENTER EXECUTA LOGIN */
 document.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     login();

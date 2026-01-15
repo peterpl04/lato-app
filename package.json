@@ -22,6 +22,10 @@
     }
   },
   "dependencies": {
-    "archiver": "^7.0.1"
+    "archiver": "^7.0.1",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "pg": "^8.17.1",
+    "socket.io": "^4.8.3"
   }
 }

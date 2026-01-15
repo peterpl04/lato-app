@@ -19,4 +19,6 @@ Thumbs.db
 
 # Project Manager data
 data/project-manager.json
+project-manager-backend/.env
+
 

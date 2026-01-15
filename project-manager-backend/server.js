@@ -14,6 +14,33 @@ const io = new Server(server, {
 });
 
 /* =========================
+   INIT DATABASE
+========================= */
+
+async function initDB() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id SERIAL PRIMARY KEY,
+      obra TEXT NOT NULL,
+      local TEXT NOT NULL,
+      alimentador TEXT,
+      observacao TEXT NOT NULL,
+      girafa TEXT,
+      esteira TEXT,
+      entrega DATE,
+      instalacao DATE,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  console.log("🟢 Tabela projects pronta");
+}
+
+initDB().catch(err => {
+  console.error("❌ Erro ao iniciar banco:", err);
+});
+
+/* =========================
    SOCKET
 ========================= */
 

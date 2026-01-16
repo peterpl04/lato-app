@@ -9,6 +9,11 @@ let deleteId = null;
 
 const modal = document.getElementById("modal");
 
+// ➕ ADIÇÃO: usuário logado (por enquanto fixo)
+const CURRENT_USER = window.api?.getLoggedUser
+  ? window.api.getLoggedUser()
+  : "Usuário desconhecido";
+
 /* =========================
    SOCKET.IO
 ========================= */
@@ -46,6 +51,9 @@ async function loadProjects() {
 }
 
 async function createProject(project) {
+  // ➕ ADIÇÃO: envia quem criou
+  project.createdBy = CURRENT_USER;
+
   await fetch(`${API_URL}/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -183,6 +191,8 @@ async function confirmDelete() {
 
 function renderTable() {
   const tbody = document.getElementById("items");
+  const tooltip = document.getElementById("hoverTooltip");
+
   tbody.innerHTML = "";
 
   if (!projects.length) {
@@ -198,6 +208,7 @@ function renderTable() {
 
   projects.forEach(p => {
     const tr = document.createElement("tr");
+    const createdBy = p.created_by || "Desconhecido";
 
     tr.innerHTML = `
       <td>${p.obra}</td>
@@ -213,6 +224,20 @@ function renderTable() {
         <button onclick="askDelete(${p.id})">🗑️</button>
       </td>
     `;
+
+    // 🖱️ Hover inteligente seguindo o mouse
+    tr.addEventListener("mousemove", e => {
+      tooltip.style.left = e.clientX + 14 + "px";
+      tooltip.style.top = e.clientY + 14 + "px";
+      tooltip.innerHTML = `Adicionado por <strong>${createdBy}</strong>`;
+      tooltip.style.opacity = "1";
+      tooltip.style.transform = "translateY(0)";
+    });
+
+    tr.addEventListener("mouseleave", () => {
+      tooltip.style.opacity = "0";
+      tooltip.style.transform = "translateY(6px)";
+    });
 
     tbody.appendChild(tr);
   });

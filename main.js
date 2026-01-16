@@ -7,7 +7,7 @@ if (process.env.NODE_ENV === "development") {
 }
 
 
-const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut} = require("electron");
 const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
@@ -40,7 +40,7 @@ function createMainWindow() {
     height: 600,
     resizable: false,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, "assets/icons/logo.ico"),
+    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
     }
@@ -48,8 +48,21 @@ function createMainWindow() {
 
   mainWindow.setMenu(null);
   mainWindow.loadFile("index.html");
-}
 
+  // 🔁 Ctrl + R → reload da janela principal
+  globalShortcut.register("CommandOrControl+R", () => {
+    if (mainWindow) {
+      mainWindow.reload();
+    }
+  });
+
+  // 🔧 Ctrl + Shift + I → DevTools
+  globalShortcut.register("CommandOrControl+Shift+I", () => {
+    if (mainWindow) {
+      mainWindow.webContents.openDevTools();
+    }
+  });
+}
 
 
 function openDWGRenamer() {
@@ -242,7 +255,6 @@ ipcMain.handle(
     return processados;
   }
 );
-
 
 
 

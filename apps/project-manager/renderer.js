@@ -3,6 +3,7 @@
 ========================= */
 
 const API_URL = "https://lato-app-production.up.railway.app";
+
 let projects = [];
 let editingId = null;
 let deleteId = null;
@@ -11,8 +12,6 @@ const modal = document.getElementById("modal");
 
 let currentUser = "Usuário desconhecido";
 let contextMenu;
-
-
 
 /* =========================
    SOCKET.IO
@@ -33,10 +32,14 @@ socket.on("projects:update", () => {
 ========================= */
 
 document.addEventListener("DOMContentLoaded", async () => {
-  currentUser = await window.api.getLoggedUser();
+  try {
+    currentUser = await window.api.getLoggedUser();
+  } catch {
+    currentUser = "Usuário desconhecido";
+  }
+
   loadProjects();
 });
-
 
 /* =========================
    API
@@ -60,7 +63,6 @@ async function createProject(project) {
   });
 }
 
-
 async function updateProject(id, project) {
   await fetch(`${API_URL}/projects/${id}`, {
     method: "PUT",
@@ -76,7 +78,25 @@ async function deleteProject(id) {
 }
 
 /* =========================
-   MODAL
+   MODAL HELPERS (ANIMAÇÃO)
+========================= */
+
+function openModalAnimated(modalEl) {
+  modalEl.style.display = "flex";
+  requestAnimationFrame(() => {
+    modalEl.classList.add("active");
+  });
+}
+
+function closeModalAnimated(modalEl) {
+  modalEl.classList.remove("active");
+  setTimeout(() => {
+    modalEl.style.display = "none";
+  }, 250);
+}
+
+/* =========================
+   CONTEXT MENU
 ========================= */
 
 function closeContextMenu() {
@@ -85,25 +105,6 @@ function closeContextMenu() {
     contextMenu = null;
   }
 }
-
-document.addEventListener("click", e => {
-  if (!e.target.classList.contains("tab")) return;
-
-  const tabName = e.target.dataset.tab;
-
-  // botão ativo
-  document.querySelectorAll(".modal-tabs .tab")
-    .forEach(b => b.classList.remove("active"));
-  e.target.classList.add("active");
-
-  // conteúdo ativo
-  document.querySelectorAll(".tab-content")
-    .forEach(c => c.classList.remove("active"));
-
-  document.getElementById(`tab-${tabName}`)
-    .classList.add("active");
-});
-
 
 function openContextMenu(x, y, projectId) {
   closeContextMenu();
@@ -120,15 +121,39 @@ function openContextMenu(x, y, projectId) {
 
   document.body.appendChild(contextMenu);
 
-  // Fecha ao clicar fora
   setTimeout(() => {
     document.addEventListener("click", closeContextMenu, { once: true });
   }, 0);
 }
 
+/* =========================
+   TABS DO MODAL
+========================= */
+
+document.addEventListener("click", e => {
+  if (!e.target.classList.contains("tab")) return;
+
+  const tabName = e.target.dataset.tab;
+
+  document
+    .querySelectorAll(".modal-tabs .tab")
+    .forEach(b => b.classList.remove("active"));
+
+  e.target.classList.add("active");
+
+  document
+    .querySelectorAll(".tab-content")
+    .forEach(c => c.classList.remove("active"));
+
+  document.getElementById(`tab-${tabName}`)?.classList.add("active");
+});
+
+/* =========================
+   MODAL REGISTRO
+========================= */
 
 function openModal(id = null) {
-  modal.style.display = "flex";
+  openModalAnimated(modal);
   editingId = id;
 
   clearForm();
@@ -139,13 +164,13 @@ function openModal(id = null) {
   }
 
   setTimeout(() => {
-    document.getElementById("obra").focus();
+    document.getElementById("obra")?.focus();
     enableKeyboardNavigation();
   }, 0);
 }
 
 function closeModal() {
-  modal.style.display = "none";
+  closeModalAnimated(modal);
   editingId = null;
 }
 
@@ -166,7 +191,6 @@ function clearForm() {
   });
 }
 
-
 function fillForm(p) {
   document.getElementById("obra").value = p.obra || "";
   document.getElementById("cliente").value = p.cliente || "";
@@ -179,9 +203,8 @@ function fillForm(p) {
   document.getElementById("instalacao").value = p.instalacao ? p.instalacao.split("T")[0] : "";
 }
 
-
 /* =========================
-   SAVE (CREATE / UPDATE)
+   SAVE
 ========================= */
 
 async function save() {
@@ -203,7 +226,6 @@ async function save() {
     return;
   }
 
-
   try {
     if (editingId) {
       await updateProject(editingId, project);
@@ -222,12 +244,12 @@ async function save() {
 
 function askDelete(id) {
   deleteId = id;
-  document.getElementById("confirmModal").style.display = "flex";
+  openModalAnimated(document.getElementById("confirmModal"));
 }
 
 function closeConfirm() {
   deleteId = null;
-  document.getElementById("confirmModal").style.display = "none";
+  closeModalAnimated(document.getElementById("confirmModal"));
 }
 
 async function confirmDelete() {
@@ -240,7 +262,7 @@ async function confirmDelete() {
   }
 
   deleteId = null;
-  document.getElementById("confirmModal").style.display = "none";
+  closeModalAnimated(document.getElementById("confirmModal"));
 }
 
 /* =========================
@@ -269,47 +291,75 @@ function renderTable() {
     const createdBy = p.created_by || "Desconhecido";
 
     tr.innerHTML = `
-  <td>${p.obra}</td>
-  <td>${p.cliente || "-"}</td>
-  <td>${p.unidade || "-"}</td>
-  <td>${p.alimentador || "-"}</td>
-  <td>${p.girafa || "-"}</td>
-  <td>${p.esteira || "-"}</td>
-  <td>${formatDateBR(p.entrega)}</td>
-  <td>${formatDateBR(p.instalacao)}</td>
-  <td class="obs-cell">
-    ${p.observacao}
-  </td>
-`;
+      <td>${p.obra}</td>
+      <td>${p.cliente || "-"}</td>
+      <td>${p.unidade || "-"}</td>
+      <td>${p.alimentador || "-"}</td>
+      <td>${p.girafa || "-"}</td>
+      <td>${p.esteira || "-"}</td>
+      <td>${formatDateBR(p.entrega)}</td>
+      <td>${formatDateBR(p.instalacao)}</td>
+      <td class="obs-cell">${p.observacao}</td>
+    `;
+
     tr.addEventListener("click", e => {
-      // evita conflito com menu de contexto
       if (e.button !== 0) return;
       openSummary(p);
     });
-
 
     tr.addEventListener("contextmenu", e => {
       e.preventDefault();
       openContextMenu(e.clientX, e.clientY, p.id);
     });
 
-
-    // 🖱️ Hover inteligente seguindo o mouse
     tr.addEventListener("mousemove", e => {
       tooltip.style.left = e.clientX + 14 + "px";
       tooltip.style.top = e.clientY + 14 + "px";
       tooltip.innerHTML = `Adicionado por <strong>${createdBy}</strong>`;
       tooltip.style.opacity = "1";
-      tooltip.style.transform = "translateY(0)";
     });
 
     tr.addEventListener("mouseleave", () => {
       tooltip.style.opacity = "0";
-      tooltip.style.transform = "translateY(6px)";
     });
 
     tbody.appendChild(tr);
   });
+}
+
+/* =========================
+   SUMMARY MODAL
+========================= */
+
+function openSummary(project) {
+  document.getElementById("sum-obra").textContent = project.obra || "-";
+  document.getElementById("sum-cliente").textContent = project.cliente || "-";
+  document.getElementById("sum-unidade").textContent = project.unidade || "-";
+  document.getElementById("sum-alimentador").textContent = project.alimentador || "-";
+  document.getElementById("sum-girafa").textContent = project.girafa || "-";
+  document.getElementById("sum-esteira").textContent = project.esteira || "-";
+  document.getElementById("sum-entrega").textContent = formatDateBR(project.entrega);
+  document.getElementById("sum-instalacao").textContent = formatDateBR(project.instalacao);
+  document.getElementById("sum-observacao").textContent = project.observacao || "-";
+
+  openModalAnimated(document.getElementById("summaryModal"));
+}
+
+function closeSummary() {
+  closeModalAnimated(document.getElementById("summaryModal"));
+}
+
+/* =========================
+   VALIDATION MODAL
+========================= */
+
+function showValidation(message) {
+  document.getElementById("validationMessage").textContent = message;
+  openModalAnimated(document.getElementById("validationModal"));
+}
+
+function closeValidation() {
+  closeModalAnimated(document.getElementById("validationModal"));
 }
 
 /* =========================
@@ -322,27 +372,11 @@ function formatDateBR(date) {
 }
 
 /* =========================
-   VALIDATION MODAL
-========================= */
-
-function showValidation(message) {
-  document.getElementById("validationMessage").textContent = message;
-  document.getElementById("validationModal").style.display = "flex";
-}
-
-function closeValidation() {
-  document.getElementById("validationModal").style.display = "none";
-  setTimeout(() => document.getElementById("obra").focus(), 0);
-}
-
-/* =========================
    KEYBOARD NAVIGATION
 ========================= */
 
 function enableKeyboardNavigation() {
-  const fields = Array.from(
-    document.querySelectorAll("#modal input")
-  );
+  const fields = Array.from(document.querySelectorAll("#modal input"));
 
   fields.forEach((field, index) => {
     field.addEventListener("keydown", e => {
@@ -357,32 +391,4 @@ function enableKeyboardNavigation() {
       if (e.key === "Escape") closeModal();
     });
   });
-}
-
-function openSummary(project) {
-  document.getElementById("sum-obra").textContent = project.obra || "-";
-  document.getElementById("sum-cliente").textContent = project.cliente || "-";
-  document.getElementById("sum-unidade").textContent = project.unidade || "-";
-  document.getElementById("sum-alimentador").textContent = project.alimentador || "-";
-  document.getElementById("sum-girafa").textContent = project.girafa || "-";
-  document.getElementById("sum-esteira").textContent = project.esteira || "-";
-  document.getElementById("sum-entrega").textContent = formatDateBR(project.entrega);
-  document.getElementById("sum-instalacao").textContent = formatDateBR(project.instalacao);
-  document.getElementById("sum-observacao").textContent = project.observacao || "-";
-
-  const modal = document.getElementById("summaryModal");
-  modal.style.display = "flex";
-
-  requestAnimationFrame(() => {
-    modal.classList.add("active");
-  });
-}
-
-function closeSummary() {
-  const modal = document.getElementById("summaryModal");
-  modal.classList.remove("active");
-
-  setTimeout(() => {
-    modal.style.display = "none";
-  }, 200);
 }

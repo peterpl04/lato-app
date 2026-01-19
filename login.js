@@ -14,6 +14,7 @@ function login() {
   button.classList.add("press");
   setTimeout(() => button.classList.remove("press"), 120);
 
+  const user = document.getElementById("user").value.trim();
   const u = document.getElementById("user").value;
   const p = document.getElementById("pass").value;
   const error = document.getElementById("error");
@@ -30,7 +31,9 @@ function login() {
     return;
   }
 
-  window.api.loginSuccess();
+  if (!user) return;
+
+  window.api.loginSuccess(user);
 }
 
 document.addEventListener("keydown", (e) => {

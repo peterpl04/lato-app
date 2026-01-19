@@ -100,8 +100,27 @@ header span {
   white-space: nowrap;
 }
 
-.grid tr:hover {
-  background: rgba(0, 0, 0, 0.03);
+/* =========================
+   ✨ MICRO ANIMAÇÕES – LINHAS
+========================= */
+
+.grid tbody tr {
+  opacity: 0;
+  transform: translateY(6px);
+  animation: fadeRow 0.35s ease forwards;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.grid tbody tr:hover {
+  background: rgba(37, 99, 235, 0.06);
+  transform: translateX(2px);
+}
+
+@keyframes fadeRow {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* =========================
@@ -171,7 +190,7 @@ header span {
 }
 
 /* =========================
-   BOTÕES
+   BOTÕES (MICRO FEEDBACK)
 ========================= */
 
 .modal-actions {
@@ -187,10 +206,16 @@ button {
   padding: 8px 14px;
   border-radius: 6px;
   cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
 }
 
 button:hover {
   background: var(--accent-hover);
+  transform: scale(1.06);
+}
+
+button:active {
+  transform: scale(0.95);
 }
 
 button.cancel {
@@ -206,38 +231,16 @@ button.danger {
 button.danger:hover {
   filter: brightness(1.1);
 }
-.project-row {
-  position: relative;
-}
 
-.project-tooltip {
-  position: absolute;
-  right: 12px;
-  top: -38px;
-  background: rgba(15, 23, 42, 0.96);
-  color: #f8fafc;
-  padding: 6px 12px;
-  font-size: 12px;
-  border-radius: 10px;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(6px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  white-space: nowrap;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-  z-index: 20;
-}
-
-.project-row:hover .project-tooltip {
-  opacity: 1;
-  transform: translateY(0);
-}
+/* =========================
+   TOOLTIP – QUEM ADICIONOU
+========================= */
 
 .hover-tooltip {
   position: fixed;
   background: rgba(15, 23, 42, 0.96);
   color: #f8fafc;
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-size: 12px;
   border-radius: 10px;
   pointer-events: none;

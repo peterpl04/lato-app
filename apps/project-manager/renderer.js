@@ -9,10 +9,8 @@ let deleteId = null;
 
 const modal = document.getElementById("modal");
 
-// ➕ ADIÇÃO: usuário logado (por enquanto fixo)
-const CURRENT_USER = window.api?.getLoggedUser
-  ? window.api.getLoggedUser()
-  : "Usuário desconhecido";
+let currentUser = "Usuário desconhecido";
+
 
 /* =========================
    SOCKET.IO
@@ -32,9 +30,11 @@ socket.on("projects:update", () => {
    INIT
 ========================= */
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  currentUser = await window.api.getLoggedUser();
   loadProjects();
 });
+
 
 /* =========================
    API
@@ -51,15 +51,13 @@ async function loadProjects() {
 }
 
 async function createProject(project) {
-  // ➕ ADIÇÃO: envia quem criou
-  project.createdBy = CURRENT_USER;
-
   await fetch(`${API_URL}/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(project)
   });
 }
+
 
 async function updateProject(id, project) {
   await fetch(`${API_URL}/projects/${id}`, {
@@ -138,7 +136,8 @@ async function save() {
     girafa: document.getElementById("girafa").value.trim(),
     esteira: document.getElementById("esteira").value.trim(),
     entrega: document.getElementById("entrega").value || null,
-    instalacao: document.getElementById("instalacao").value || null
+    instalacao: document.getElementById("instalacao").value || null,
+    createdBy: currentUser
   };
 
   if (!project.obra || !project.local || !project.observacao) {

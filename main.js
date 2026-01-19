@@ -18,6 +18,7 @@ app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 
 let loginWindow;
 let mainWindow;
+let loggedUser = null;
 
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
@@ -143,13 +144,19 @@ function zipDestino(destino) {
 
 /* ===== IPC ===== */
 
-ipcMain.handle("login-success", () => {
+ipcMain.handle("login-success", (_, username) => {
+  loggedUser = username;
+
   if (loginWindow) {
     loginWindow.close();
     loginWindow = null;
   }
 
   createMainWindow();
+});
+
+ipcMain.handle("get-logged-user", () => {
+  return loggedUser;
 });
 
 

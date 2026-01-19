@@ -89,7 +89,7 @@ app.post("/projects", async (req, res) => {
       p.esteira,
       p.entrega,
       p.instalacao,
-      p.createdBy
+      p.createdBy || "Usuário desconhecido"
     ]
   );
 

@@ -2,7 +2,11 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
 
-  loginSuccess: () => ipcRenderer.invoke("login-success"),
+  loginSuccess: (username) =>
+    ipcRenderer.invoke("login-success", username),
+
+  getLoggedUser: () =>
+    ipcRenderer.invoke("get-logged-user"),
 
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),

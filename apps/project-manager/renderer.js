@@ -86,6 +86,25 @@ function closeContextMenu() {
   }
 }
 
+document.addEventListener("click", e => {
+  if (!e.target.classList.contains("tab")) return;
+
+  const tabName = e.target.dataset.tab;
+
+  // botão ativo
+  document.querySelectorAll(".modal-tabs .tab")
+    .forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+
+  // conteúdo ativo
+  document.querySelectorAll(".tab-content")
+    .forEach(c => c.classList.remove("active"));
+
+  document.getElementById(`tab-${tabName}`)
+    .classList.add("active");
+});
+
+
 function openContextMenu(x, y, projectId) {
   closeContextMenu();
 
@@ -133,26 +152,33 @@ function closeModal() {
 function clearForm() {
   [
     "obra",
-    "local",
+    "cliente",
+    "unidade",
     "alimentador",
     "observacao",
     "girafa",
     "esteira",
     "entrega",
     "instalacao"
-  ].forEach(id => (document.getElementById(id).value = ""));
+  ].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
 }
 
+
 function fillForm(p) {
-  document.getElementById("obra").value = p.obra;
-  document.getElementById("local").value = p.local;
+  document.getElementById("obra").value = p.obra || "";
+  document.getElementById("cliente").value = p.cliente || "";
+  document.getElementById("unidade").value = p.unidade || "";
   document.getElementById("alimentador").value = p.alimentador || "";
-  document.getElementById("observacao").value = p.observacao;
+  document.getElementById("observacao").value = p.observacao || "";
   document.getElementById("girafa").value = p.girafa || "";
   document.getElementById("esteira").value = p.esteira || "";
   document.getElementById("entrega").value = p.entrega ? p.entrega.split("T")[0] : "";
   document.getElementById("instalacao").value = p.instalacao ? p.instalacao.split("T")[0] : "";
 }
+
 
 /* =========================
    SAVE (CREATE / UPDATE)

@@ -138,10 +138,10 @@ header span {
 
 .modal {
   background: var(--bg-card);
-  padding: 24px;
-  border-radius: 14px;
-  width: 320px;
+  padding: 32px;
+  border-radius: 18px;
   border: 1px solid var(--border-soft);
+  width: 720px;
 }
 
 .modal-large {
@@ -161,21 +161,39 @@ header span {
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 8px;
+  /* antes 12px */
+}
+
+.form-actions {
+  grid-column: span 2;
+  /* ocupa as duas colunas */
+  display: flex;
+  justify-content: center;
+  /* centraliza horizontalmente */
+  gap: 14px;
+  margin-top: 18px;
 }
 
 .form-grid input {
-  padding: 10px;
+  padding: 6px 10px;
+  /* menor altura */
+  height: 38px;
+  /* controle exato */
   border-radius: 8px;
   border: 1px solid var(--border-soft);
+  font-size: 14px;
 }
 
 .modal input {
   width: 100%;
-  padding: 10px;
-  margin: 12px 0;
+  padding: 6px 10px;
+  height: 38px;
+  margin: 6px 0;
+  /* menos espaço vertical */
   border-radius: 8px;
   border: 1px solid var(--border-soft);
+  font-size: 14px;
 }
 
 .field {
@@ -185,8 +203,9 @@ header span {
 }
 
 .field label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
+  margin-bottom: 2px;
 }
 
 /* =========================
@@ -196,8 +215,9 @@ header span {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
 }
+
 
 button {
   background: var(--accent);
@@ -353,7 +373,15 @@ button.danger:hover {
 }
 
 .modal-large {
+  width: 900px;
+  /* mais largo */
+  max-width: 92vw;
+  /* responsivo */
   max-height: 90vh;
+  /* não estoura a tela */
+  overflow-y: auto;
+  /* scroll interno se precisar */
+  padding: 32px;
 }
 
 .form-grid {
@@ -368,4 +396,46 @@ button.danger:hover {
   bottom: 0;
   background: var(--bg-card);
   padding-top: 12px;
+}
+
+.modal-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0 20px;
+}
+
+.modal-tabs .tab {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.modal-tabs .tab:hover {
+  background: #e5e7eb;
+}
+
+.modal-tabs .tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+.tab-placeholder {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 40px 0;
 }

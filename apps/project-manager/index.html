@@ -50,13 +50,23 @@
   <!-- MODAL -->
   <div class="modal-bg" id="modal">
     <div class="modal modal-large">
-      <h3>OBRA</h3>
+      <h3>Registro de Negócio</h3>
+
+      <div class="modal-tabs">
+        <button class="tab active" data-tab="geral">Geral</button>
+        <button class="tab" data-tab="maquina">Máquina</button>
+      </div>
+
+      <div class="tab-content active" id="tab-geral">
 
       <div class="form-grid">
+
         <input id="obra" placeholder="Obra *">
         <input id="cliente" placeholder="Cliente *">
+
         <input id="unidade" placeholder="Unidade">
         <input id="alimentador" placeholder="Alimentador">
+
         <input id="girafa" placeholder="Girafa">
         <input id="esteira" placeholder="Esteira">
 
@@ -71,15 +81,20 @@
         </div>
 
         <input id="observacao" placeholder="Observação *">
+
+        <!-- 🔽 BOTÕES AQUI -->
+        <div class="form-actions">
+          <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>
+          <button type="button" onclick="save()">Salvar</button>
         </div>
 
       </div>
-
-      <div class="modal-actions">
-        <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>
-        <button type="button" onclick="save()">Salvar</button>
       </div>
+
     </div>
+      <div class="tab-content" id="tab-maquina">
+
+      </div>
   </div>
 
 

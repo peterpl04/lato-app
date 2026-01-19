@@ -10,6 +10,8 @@ let deleteId = null;
 const modal = document.getElementById("modal");
 
 let currentUser = "Usuário desconhecido";
+let contextMenu;
+
 
 
 /* =========================
@@ -77,6 +79,35 @@ async function deleteProject(id) {
    MODAL
 ========================= */
 
+function closeContextMenu() {
+  if (contextMenu) {
+    contextMenu.remove();
+    contextMenu = null;
+  }
+}
+
+function openContextMenu(x, y, projectId) {
+  closeContextMenu();
+
+  contextMenu = document.createElement("div");
+  contextMenu.className = "context-menu";
+  contextMenu.style.left = `${x}px`;
+  contextMenu.style.top = `${y}px`;
+
+  contextMenu.innerHTML = `
+    <button onclick="openModal(${projectId})">✏️ Editar</button>
+    <button class="danger" onclick="askDelete(${projectId})">🗑️ Excluir</button>
+  `;
+
+  document.body.appendChild(contextMenu);
+
+  // Fecha ao clicar fora
+  setTimeout(() => {
+    document.addEventListener("click", closeContextMenu, { once: true });
+  }, 0);
+}
+
+
 function openModal(id = null) {
   modal.style.display = "flex";
   editingId = id;
@@ -130,20 +161,22 @@ function fillForm(p) {
 async function save() {
   const project = {
     obra: document.getElementById("obra").value.trim(),
-    local: document.getElementById("local").value.trim(),
+    cliente: document.getElementById("cliente").value.trim(),
+    unidade: document.getElementById("unidade").value.trim(),
     alimentador: document.getElementById("alimentador").value.trim(),
-    observacao: document.getElementById("observacao").value.trim(),
     girafa: document.getElementById("girafa").value.trim(),
     esteira: document.getElementById("esteira").value.trim(),
     entrega: document.getElementById("entrega").value || null,
     instalacao: document.getElementById("instalacao").value || null,
+    observacao: document.getElementById("observacao").value.trim(),
     createdBy: currentUser
   };
 
-  if (!project.obra || !project.local || !project.observacao) {
-    showValidation("Obra, Local e Observação são obrigatórios.");
+  if (!project.obra || !project.cliente || !project.observacao) {
+    showValidation("Obra, Cliente e Observação são obrigatórios.");
     return;
   }
+
 
   try {
     if (editingId) {
@@ -210,19 +243,24 @@ function renderTable() {
     const createdBy = p.created_by || "Desconhecido";
 
     tr.innerHTML = `
-      <td>${p.obra}</td>
-      <td>${p.local}</td>
-      <td>${p.alimentador || "-"}</td>
-      <td>${p.observacao}</td>
-      <td>${p.girafa || "-"}</td>
-      <td>${p.esteira || "-"}</td>
-      <td>${formatDateBR(p.entrega)}</td>
-      <td>${formatDateBR(p.instalacao)}</td>
-      <td>
-        <button onclick="openModal(${p.id})">✏️</button>
-        <button onclick="askDelete(${p.id})">🗑️</button>
-      </td>
-    `;
+  <td>${p.obra}</td>
+  <td>${p.cliente || "-"}</td>
+  <td>${p.unidade || "-"}</td>
+  <td>${p.alimentador || "-"}</td>
+  <td>${p.girafa || "-"}</td>
+  <td>${p.esteira || "-"}</td>
+  <td>${formatDateBR(p.entrega)}</td>
+  <td>${formatDateBR(p.instalacao)}</td>
+  <td class="obs-cell">
+    ${p.observacao}
+  </td>
+`;
+
+    tr.addEventListener("contextmenu", e => {
+      e.preventDefault();
+      openContextMenu(e.clientX, e.clientY, p.id);
+    });
+
 
     // 🖱️ Hover inteligente seguindo o mouse
     tr.addEventListener("mousemove", e => {

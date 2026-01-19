@@ -251,3 +251,121 @@ button.danger:hover {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   z-index: 9999;
 }
+
+/* =========================
+   AÇÕES INLINE (ÍCONES)
+========================= */
+
+.obs-cell {
+  position: relative;
+  padding-right: 56px;
+}
+
+.row-actions {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.grid tr:hover .row-actions {
+  opacity: 1;
+  transform: translateY(-50%) scale(1.05);
+}
+
+.icon-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.icon-btn:hover {
+  background: rgba(37, 99, 235, 0.12);
+  transform: scale(1.15);
+}
+
+.icon-btn.danger:hover {
+  background: rgba(220, 38, 38, 0.15);
+}
+
+/* =========================
+   MENU DE CONTEXTO
+========================= */
+
+.context-menu {
+  position: fixed;
+  background: #ffffff;
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
+  min-width: 160px;
+  z-index: 10000;
+  overflow: hidden;
+  animation: fadeInScale 0.12s ease;
+}
+
+.context-menu button {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-main);
+}
+
+.context-menu button:hover {
+  background: var(--bg-soft);
+}
+
+.context-menu button.danger {
+  color: #dc2626;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal {
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-large {
+  max-height: 90vh;
+}
+
+.form-grid {
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* garante que os botões fiquem sempre visíveis */
+.modal-actions {
+  margin-top: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-card);
+  padding-top: 12px;
+}

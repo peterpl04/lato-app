@@ -22,7 +22,8 @@ async function initDB() {
     CREATE TABLE IF NOT EXISTS projects (
       id SERIAL PRIMARY KEY,
       obra TEXT NOT NULL,
-      local TEXT NOT NULL,
+      cliente TEXT,
+      unidade TEXT,
       alimentador TEXT,
       observacao TEXT NOT NULL,
       girafa TEXT,
@@ -73,32 +74,46 @@ app.post("/projects", async (req, res) => {
   const p = req.body;
 
   try {
-  const result = await pool.query(
-    `
-    INSERT INTO projects
-    (obra, local, alimentador, observacao, girafa, esteira, entrega, instalacao, created_by)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-    RETURNING *
-    `,
-    [
-      p.obra,
-      p.local,
-      p.alimentador,
-      p.observacao,
-      p.girafa,
-      p.esteira,
-      p.entrega,
-      p.instalacao,
-      p.createdBy || "Usuário desconhecido"
-    ]
-  );
+    const result = await pool.query(
+      `
+      INSERT INTO projects (
+        obra,
+        cliente,
+        unidade,
+        alimentador,
+        observacao,
+        girafa,
+        esteira,
+        entrega,
+        instalacao,
+        created_by
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      RETURNING *
+      `,
+      [
+        p.obra,
+        p.cliente || null,
+        p.unidade || null,
+        p.alimentador || null,
+        p.observacao,
+        p.girafa || null,
+        p.esteira || null,
+        p.entrega || null,      // 🔴 ISSO É CRÍTICO
+        p.instalacao || null,   // 🔴 ISSO É CRÍTICO
+        p.createdBy
+      ]
+    );
 
-  io.emit("projects:update");
-  res.json(result.rows[0]);
+    io.emit("projects:update");
+    res.json(result.rows[0]);
+
   } catch (err) {
+    console.error("❌ ERRO AO INSERIR:", err); // 👈 NÃO REMOVA ISSO
     res.status(500).json(err);
   }
 });
+
 
 // UPDATE
 app.put("/projects/:id", async (req, res) => {
@@ -109,20 +124,29 @@ app.put("/projects/:id", async (req, res) => {
   await pool.query(
     `
     UPDATE projects SET
-      obra=$1, local=$2, alimentador=$3, observacao=$4,
-      girafa=$5, esteira=$6, entrega=$7, instalacao=$8
-    WHERE id=$9
+  obra=$1,
+  cliente=$2,
+  unidade=$3,
+  alimentador=$4,
+  observacao=$5,
+  girafa=$6,
+  esteira=$7,
+  entrega=$8,
+  instalacao=$9
+WHERE id=$10
+
     `,
     [
       p.obra,
-      p.local,
+      p.cliente,
+      p.unidade,
       p.alimentador,
       p.observacao,
       p.girafa,
       p.esteira,
       p.entrega,
       p.instalacao,
-        id
+      id
     ]
   );
 

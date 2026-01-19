@@ -141,7 +141,9 @@ header span {
   padding: 32px;
   border-radius: 18px;
   border: 1px solid var(--border-soft);
-  width: 720px;
+  width: 740px;
+  overflow-x: hidden;
+
 }
 
 .modal-large {
@@ -226,12 +228,12 @@ button {
   padding: 8px 14px;
   border-radius: 6px;
   cursor: pointer;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
 }
 
 button:hover {
   background: var(--accent-hover);
-  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
 }
 
 button:active {

@@ -281,6 +281,12 @@ function renderTable() {
     ${p.observacao}
   </td>
 `;
+    tr.addEventListener("click", e => {
+      // evita conflito com menu de contexto
+      if (e.button !== 0) return;
+      openSummary(p);
+    });
+
 
     tr.addEventListener("contextmenu", e => {
       e.preventDefault();
@@ -351,4 +357,32 @@ function enableKeyboardNavigation() {
       if (e.key === "Escape") closeModal();
     });
   });
+}
+
+function openSummary(project) {
+  document.getElementById("sum-obra").textContent = project.obra || "-";
+  document.getElementById("sum-cliente").textContent = project.cliente || "-";
+  document.getElementById("sum-unidade").textContent = project.unidade || "-";
+  document.getElementById("sum-alimentador").textContent = project.alimentador || "-";
+  document.getElementById("sum-girafa").textContent = project.girafa || "-";
+  document.getElementById("sum-esteira").textContent = project.esteira || "-";
+  document.getElementById("sum-entrega").textContent = formatDateBR(project.entrega);
+  document.getElementById("sum-instalacao").textContent = formatDateBR(project.instalacao);
+  document.getElementById("sum-observacao").textContent = project.observacao || "-";
+
+  const modal = document.getElementById("summaryModal");
+  modal.style.display = "flex";
+
+  requestAnimationFrame(() => {
+    modal.classList.add("active");
+  });
+}
+
+function closeSummary() {
+  const modal = document.getElementById("summaryModal");
+  modal.classList.remove("active");
+
+  setTimeout(() => {
+    modal.style.display = "none";
+  }, 200);
 }

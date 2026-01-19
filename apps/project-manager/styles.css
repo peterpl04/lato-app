@@ -441,3 +441,81 @@ button.danger:hover {
   font-size: 14px;
   padding: 40px 0;
 }
+
+/* =========================
+   MODAL RESUMO
+========================= */
+
+.summary-modal {
+  max-width: 900px;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.summary-header h3 {
+  margin: 0;
+}
+
+.close-btn {
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.close-btn:hover {
+  color: var(--text-main);
+}
+
+.summary-section {
+  margin-bottom: 22px;
+}
+
+.summary-section h4 {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.summary-grid div {
+  background: var(--bg-soft);
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+}
+
+.summary-grid span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.summary-grid p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.summary-full {
+  grid-column: span 4;
+}
+
+.summary-section.muted {
+  opacity: 0.6;
+}
+
+.summary-section .empty {
+  font-size: 13px;
+  color: var(--text-muted);
+}

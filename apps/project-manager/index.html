@@ -54,7 +54,7 @@
 
       <div class="modal-tabs">
         <button class="tab active" data-tab="geral">Geral</button>
-        <button class="tab" data-tab="maquina">Máquina</button>
+        <button class="tab" data-tab="alimentador">Alimentador</button>
       </div>
 
       <div class="tab-content active" id="tab-geral">
@@ -92,7 +92,7 @@
       </div>
 
     </div>
-      <div class="tab-content" id="tab-maquina">
+      <div class="tab-content" id="tab-alimentador">
 
       </div>
   </div>
@@ -128,6 +128,75 @@
     </div>
   </div>
   <div id="hoverTooltip" class="hover-tooltip"></div>
+
+  <!-- MODAL RESUMO DA OBRA -->
+  <div class="modal-bg" id="summaryModal">
+    <div class="modal modal-large summary-modal">
+
+      <div class="summary-header">
+        <h3>Resumo</h3>
+        <button class="close-btn" onclick="closeSummary()">✕</button>
+      </div>
+
+      <div class="summary-section">
+        <h4>Geral</h4>
+
+        <div class="summary-grid">
+          <div>
+            <span>Obra</span>
+            <p id="sum-obra"></p>
+          </div>
+
+          <div>
+            <span>Cliente</span>
+            <p id="sum-cliente"></p>
+          </div>
+
+          <div>
+            <span>Unidade</span>
+            <p id="sum-unidade"></p>
+          </div>
+
+          <div>
+            <span>Alimentador</span>
+            <p id="sum-alimentador"></p>
+          </div>
+
+          <div>
+            <span>Girafa</span>
+            <p id="sum-girafa"></p>
+          </div>
+
+          <div>
+            <span>Esteira</span>
+            <p id="sum-esteira"></p>
+          </div>
+
+          <div>
+            <span>Entrega</span>
+            <p id="sum-entrega"></p>
+          </div>
+
+          <div>
+            <span>Instalação</span>
+            <p id="sum-instalacao"></p>
+          </div>
+
+          <div class="summary-full">
+            <span>Observação</span>
+            <p id="sum-observacao"></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="summary-section muted">
+        <h4>Alimentador</h4>
+        <p class="empty">Sem dados no momento</p>
+      </div>
+
+    </div>
+  </div>
+
 
 
 

@@ -1,6 +1,6 @@
 {
   "name": "latoapps",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "Centro de aplicações Lato",
   "main": "main.js",
   "scripts": {
@@ -16,6 +16,7 @@
   "build": {
     "appId": "com.lato.latoapps.v3",
     "productName": "LatoApps",
+    "artifactName": "LatoApps.Setup.${version}.${ext}",
     "directories": {
       "output": "dist"
     },

@@ -12,6 +12,7 @@ const modal = document.getElementById("modal");
 
 let currentUser = "Usuário desconhecido";
 let contextMenu;
+let summaryTabsInitialized = false;
 
 /* =========================
    SOCKET.IO
@@ -163,6 +164,13 @@ function openModal(id = null) {
     if (p) fillForm(p);
   }
 
+  const inputAlimentador = document.getElementById("alimentador");
+
+  inputAlimentador.addEventListener("input", e => {
+    updateAlimentadorSelecionado(e.target.value.trim());
+  });
+
+
   setTimeout(() => {
     document.getElementById("obra")?.focus();
     enableKeyboardNavigation();
@@ -181,10 +189,13 @@ function clearForm() {
     "unidade",
     "alimentador",
     "observacao",
-    "girafa",
-    "esteira",
     "entrega",
-    "instalacao"
+    "instalacao",
+    "alimentador_aplicacao",
+    "alimentador_tipo_produto",
+    "alimentador_tipo_painel",
+    "alimentador_local_botoeira",
+    "alimentador_altura_entrega"
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = "";
@@ -197,11 +208,14 @@ function fillForm(p) {
   document.getElementById("unidade").value = p.unidade || "";
   document.getElementById("alimentador").value = p.alimentador || "";
   document.getElementById("observacao").value = p.observacao || "";
-  document.getElementById("girafa").value = p.girafa || "";
-  document.getElementById("esteira").value = p.esteira || "";
   document.getElementById("entrega").value = p.entrega ? p.entrega.split("T")[0] : "";
   document.getElementById("instalacao").value = p.instalacao ? p.instalacao.split("T")[0] : "";
+  document.getElementById("alimentador_aplicacao").value = p.alimentador_aplicacao || "";
+
+  // ✅ alimentador correto do projeto
+  updateAlimentadorSelecionado(p.alimentador || "");
 }
+
 
 /* =========================
    SAVE
@@ -213,12 +227,15 @@ async function save() {
     cliente: document.getElementById("cliente").value.trim(),
     unidade: document.getElementById("unidade").value.trim(),
     alimentador: document.getElementById("alimentador").value.trim(),
-    girafa: document.getElementById("girafa").value.trim(),
-    esteira: document.getElementById("esteira").value.trim(),
     entrega: document.getElementById("entrega").value || null,
     instalacao: document.getElementById("instalacao").value || null,
     observacao: document.getElementById("observacao").value.trim(),
-    createdBy: currentUser
+    createdBy: currentUser,
+    alimentador_aplicacao: document.getElementById("alimentador_aplicacao").value.trim(),
+    alimentador_tipo_produto: document.getElementById("alimentador_tipo_produto").value.trim(),
+    alimentador_tipo_painel: document.getElementById("alimentador_tipo_painel").value.trim(),
+    alimentador_local_botoeira: document.getElementById("alimentador_local_botoeira").value.trim(),
+    alimentador_altura_entrega: document.getElementById("alimentador_altura_entrega").value.trim()
   };
 
   if (!project.obra || !project.cliente || !project.observacao) {
@@ -332,6 +349,25 @@ function renderTable() {
 ========================= */
 
 function openSummary(project) {
+  initSummaryTabs();
+
+  // limpa abas
+  document.querySelectorAll(".summary-tab").forEach(t =>
+    t.classList.remove("active")
+  );
+
+  document.querySelectorAll(".summary-content").forEach(c =>
+    c.classList.remove("active")
+  );
+
+  // ativa aba Geral por padrão
+  const defaultTab = document.querySelector('[data-tab="summary-geral"]');
+  const defaultContent = document.getElementById("summary-geral");
+
+  if (defaultTab) defaultTab.classList.add("active");
+  if (defaultContent) defaultContent.classList.add("active");
+
+  /* ===== GERAL ===== */
   document.getElementById("sum-obra").textContent = project.obra || "-";
   document.getElementById("sum-cliente").textContent = project.cliente || "-";
   document.getElementById("sum-unidade").textContent = project.unidade || "-";
@@ -341,6 +377,33 @@ function openSummary(project) {
   document.getElementById("sum-entrega").textContent = formatDateBR(project.entrega);
   document.getElementById("sum-instalacao").textContent = formatDateBR(project.instalacao);
   document.getElementById("sum-observacao").textContent = project.observacao || "-";
+
+  /* ===== ALIMENTADOR ===== */
+  document.getElementById("sum-alimentador-aplicacao").textContent =
+    project.alimentador_aplicacao || "-";
+
+  document.getElementById("sum-alimentador-tipo-produto").textContent =
+    project.alimentador_tipo_produto || "-";
+
+  document.getElementById("sum-alimentador-tipo-painel").textContent =
+    project.alimentador_tipo_painel || "-";
+
+  document.getElementById("sum-alimentador-local-botoeira").textContent =
+    project.alimentador_local_botoeira || "-";
+
+  document.getElementById("sum-alimentador-altura-entrega").textContent =
+    project.alimentador_altura_entrega || "-";
+
+  /* ===== CARD DE DESTAQUE (IGUAL AO REGISTRO) ===== */
+  const card = document.getElementById("sum-alimentador-selecionado");
+
+  if (project.alimentador) {
+    card.textContent = project.alimentador;
+    card.classList.add("filled");
+  } else {
+    card.textContent = "Nenhum alimentador informado";
+    card.classList.remove("filled");
+  }
 
   openModalAnimated(document.getElementById("summaryModal"));
 }
@@ -391,4 +454,38 @@ function enableKeyboardNavigation() {
       if (e.key === "Escape") closeModal();
     });
   });
+}
+
+function updateAlimentadorSelecionado(valor) {
+  const el = document.getElementById("alimentador-selecionado");
+  if (!el) return;
+
+  if (!valor) {
+    el.textContent = "Nenhum alimentador informado";
+    el.classList.remove("filled");
+  } else {
+    el.textContent = valor;
+    el.classList.add("filled");
+  }
+}
+
+function initSummaryTabs() {
+  if (summaryTabsInitialized) return;
+
+  const tabs = document.querySelectorAll(".summary-tab");
+  const contents = document.querySelectorAll(".summary-content");
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      tabs.forEach(t => t.classList.remove("active"));
+      contents.forEach(c => c.classList.remove("active"));
+
+      tab.classList.add("active");
+
+      const content = document.getElementById(tab.dataset.tab);
+      if (content) content.classList.add("active");
+    });
+  });
+
+  summaryTabsInitialized = true;
 }

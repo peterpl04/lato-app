@@ -44,10 +44,9 @@
         <tbody id="items"></tbody>
       </table>
     </div>
-
   </div>
 
-  <!-- MODAL -->
+  <!-- MODAL REGISTRO -->
   <div class="modal-bg" id="modal">
     <div class="modal modal-large">
       <h3>Registro de Negócio</h3>
@@ -57,54 +56,60 @@
         <button class="tab" data-tab="alimentador">Alimentador</button>
       </div>
 
+      <!-- ABA GERAL -->
       <div class="tab-content active" id="tab-geral">
+        <div class="form-grid">
 
-      <div class="form-grid">
+          <!-- Linha 1 -->
+          <input id="obra" placeholder="Obra *">
+          <input id="cliente" placeholder="Cliente *">
 
-        <input id="obra" placeholder="Obra *">
-        <input id="cliente" placeholder="Cliente *">
+          <!-- Linha 2 -->
+          <input id="unidade" placeholder="Unidade">
+          <input id="observacao" placeholder="Observação *">
 
-        <input id="unidade" placeholder="Unidade">
-        <input id="alimentador" placeholder="Alimentador">
+          <!-- Linha 3 -->
+          <div class="field">
+            <label>Data de Entrega</label>
+            <input id="entrega" type="date">
+          </div>
 
-        <input id="girafa" placeholder="Girafa">
-        <input id="esteira" placeholder="Esteira">
+          <div class="field">
+            <label>Data de Instalação</label>
+            <input id="instalacao" type="date">
+          </div>
 
-        <div class="field">
-          <label>Data de Entrega</label>
-          <input id="entrega" type="date">
+          <!-- Ações -->
+          <div class="form-actions col-full">
+            <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>
+            <button type="button" onclick="save()">Salvar</button>
+          </div>
+
         </div>
-
-        <div class="field">
-          <label>Data de Instalação</label>
-          <input id="instalacao" type="date">
-        </div>
-
-        <input id="observacao" placeholder="Observação *">
-
-        <!-- 🔽 BOTÕES AQUI -->
-        <div class="form-actions">
-          <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>
-          <button type="button" onclick="save()">Salvar</button>
-        </div>
-
-      </div>
       </div>
 
-    </div>
+
+      <!-- ABA ALIMENTADOR -->
       <div class="tab-content" id="tab-alimentador">
 
-      </div>
-  </div>
+        <div class="form-grid">
+          <input id="alimentador" placeholder="Alimentador">
+          <input id="alimentador_aplicacao" placeholder="Aplicação">
+          <input id="alimentador_tipo_produto" placeholder="Tipo de Produto">
+          <input id="alimentador_tipo_painel" placeholder="Tipo de Painel">
+          <input id="alimentador_local_botoeira" placeholder="Localização da Botoeira">
+          <input id="alimentador_altura_entrega" placeholder="Altura da Entrega">
+        </div>
 
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL CONFIRMAÇÃO -->
   <div class="modal-bg" id="confirmModal">
     <div class="modal">
       <h3>Confirmar exclusão</h3>
-      <p class="modal-text">
-        Tem certeza que deseja excluir este item?
-      </p>
+      <p class="modal-text">Tem certeza que deseja excluir este item?</p>
 
       <div class="modal-actions">
         <button type="button" class="cancel" onclick="closeConfirm()">Cancelar</button>
@@ -117,88 +122,101 @@
   <div class="modal-bg" id="validationModal">
     <div class="modal">
       <h3>Campos obrigatórios</h3>
-
-      <p class="modal-text" id="validationMessage">
-        Preencha os campos obrigatórios.
-      </p>
+      <p class="modal-text" id="validationMessage">Preencha os campos obrigatórios.</p>
 
       <div class="modal-actions">
         <button type="button" onclick="closeValidation()">Ok</button>
       </div>
     </div>
   </div>
+
   <div id="hoverTooltip" class="hover-tooltip"></div>
 
-  <!-- MODAL RESUMO DA OBRA -->
+  <!-- MODAL SUMMARY -->
   <div class="modal-bg" id="summaryModal">
     <div class="modal modal-large summary-modal">
 
       <div class="summary-header">
-        <h3>Resumo</h3>
+        <h3>Resumo do Registro</h3>
         <button class="close-btn" onclick="closeSummary()">✕</button>
       </div>
 
-      <div class="summary-section">
-        <h4>Geral</h4>
+      <div class="summary-tabs">
+        <button class="summary-tab active" data-tab="summary-geral">Geral</button>
+        <button class="summary-tab" data-tab="summary-alimentador">Alimentador</button>
+      </div>
 
-        <div class="summary-grid">
-          <div>
-            <span>Obra</span>
-            <p id="sum-obra"></p>
-          </div>
-
-          <div>
-            <span>Cliente</span>
-            <p id="sum-cliente"></p>
-          </div>
-
-          <div>
-            <span>Unidade</span>
-            <p id="sum-unidade"></p>
-          </div>
-
-          <div>
-            <span>Alimentador</span>
-            <p id="sum-alimentador"></p>
-          </div>
-
-          <div>
-            <span>Girafa</span>
-            <p id="sum-girafa"></p>
-          </div>
-
-          <div>
-            <span>Esteira</span>
-            <p id="sum-esteira"></p>
-          </div>
-
-          <div>
-            <span>Entrega</span>
-            <p id="sum-entrega"></p>
-          </div>
-
-          <div>
-            <span>Instalação</span>
-            <p id="sum-instalacao"></p>
-          </div>
-
-          <div class="summary-full">
-            <span>Observação</span>
-            <p id="sum-observacao"></p>
+      <!-- SUMMARY GERAL -->
+      <div class="summary-content active" id="summary-geral">
+        <div class="summary-section">
+          <div class="summary-grid">
+            <div><span>Obra</span>
+              <p id="sum-obra"></p>
+            </div>
+            <div><span>Cliente</span>
+              <p id="sum-cliente"></p>
+            </div>
+            <div><span>Unidade</span>
+              <p id="sum-unidade"></p>
+            </div>
+            <div><span>Alimentador</span>
+              <p id="sum-alimentador"></p>
+            </div>
+            <div><span>Girafa</span>
+              <p id="sum-girafa"></p>
+            </div>
+            <div><span>Esteira</span>
+              <p id="sum-esteira"></p>
+            </div>
+            <div><span>Entrega</span>
+              <p id="sum-entrega"></p>
+            </div>
+            <div><span>Instalação</span>
+              <p id="sum-instalacao"></p>
+            </div>
+            <div class="summary-full">
+              <span>Observação</span>
+              <p id="sum-observacao"></p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="summary-section muted">
-        <h4>Alimentador</h4>
-        <p class="empty">Sem dados no momento</p>
+      <!-- SUMMARY ALIMENTADOR -->
+      <div class="summary-content" id="summary-alimentador">
+        <div class="summary-section">
+
+          <!-- CARD IGUAL AO REGISTRO -->
+          <div class="alimentador-highlight">
+            <div class="alimentador-label">Alimentador utilizado</div>
+            <div class="alimentador-value" id="sum-alimentador-selecionado">
+              Nenhum alimentador informado
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div><span>Aplicação</span>
+              <p id="sum-alimentador-aplicacao">-</p>
+            </div>
+            <div><span>Tipo de Produto</span>
+              <p id="sum-alimentador-tipo-produto">-</p>
+            </div>
+            <div><span>Tipo de Painel</span>
+              <p id="sum-alimentador-tipo-painel">-</p>
+            </div>
+            <div><span>Localização da Botoeira</span>
+              <p id="sum-alimentador-local-botoeira">-</p>
+            </div>
+            <div><span>Altura da Entrega</span>
+              <p id="sum-alimentador-altura-entrega">-</p>
+            </div>
+          </div>
+
+        </div>
       </div>
 
     </div>
   </div>
-
-
-
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="renderer.js"></script>

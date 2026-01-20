@@ -81,6 +81,11 @@ app.post("/projects", async (req, res) => {
         cliente,
         unidade,
         alimentador,
+        alimentador_aplicacao,
+        alimentador_tipo_produto,
+        alimentador_tipo_painel,
+        alimentador_local_botoeira,
+        alimentador_altura_entrega,
         observacao,
         girafa,
         esteira,
@@ -88,7 +93,10 @@ app.post("/projects", async (req, res) => {
         instalacao,
         created_by
       )
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+      )
+
       RETURNING *
       `,
       [
@@ -96,11 +104,18 @@ app.post("/projects", async (req, res) => {
         p.cliente || null,
         p.unidade || null,
         p.alimentador || null,
+
+        p.alimentador_aplicacao || null,
+        p.alimentador_tipo_produto || null,
+        p.alimentador_tipo_painel || null,
+        p.alimentador_local_botoeira || null,
+        p.alimentador_altura_entrega || null,
+
         p.observacao,
         p.girafa || null,
         p.esteira || null,
-        p.entrega || null,      // 🔴 ISSO É CRÍTICO
-        p.instalacao || null,   // 🔴 ISSO É CRÍTICO
+        p.entrega || null,
+        p.instalacao || null,
         p.createdBy
       ]
     );
@@ -128,12 +143,17 @@ app.put("/projects/:id", async (req, res) => {
   cliente=$2,
   unidade=$3,
   alimentador=$4,
-  observacao=$5,
-  girafa=$6,
-  esteira=$7,
-  entrega=$8,
-  instalacao=$9
-WHERE id=$10
+  alimentador_aplicacao=$5,
+  alimentador_tipo_produto=$6,
+  alimentador_tipo_painel=$7,
+  alimentador_local_botoeira=$8,
+  alimentador_altura_entrega=$9,
+  observacao=$10,
+  girafa=$11,
+  esteira=$12,
+  entrega=$13,
+  instalacao=$14
+WHERE id=$15
 
     `,
     [
@@ -141,6 +161,13 @@ WHERE id=$10
       p.cliente,
       p.unidade,
       p.alimentador,
+
+      p.alimentador_aplicacao,
+      p.alimentador_tipo_produto,
+      p.alimentador_tipo_painel,
+      p.alimentador_local_botoeira,
+      p.alimentador_altura_entrega,
+
       p.observacao,
       p.girafa,
       p.esteira,

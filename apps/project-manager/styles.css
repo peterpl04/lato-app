@@ -175,6 +175,23 @@ header span {
   /* centraliza horizontalmente */
   gap: 14px;
   margin-top: 18px;
+  overflow-y: auto;
+  padding-right: 4px;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.col-2 {
+  grid-column: span 2;
+}
+
+/* campos que ocupam tudo (se precisar no futuro) */
+.col-4 {
+  grid-column: span 4;
+}
+
+.col-full {
+  grid-column: 1 / -1;
 }
 
 .form-grid input {
@@ -386,11 +403,6 @@ button.danger:hover {
   padding: 32px;
 }
 
-.form-grid {
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
 /* garante que os botões fiquem sempre visíveis */
 .modal-actions {
   margin-top: 16px;
@@ -548,4 +560,62 @@ button.danger:hover {
 .modal-bg.active .modal {
   transform: scale(1) translateY(0);
   opacity: 1;
+}
+
+.alimentador-highlight {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #f5f7fa, #eef1f5);
+  border-left: 6px solid #2563eb;
+  /* azul forte */
+  padding: 14px 16px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.alimentador-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.alimentador-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.alimentador-value:empty,
+.alimentador-value:not(:empty):contains("Nenhum") {
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.summary-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.summary-tab {
+  background: #f1f1f1;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.summary-tab.active {
+  background: #111;
+  color: #fff;
+}
+
+.summary-content {
+  display: none;
+}
+
+.summary-content.active {
+  display: block;
 }

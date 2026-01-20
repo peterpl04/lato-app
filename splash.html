@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 
 <head>
   <meta charset="UTF-8" />
+
   <style>
     body {
       margin: 0;
@@ -12,48 +13,75 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+    }
+
+    /* container da splash */
+    .splash {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      transition:
+        transform 0.6s ease,
+        opacity 0.6s ease,
+        filter 0.6s ease;
+    }
+
+    /* estado de saída (entra na tela) */
+    .splash.exit {
+      transform: scale(0.9);
+      opacity: 0;
+      filter: blur(6px);
     }
 
     img {
-  width: 220px;
+      width: 220px;
 
-  opacity: 0;
-  transform: scale(0.85);
-  filter: blur(8px) drop-shadow(0 0 4px rgba(255, 255, 255, 0.15));
+      opacity: 0;
+      transform: scale(0.85);
+      filter: blur(8px) drop-shadow(0 0 4px rgba(255, 255, 255, 0.15));
 
-  animation:
-    logoIn 1.2s ease forwards,
-    glowIn 1.2s ease forwards,
-    pulse 1.4s ease-in-out 2.4s infinite alternate;
-}
-
+      animation:
+        logoIn 1.2s ease forwards,
+        glowIn 1.2s ease forwards,
+        pulse 1.4s ease-in-out 2.4s infinite alternate;
+    }
 
     @keyframes logoIn {
-  to {
-    opacity: 1;
-    transform: scale(1);
-    filter: blur(0) drop-shadow(0 0 6px rgba(255, 255, 255, 0.1));
-  }
-}
+      to {
+        opacity: 1;
+        transform: scale(1);
+        filter: blur(0) drop-shadow(0 0 6px rgba(255, 255, 255, 0.1));
+      }
+    }
 
-@keyframes glowIn {
-  to {
-    filter: blur(0) drop-shadow(0 0 14px rgba(255, 255, 255, 0.45));
-  }
-}
+    @keyframes glowIn {
+      to {
+        filter: blur(0) drop-shadow(0 0 14px rgba(255, 255, 255, 0.45));
+      }
+    }
 
-@keyframes pulse {
-  to {
-    transform: scale(1.03);
-    filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.75));
-  }
-}
-
+    @keyframes pulse {
+      to {
+        transform: scale(1.03);
+        filter: drop-shadow(0 0 18px rgba(255, 255, 255, 0.75));
+      }
+    }
   </style>
 </head>
 
 <body>
-  <img src="assets/icons/lato-infinite.png" alt="LatoApps">
+  <div class="splash" id="splash">
+    <img src="assets/icons/lato-infinite.png" alt="LatoApps">
+  </div>
+
+  <script>
+    // dispara a animação de saída
+    setTimeout(() => {
+      document.getElementById("splash").classList.add("exit");
+    }, 2200); // tempo antes de sumir
+  </script>
 </body>
 
 </html>

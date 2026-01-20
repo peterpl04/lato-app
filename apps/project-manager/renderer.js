@@ -208,13 +208,33 @@ function fillForm(p) {
   document.getElementById("unidade").value = p.unidade || "";
   document.getElementById("alimentador").value = p.alimentador || "";
   document.getElementById("observacao").value = p.observacao || "";
-  document.getElementById("entrega").value = p.entrega ? p.entrega.split("T")[0] : "";
-  document.getElementById("instalacao").value = p.instalacao ? p.instalacao.split("T")[0] : "";
-  document.getElementById("alimentador_aplicacao").value = p.alimentador_aplicacao || "";
 
-  // ✅ alimentador correto do projeto
+  document.getElementById("entrega").value =
+    p.entrega ? p.entrega.split("T")[0] : "";
+
+  document.getElementById("instalacao").value =
+    p.instalacao ? p.instalacao.split("T")[0] : "";
+
+  // ===== ALIMENTADOR =====
+  document.getElementById("alimentador_aplicacao").value =
+    p.alimentador_aplicacao || "";
+
+  document.getElementById("alimentador_tipo_produto").value =
+    p.alimentador_tipo_produto || "";
+
+  document.getElementById("alimentador_tipo_painel").value =
+    p.alimentador_tipo_painel || "";
+
+  document.getElementById("alimentador_local_botoeira").value =
+    p.alimentador_local_botoeira || "";
+
+  document.getElementById("alimentador_altura_entrega").value =
+    p.alimentador_altura_entrega || "";
+
+  // Atualiza destaque se existir
   updateAlimentadorSelecionado(p.alimentador || "");
 }
+
 
 
 /* =========================

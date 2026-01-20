@@ -6,9 +6,6 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-
-
-
 const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut} = require("electron");
 const archiver = require("archiver");
 const path = require("path");
@@ -33,7 +30,23 @@ log.info("Aplicação iniciada");
 let loginWindow;
 let mainWindow;
 let splashWindow;
+let updateWindow;
 let loggedUser = null;
+
+function createUpdateWindow() {
+  updateWindow = new BrowserWindow({
+    width: 420,
+    height: 260,
+    resizable: false,
+    frame: false,
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js")
+    }
+  });
+
+  updateWindow.loadFile("update.html");
+}
 
 function createSplashWindow() {
   splashWindow = new BrowserWindow({
@@ -326,23 +339,40 @@ app.whenReady().then(() => {
   }, 2800);
 });
 
-autoUpdater.on("update-available", () => {
-  dialog.showMessageBox({
-    type: "info",
-    title: "Atualização disponível",
-    message: "Uma nova versão está sendo baixada em segundo plano."
+autoUpdater.on("update-available", info => {
+  log.info("Atualização disponível:", info.version);
+
+  if (!updateWindow) {
+    createUpdateWindow();
+  }
+
+  updateWindow.webContents.once("did-finish-load", () => {
+    updateWindow.webContents.send("update-available", info.version);
   });
 });
 
-autoUpdater.on("update-downloaded", () => {
-  dialog.showMessageBox({
-    type: "info",
-    title: "Atualização pronta",
-    message: "Atualização baixada. O app será reiniciado.",
-  }).then(() => {
-    autoUpdater.quitAndInstall();
-  });
+autoUpdater.on("download-progress", progress => {
+  if (updateWindow) {
+    updateWindow.webContents.send("update-progress", {
+      percent: Math.round(progress.percent),
+      speed: progress.bytesPerSecond,
+      transferred: progress.transferred,
+      total: progress.total
+    });
+  }
 });
+
+
+autoUpdater.on("update-downloaded", () => {
+  if (updateWindow) {
+    updateWindow.webContents.send("update-done");
+  }
+
+  setTimeout(() => {
+    autoUpdater.quitAndInstall();
+  }, 1500);
+});
+
 
 autoUpdater.logger = require("electron-log");
 autoUpdater.logger.transports.file.level = "info";

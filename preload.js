@@ -2,6 +2,15 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
 
+  onUpdateAvailable: cb =>
+    ipcRenderer.on("update-available", (_, v) => cb(v)),
+
+  onUpdateProgress: cb =>
+    ipcRenderer.on("update-progress", (_, p) => cb(p)),
+
+  onUpdateDone: cb =>
+    ipcRenderer.on("update-done", cb),
+
   closeLogin: () => ipcRenderer.send("close-login-window"),
 
 

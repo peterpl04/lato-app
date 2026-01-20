@@ -330,6 +330,10 @@ autoUpdater.on("update-downloaded", () => {
   });
 });
 
+autoUpdater.logger = require("electron-log");
+autoUpdater.logger.transports.file.level = "info";
+
+
 
 app.on("window-all-closed", () => {
   app.quit();

@@ -1,3 +1,6 @@
+process.env.GH_TOKEN = "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";
+
+
 if (process.env.NODE_ENV === "development") {
   require("dotenv").config();
 
@@ -18,6 +21,11 @@ const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 
 const { autoUpdater } = require("electron-updater");
+
+autoUpdater.requestHeaders = {
+  Authorization: `token ${process.env.GH_TOKEN}`
+};
+
 const log = require("electron-log");
 
 log.transports.file.level = "info";

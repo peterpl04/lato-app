@@ -2,6 +2,9 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("api", {
 
+  closeLogin: () => ipcRenderer.send("close-login-window"),
+
+
   loginSuccess: (username) =>
     ipcRenderer.invoke("login-success", username),
 

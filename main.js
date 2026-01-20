@@ -18,15 +18,38 @@ app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 
 let loginWindow;
 let mainWindow;
+let splashWindow;
 let loggedUser = null;
+
+function createSplashWindow() {
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 400,
+    frame: false,          // ❌ sem borda
+    transparent: true,     // fundo transparente
+    alwaysOnTop: true,
+    resizable: false,
+    movable: false,
+    center: true,
+    skipTaskbar: true,     // não aparece na barra
+    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js")
+    }
+  });
+
+  splashWindow.loadFile("splash.html");
+}
 
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
-    width: 390,
-    height: 460,
-    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
+    width: 420,
+    height: 520,
     resizable: false,
+    frame: false,               // 🔥 remove barra do Windows
     autoHideMenuBar: true,
+    backgroundColor: "#f8fafc", // evita flicker
+    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js")
     }
@@ -34,6 +57,7 @@ function createLoginWindow() {
 
   loginWindow.loadFile("login.html");
 }
+
 
 function createMainWindow() {
   mainWindow = new BrowserWindow({
@@ -143,6 +167,13 @@ function zipDestino(destino) {
 
 
 /* ===== IPC ===== */
+
+ipcMain.on("close-login-window", () => {
+  if (loginWindow) {
+    loginWindow.close();
+  }
+});
+
 
 ipcMain.handle("login-success", (_, username) => {
   loggedUser = username;
@@ -267,7 +298,18 @@ ipcMain.handle(
 
 /* ===== APP ===== */
 
-app.whenReady().then(createLoginWindow);
+app.whenReady().then(() => {
+  createSplashWindow();
+
+  setTimeout(() => {
+    if (splashWindow) {
+      splashWindow.close();
+      splashWindow = null;
+    }
+
+    createLoginWindow();
+  }, 2800); // tempo da animação
+});
 
 app.on("window-all-closed", () => {
   app.quit();

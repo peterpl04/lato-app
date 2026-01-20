@@ -1,6 +1,6 @@
 {
   "name": "latoapps",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Centro de aplicações Lato",
   "main": "main.js",
   "scripts": {
@@ -37,6 +37,7 @@
   "dependencies": {
     "archiver": "^7.0.1",
     "cors": "^2.8.5",
+    "electron-log": "^5.4.3",
     "electron-updater": "^6.7.3",
     "express": "^5.2.1",
     "pg": "^8.17.1",

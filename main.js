@@ -6,7 +6,9 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-const { autoUpdater } = require("electron-updater");
+
+
+
 const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut} = require("electron");
 const archiver = require("archiver");
 const path = require("path");
@@ -15,6 +17,13 @@ const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 
+const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
+
+log.transports.file.level = "info";
+autoUpdater.logger = log;
+
+log.info("Aplicação iniciada");
 
 let loginWindow;
 let mainWindow;
@@ -360,9 +369,7 @@ function initAutoUpdater() {
   });
 
   autoUpdater.on("download-progress", progress => {
-    log.info(
-      `Download ${Math.round(progress.percent)}% (${progress.transferred}/${progress.total})`
-    );
+    log.info(`Download ${Math.round(progress.percent)}%`);
   });
 
   autoUpdater.on("update-downloaded", () => {
@@ -370,6 +377,6 @@ function initAutoUpdater() {
     autoUpdater.quitAndInstall();
   });
 
-  // 🚀 CHAMADA REAL
   autoUpdater.checkForUpdatesAndNotify();
 }
+

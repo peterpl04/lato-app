@@ -3,7 +3,6 @@ const users = [
   { user: "Carlos", pass: "carlos@adm" },
   { user: "João", pass: "joao@proj" },
   { user: "Pedro", pass: "pedro@dev" },
-  { user: "Princesa_do_Pedro", pass: "princesinha" },
   { user: "1", pass: "1"}
 ];
 

@@ -6,7 +6,7 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-
+const { autoUpdater } = require("electron-updater");
 const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut} = require("electron");
 const archiver = require("archiver");
 const path = require("path");
@@ -301,15 +301,17 @@ ipcMain.handle(
 app.whenReady().then(() => {
   createSplashWindow();
 
+  autoUpdater.checkForUpdatesAndNotify();
+
   setTimeout(() => {
     if (splashWindow) {
       splashWindow.close();
       splashWindow = null;
     }
-
     createLoginWindow();
-  }, 2800); // tempo da animação
+  }, 2800);
 });
+
 
 app.on("window-all-closed", () => {
   app.quit();

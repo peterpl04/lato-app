@@ -312,6 +312,24 @@ app.whenReady().then(() => {
   }, 2800);
 });
 
+autoUpdater.on("update-available", () => {
+  dialog.showMessageBox({
+    type: "info",
+    title: "Atualização disponível",
+    message: "Uma nova versão está sendo baixada em segundo plano."
+  });
+});
+
+autoUpdater.on("update-downloaded", () => {
+  dialog.showMessageBox({
+    type: "info",
+    title: "Atualização pronta",
+    message: "Atualização baixada. O app será reiniciado.",
+  }).then(() => {
+    autoUpdater.quitAndInstall();
+  });
+});
+
 
 app.on("window-all-closed", () => {
   app.quit();

@@ -1,6 +1,3 @@
-process.env.GH_TOKEN = "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";
-
-
 if (process.env.NODE_ENV === "development") {
   require("dotenv").config();
 

@@ -301,7 +301,7 @@ ipcMain.handle(
 app.whenReady().then(() => {
   createSplashWindow();
 
-  autoUpdater.checkForUpdatesAndNotify();
+  initAutoUpdater();
 
   setTimeout(() => {
     if (splashWindow) {
@@ -338,3 +338,38 @@ autoUpdater.logger.transports.file.level = "info";
 app.on("window-all-closed", () => {
   app.quit();
 });
+
+
+function initAutoUpdater() {
+  log.info("Inicializando autoUpdater");
+
+  autoUpdater.on("checking-for-update", () => {
+    log.info("Verificando atualização...");
+  });
+
+  autoUpdater.on("update-available", info => {
+    log.info("Atualização disponível:", info.version);
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    log.info("Nenhuma atualização disponível");
+  });
+
+  autoUpdater.on("error", err => {
+    log.error("Erro no autoUpdater:", err);
+  });
+
+  autoUpdater.on("download-progress", progress => {
+    log.info(
+      `Download ${Math.round(progress.percent)}% (${progress.transferred}/${progress.total})`
+    );
+  });
+
+  autoUpdater.on("update-downloaded", () => {
+    log.info("Atualização baixada, reiniciando...");
+    autoUpdater.quitAndInstall();
+  });
+
+  // 🚀 CHAMADA REAL
+  autoUpdater.checkForUpdatesAndNotify();
+}

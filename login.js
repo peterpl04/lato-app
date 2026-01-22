@@ -15,7 +15,7 @@ async function login() {
   }
 
   try {
-    const res = await fetch("https://SEU_BACKEND/auth/login", {
+    const res = await fetch("https://lato-app-production.up.railway.app/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user, pass })

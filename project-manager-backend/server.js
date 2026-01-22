@@ -73,6 +73,10 @@ app.get("/projects", async (req, res) => {
 // CREATE
 app.post("/projects", async (req, res) => {
   const p = req.body;
+  const createdBy =
+    typeof p.createdBy === "object"
+      ? p.createdBy.name
+      : p.createdBy;
 
   try {
     const result = await pool.query(
@@ -117,7 +121,7 @@ app.post("/projects", async (req, res) => {
         p.esteira || null,
         p.entrega || null,
         p.instalacao || null,
-        p.createdBy
+        createdBy
       ]
     );
 

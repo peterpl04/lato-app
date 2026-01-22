@@ -1,42 +1,43 @@
-const users = [
-  { user: "Luiz", pass: "luiz@adm" },
-  { user: "Carlos", pass: "carlos@adm" },
-  { user: "João", pass: "joao@proj" },
-  { user: "Pedro", pass: "pedro@dev" },
-  { user: "1", pass: "1"}
-];
-
 const button = document.querySelector("button");
 const wrapper = document.querySelector(".login-wrapper");
 
-function login() {
+async function login() {
   button.classList.add("press");
   setTimeout(() => button.classList.remove("press"), 120);
 
   const user = document.getElementById("user").value.trim();
-  const u = document.getElementById("user").value;
-  const p = document.getElementById("pass").value;
+  const pass = document.getElementById("pass").value;
   const error = document.getElementById("error");
 
-  const valid = users.find(x => x.user === u && x.pass === p);
-
-  if (!valid) {
-    error.textContent = "Usuário ou senha inválidos";
-
-    wrapper.classList.remove("shake");
-    void wrapper.offsetWidth;
-    wrapper.classList.add("shake");
-
+  if (!user || !pass) {
+    error.textContent = "Informe usuário e senha";
     return;
   }
 
-  if (!user) return;
+  try {
+    const res = await fetch("https://SEU_BACKEND/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user, pass })
+    });
 
-  window.api.loginSuccess(user);
+    const data = await res.json();
+
+    if (!res.ok) {
+      error.textContent = data.error || "Login inválido";
+      wrapper.classList.remove("shake");
+      void wrapper.offsetWidth;
+      wrapper.classList.add("shake");
+      return;
+    }
+
+    window.api.loginSuccess(data.user);
+
+  } catch (err) {
+    error.textContent = "Erro de conexão";
+  }
 }
 
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    login();
-  }
+document.addEventListener("keydown", e => {
+  if (e.key === "Enter") login();
 });

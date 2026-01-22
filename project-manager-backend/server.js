@@ -3,6 +3,7 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const pool = require("./db");
+const bcrypt = require("bcrypt");
 
 const app = express();
 app.use(cors());
@@ -205,3 +206,45 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () =>
   console.log(`🚀 Backend rodando na porta ${PORT}`)
 );
+
+
+app.post("/auth/login", async (req, res) => {
+  const { user, pass } = req.body;
+
+  if (!user || !pass) {
+    return res.status(400).json({ error: "Dados inválidos" });
+  }
+
+  try {
+    const result = await pool.query(
+      "SELECT * FROM users WHERE username = $1",
+      [user]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Usuário ou senha inválidos" });
+    }
+
+    const dbUser = result.rows[0];
+
+    const ok = await bcrypt.compare(pass, dbUser.password_hash);
+
+    if (!ok) {
+      return res.status(401).json({ error: "Usuário ou senha inválidos" });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: dbUser.id,
+        name: dbUser.username,
+        role: dbUser.role
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Erro interno" });
+  }
+});
+

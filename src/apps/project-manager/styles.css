@@ -181,6 +181,11 @@ header span {
   gap: 20px;
 }
 
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
 .col-2 {
   grid-column: span 2;
 }

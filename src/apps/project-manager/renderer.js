@@ -336,8 +336,8 @@ function renderTable() {
       <td>${p.esteira || "-"}</td>
       <td>${formatDateBR(p.entrega)}</td>
       <td>${formatDateBR(p.instalacao)}</td>
-      <td class="obs-cell">${p.observacao}</td>
     `;
+    // <td class="obs-cell">${p.observacao}</td> (removido da tabela para evitar poluição visual, mas permanece na modal de resumo)
 
     tr.addEventListener("click", e => {
       if (e.button !== 0) return;
@@ -508,4 +508,79 @@ function initSummaryTabs() {
   });
 
   summaryTabsInitialized = true;
+}
+
+function exportProjects() {
+  if (!projects.length) {
+    alert("Nenhum projeto para exportar.");
+    return;
+  }
+  const headers = [
+    "ID",
+    "Obra",
+    "Cliente",
+    "Unidade",
+    "Alimentador",
+    "Girafa",
+    "Esteira",
+    "Entrega",
+    "Instalação",
+    "Observação",
+    "Criado por",
+    "Data criação"
+  ];
+
+  const keys = [
+    "id",
+    "obra",
+    "cliente",
+    "unidade",
+    "alimentador",
+    "girafa",
+    "esteira",
+    "entrega",
+    "instalacao",
+    "observacao",
+    "created_by",
+    "created_at"
+  ];
+
+  const csvRows = [];
+
+  csvRows.push(headers.join(";"));
+
+  projects.forEach(p => {
+    const row = keys.map(key => {
+      let value = p[key] ?? "";
+
+      if (key === "entrega" || key === "instalacao" || key === "created_at") {
+        if (value) {
+          value = new Date(value).toLocaleDateString("pt-BR");
+        }
+      }
+
+      value = String(value).replace(/"/g, '""');
+
+      return `"${value}"`;
+    });
+
+    csvRows.push(row.join(";"));
+  });
+
+  const csvString = csvRows.join("\n");
+
+  const blob = new Blob(["\uFEFF" + csvString], {
+    type: "text/csv;charset=utf-8;"
+  });
+
+  const url = URL.createObjectURL(blob);
+
+  const hoje = new Date().toISOString().split("T")[0];
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `backup_projetos_${hoje}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
 }

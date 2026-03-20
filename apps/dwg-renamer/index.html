@@ -6,161 +6,14 @@
   <title>Renomeador DWG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
-  <style>
-    * {
-      box-sizing: border-box;
-      font-family: 'Inter', sans-serif;
-    }
-
-    html,
-    body {
-      width: 100%;
-      height: 100%;
-    }
-
-    body {
-      margin: 0;
-      background: #f4f6f9;
-      padding: 24px;
-      overflow: hidden;
-      /* remove qualquer scroll */
-    }
-
-    .container {
-      max-width: 520px;
-      margin: 0 auto;
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 600;
-      margin-bottom: 20px;
-      color: #1f2937;
-    }
-
-    .card {
-      background: #ffffff;
-      border-radius: 8px;
-      padding: 18px 20px;
-      margin-bottom: 14px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    }
-
-    label {
-      font-size: 13px;
-      color: #374151;
-      font-weight: 500;
-      display: block;
-      margin-bottom: 8px;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px 12px;
-      border-radius: 6px;
-      border: 1px solid #d1d5db;
-      font-size: 14px;
-      outline: none;
-      transition: border 0.2s, box-shadow 0.2s;
-    }
-
-    input:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
-    }
-
-    button {
-      width: 100%;
-      padding: 11px;
-      border-radius: 6px;
-      border: none;
-      background: #2563eb;
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.2s, box-shadow 0.2s;
-    }
-
-    button:hover {
-      background: #1e40af;
-      box-shadow: 0 4px 10px rgba(30, 64, 175, 0.25);
-    }
-
-    button:active {
-      transform: translateY(1px);
-    }
-
-    .path {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 6px;
-      word-break: break-all;
-    }
-
-    .status {
-      margin-top: 14px;
-      font-size: 14px;
-      font-weight: 500;
-    }
-
-    .status.success {
-      color: #16a34a;
-    }
-
-    .status.error {
-      color: #dc2626;
-    }
-
-    .titulo {
-      text-align: center;
-    }
-
-    .checkbox {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  color: #374151;
-  cursor: pointer;
-  user-select: none;
-}
-
-.checkbox input {
-  display: none;
-}
-
-.checkmark {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
-  border: 2px solid #2563eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, border 0.2s;
-}
-
-.checkbox input:checked + .checkmark {
-  background: #2563eb;
-}
-
-.checkbox input:checked + .checkmark::after {
-  content: "✓";
-  color: white;
-  font-size: 13px;
-  font-weight: bold;
-}
-
-  </style>
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
-
   <div class="container">
-    <h1 class="titulo">Renomear Arquivos</h1>
+    <h1 class="titulo">DWG Renamer</h1>
 
     <div class="card">
       <button id="btnOrigem">Selecionar pasta de ORIGEM</button>
@@ -172,9 +25,16 @@
       <div class="path" id="destinoPath"></div>
     </div>
 
-    <div class="card">
-      <label>Multiplicador</label>
-        <input type="number" id="multiplicador" placeholder="Informe o multiplicador" min="1" />
+    <label>
+      Multiplicador
+      <span class="tooltip">
+        <i class="fas fa-question-circle help-icon"></i>
+        <span class="tooltip-text">
+          O multiplicador é a quantidade de vezes que você deseja alterar para o número de alimentadores.
+        </span>
+      </span>
+
+        <input class="espaco" type="number" id="multiplicador" placeholder="Informe o multiplicador" min="1" />
     </div>
 
     <div class="card">

@@ -1,6 +1,6 @@
 {
   "name": "latoapps",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "description": "Centro de aplicações Lato",
   "main": "main.js",
   "scripts": {
@@ -36,6 +36,8 @@
     ]
   },
   "dependencies": {
+    "@fortawesome/fontawesome-svg-core": "^7.2.0",
+    "@fortawesome/free-solid-svg-icons": "^7.2.0",
     "archiver": "^7.0.1",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",

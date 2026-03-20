@@ -45,7 +45,9 @@ function createUpdateWindow() {
     }
   });
 
-  updateWindow.loadFile("update.html");
+  updateWindow.loadFile(
+    path.join(__dirname, "../renderer/pages/update/update.html")
+  );
 }
 
 function createSplashWindow() {
@@ -59,13 +61,15 @@ function createSplashWindow() {
     movable: false,
     center: true,
     skipTaskbar: true,     // não aparece na barra
-    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "../preload/preload.js")
     }
   });
 
-  splashWindow.loadFile("splash.html");
+  splashWindow.loadFile(
+    path.join(__dirname, "../renderer/pages/splash/splash.html")
+  );
 }
 
 function createLoginWindow() {
@@ -76,14 +80,15 @@ function createLoginWindow() {
     frame: false,               // 🔥 remove barra do Windows
     autoHideMenuBar: true,
     backgroundColor: "#f8fafc", // evita flicker
-    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "../preload/preload.js")
     }
   });
 
-  loginWindow.loadFile("login.html");
-}
+  loginWindow.loadFile(
+    path.join(__dirname, "../renderer/pages/login/login.html")
+  ); }
 
 
 function createMainWindow() {
@@ -92,14 +97,14 @@ function createMainWindow() {
     height: 600,
     resizable: false,
     autoHideMenuBar: true,
-    icon: path.join(__dirname, "assets", "icons", "lato-infinite.ico"),
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "../preload/preload.js")
     }
   });
 
   mainWindow.setMenu(null);
-  mainWindow.loadFile("index.html");
+  mainWindow.loadFile(path.join(__dirname, "../renderer/pages/index/index.html"));
 
   // 🔁 Ctrl + R → reload da janela principal
   globalShortcut.register("CommandOrControl+R", () => {
@@ -125,12 +130,12 @@ function openDWGRenamer() {
     parent: mainWindow,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "../preload/preload.js")
     }
   });
 
   win.setMenu(null);
-  win.loadFile("apps/dwg-renamer/index.html");
+  win.loadFile(path.join(__dirname, "../apps/dwg-renamer/index.html"));
 }
 
 function openProjectManager() {
@@ -141,12 +146,12 @@ function openProjectManager() {
     parent: mainWindow,
     autoHideMenuBar: true,
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "../preload/preload.js")
     }
   });
 
   win.setMenu(null);
-  win.loadFile("apps/project-manager/index.html");
+  win.loadFile(path.join(__dirname, "../apps/project-manager/index.html"));
 }
 
 function readProjectData() {

@@ -527,7 +527,8 @@ function exportProjects() {
     "Instalação",
     "Observação",
     "Criado por",
-    "Data criação"
+    "Data criação",
+    "Aplicação Alimentador"
   ];
 
   const keys = [
@@ -542,7 +543,8 @@ function exportProjects() {
     "instalacao",
     "observacao",
     "created_by",
-    "created_at"
+    "created_at",
+    "alimentador_aplicacao"
   ];
 
   const csvRows = [];

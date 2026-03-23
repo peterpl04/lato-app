@@ -3,38 +3,43 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Atualizando</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
+  <div class="aurora"></div>
+  <div class="aurora aurora-b"></div>
 
-  <h3>Atualizando LatoApps</h3>
-  <p id="status">Preparando…</p>
+  <main class="card" role="status" aria-live="polite">
+    <p class="eyebrow">LatoApps Updater</p>
+    <h1>Atualizando o aplicativo</h1>
+    <p class="version" id="version">Verificando nova versão...</p>
+    <p class="status" id="status">Preparando download...</p>
 
-  <div class="bar">
-    <div class="bar-fill" id="bar"></div>
-  </div>
+    <div class="bar" aria-hidden="true">
+      <div class="bar-fill" id="bar"></div>
+      <div class="bar-glow"></div>
+    </div>
 
-  <script>
-    window.electron.onUpdateAvailable(version => {
-      document.getElementById("status").innerText =
-        "Nova versão " + version;
-    });
+    <section class="meta">
+      <div class="meta-item">
+        <span class="meta-label">Progresso</span>
+        <strong id="percent">0%</strong>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Velocidade</span>
+        <strong id="speed">-</strong>
+      </div>
+      <div class="meta-item">
+        <span class="meta-label">Dados</span>
+        <strong id="data">0 MB / 0 MB</strong>
+      </div>
+    </section>
+  </main>
 
-    window.electron.onUpdateProgress(data => {
-      document.getElementById("bar").style.width =
-        data.percent + "%";
-
-      document.getElementById("status").innerText =
-        `Baixando… ${data.percent}%`;
-    });
-
-    window.electron.onUpdateDone(() => {
-      document.getElementById("status").innerText =
-        "Finalizando…";
-    });
-  </script>
+  <script src="renderer.js"></script>
 
 </body>
 

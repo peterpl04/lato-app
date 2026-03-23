@@ -16,9 +16,13 @@ app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 
 const { autoUpdater } = require("electron-updater");
 
-autoUpdater.requestHeaders = {
-  Authorization: `token ${process.env.GH_TOKEN}`
-};
+const ghToken = process.env.GH_TOKEN;
+
+if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
+  autoUpdater.requestHeaders = {
+    Authorization: `token ${ghToken}`
+  };
+}
 
 const log = require("electron-log");
 
@@ -32,22 +36,49 @@ let mainWindow;
 let splashWindow;
 let updateWindow;
 let loggedUser = null;
+let splashDelayDone = false;
+let updateCheckResolved = false;
+let updateIsAvailable = false;
+
+function tryOpenLoginAfterStartup() {
+  if (!splashDelayDone || !updateCheckResolved || updateIsAvailable || loginWindow) {
+    return;
+  }
+
+  if (splashWindow) {
+    splashWindow.close();
+    splashWindow = null;
+  }
+
+  createLoginWindow();
+}
 
 function createUpdateWindow() {
   updateWindow = new BrowserWindow({
-    width: 420,
-    height: 260,
+    width: 560,
+    height: 320,
     resizable: false,
     frame: false,
     alwaysOnTop: true,
+    autoHideMenuBar: true,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    backgroundColor: "#041527",
     webPreferences: {
-      preload: path.join(__dirname, "preload.js")
+      preload: path.join(__dirname, "../preload/preload.js")
     }
   });
+
+  updateWindow.setMenu(null);
 
   updateWindow.loadFile(
     path.join(__dirname, "../renderer/pages/update/update.html")
   );
+
+  updateWindow.on("closed", () => {
+    updateWindow = null;
+  });
 }
 
 function createSplashWindow() {
@@ -336,16 +367,20 @@ app.whenReady().then(() => {
   initAutoUpdater();
 
   setTimeout(() => {
-    if (splashWindow) {
-      splashWindow.close();
-      splashWindow = null;
-    }
-    createLoginWindow();
+    splashDelayDone = true;
+    tryOpenLoginAfterStartup();
   }, 2800);
 });
 
 autoUpdater.on("update-available", info => {
   log.info("Atualização disponível:", info.version);
+  updateIsAvailable = true;
+  updateCheckResolved = true;
+
+  if (splashWindow) {
+    splashWindow.close();
+    splashWindow = null;
+  }
 
   if (!updateWindow) {
     createUpdateWindow();
@@ -374,8 +409,22 @@ autoUpdater.on("update-downloaded", () => {
   }
 
   setTimeout(() => {
-    autoUpdater.quitAndInstall();
+    autoUpdater.quitAndInstall(true, true);
   }, 1500);
+});
+
+autoUpdater.on("update-not-available", () => {
+  updateIsAvailable = false;
+  updateCheckResolved = true;
+  tryOpenLoginAfterStartup();
+});
+
+autoUpdater.on("error", () => {
+  if (!updateCheckResolved) {
+    updateIsAvailable = false;
+    updateCheckResolved = true;
+    tryOpenLoginAfterStartup();
+  }
 });
 
 
@@ -391,6 +440,8 @@ app.on("window-all-closed", () => {
 
 function initAutoUpdater() {
   log.info("Inicializando autoUpdater");
+  log.info(`App empacotado: ${app.isPackaged}`);
+  log.info(`GH_TOKEN configurado: ${Boolean(ghToken && ghToken !== "undefined" && ghToken !== "null")}`);
 
   autoUpdater.on("checking-for-update", () => {
     log.info("Verificando atualização...");
@@ -414,9 +465,10 @@ function initAutoUpdater() {
 
   autoUpdater.on("update-downloaded", () => {
     log.info("Atualização baixada, reiniciando...");
-    autoUpdater.quitAndInstall();
   });
 
-  autoUpdater.checkForUpdatesAndNotify();
+  autoUpdater.checkForUpdatesAndNotify().catch(err => {
+    log.error("Falha ao verificar atualizações:", err);
+  });
 }
 

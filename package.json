@@ -1,6 +1,6 @@
 {
   "name": "latoapps",
-  "version": "1.2.2",
+  "version": "1.2.7",
   "description": "Centro de aplicações Lato",
   "main": "src/main/main.js",
   "scripts": {
@@ -26,6 +26,12 @@
     "win": {
       "target": "nsis",
       "icon": "src/assets/icons/lato-infinite.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowToChangeInstallationDirectory": false,
+      "perMachine": false,
+      "runAfterFinish": true
     },
     "publish": [
       {

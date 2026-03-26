@@ -31,10 +31,13 @@ async function initDB() {
       esteira TEXT,
       entrega DATE,
       instalacao DATE,
+      progresso_percent INTEGER NOT NULL DEFAULT 0,
       created_by TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
     )
   `);
+
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS progresso_percent INTEGER NOT NULL DEFAULT 0`);
 
   console.log("🟢 Tabela projects pronta");
 }
@@ -184,6 +187,31 @@ WHERE id=$15
 
   io.emit("projects:update");
   res.json({ success: true });
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
+
+// UPDATE PROGRESS
+app.patch("/projects/:id/progress", async (req, res) => {
+  const { id } = req.params;
+  const percentRaw = Number(req.body.progressPercent);
+
+  const validStages = [0, 25, 50, 65, 90, 100];
+  const progressPercent = validStages.includes(percentRaw) ? percentRaw : 0;
+
+  try {
+    await pool.query(
+      `
+      UPDATE projects
+      SET progresso_percent = $1
+      WHERE id = $2
+      `,
+      [progressPercent, id]
+    );
+
+    io.emit("projects:update");
+    res.json({ success: true, progresso_percent: progressPercent });
   } catch (err) {
     res.status(500).json(err);
   }

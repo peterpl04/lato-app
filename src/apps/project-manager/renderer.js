@@ -13,6 +13,17 @@ const modal = document.getElementById("modal");
 let currentUser = "Usuário desconhecido";
 let contextMenu;
 let summaryTabsInitialized = false;
+let progressEditProject = null;
+let progressDraftPercent = 0;
+
+const PROGRESS_STAGES = [
+  { percent: 0, label: "Em Definição 🤔" },
+  { percent: 25, label: "Desenho/Projeto 🖼️" },
+  { percent: 50, label: "Corte e Dobra ✂️" },
+  { percent: 65, label: "Acabamento 💎" },
+  { percent: 90, label: "Montagem ⚙️" },
+  { percent: 100, label: "Expedição 💵" }
+];
 
 /* =========================
    SOCKET.IO
@@ -50,6 +61,12 @@ async function loadProjects() {
   try {
     const res = await fetch(`${API_URL}/projects`);
     projects = await res.json();
+
+    projects = projects.map(project => ({
+      ...project,
+      progresso_percent: project.progresso_percent ?? 0
+    }));
+
     renderTable();
   } catch (err) {
     console.error("Erro ao carregar projetos:", err);
@@ -75,6 +92,14 @@ async function updateProject(id, project) {
 async function deleteProject(id) {
   await fetch(`${API_URL}/projects/${id}`, {
     method: "DELETE"
+  });
+}
+
+async function updateProjectProgress(id, percent) {
+  await fetch(`${API_URL}/projects/${id}/progress`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ progressPercent: percent })
   });
 }
 
@@ -315,7 +340,7 @@ function renderTable() {
   if (!projects.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" style="text-align:center; color:#94a3b8;">
+        <td colspan="10" style="text-align:center; color:#94a3b8;">
           Nenhum registro cadastrado
         </td>
       </tr>
@@ -326,6 +351,7 @@ function renderTable() {
   projects.forEach(p => {
     const tr = document.createElement("tr");
     const createdBy = p.created_by || "Desconhecido";
+    const progress = getProjectProgress(p);
 
     tr.innerHTML = `
       <td>${p.obra}</td>
@@ -336,6 +362,12 @@ function renderTable() {
       <td>${p.esteira || "-"}</td>
       <td>${formatDateBR(p.entrega)}</td>
       <td>${formatDateBR(p.instalacao)}</td>
+      <td>
+        <button class="progress-pill" type="button" data-progress-id="${p.id}">
+          <span class="progress-pill-bar" style="--progress:${progress.percent}%"></span>
+          <span class="progress-pill-text">${progress.percent}%</span>
+        </button>
+      </td>
     `;
     // <td class="obs-cell">${p.observacao}</td> (removido da tabela para evitar poluição visual, mas permanece na modal de resumo)
 
@@ -360,8 +392,109 @@ function renderTable() {
       tooltip.style.opacity = "0";
     });
 
+    const progressBtn = tr.querySelector(`[data-progress-id="${p.id}"]`);
+    progressBtn?.addEventListener("click", e => {
+      e.stopPropagation();
+      openProgressModal(p.id);
+    });
+
     tbody.appendChild(tr);
   });
+}
+
+function getProjectProgress(project) {
+  const value = Number(project.progresso_percent ?? 0);
+  const safePercent = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+
+  let currentStage = PROGRESS_STAGES[0];
+
+  PROGRESS_STAGES.forEach(stage => {
+    if (safePercent >= stage.percent) {
+      currentStage = stage;
+    }
+  });
+
+  return {
+    percent: currentStage.percent,
+    label: currentStage.label
+  };
+}
+
+function openProgressModal(projectId) {
+  const project = projects.find(p => p.id === projectId);
+  if (!project) return;
+
+  progressEditProject = project;
+  progressDraftPercent = getProjectProgress(project).percent;
+
+  const projectName = document.getElementById("progressProjectName");
+  if (projectName) {
+    projectName.textContent = `${project.obra || "Projeto"} - ${project.cliente || "Sem cliente"}`;
+  }
+
+  renderProgressDraft();
+  openModalAnimated(document.getElementById("progressModal"));
+}
+
+function closeProgressModal() {
+  progressEditProject = null;
+  progressDraftPercent = 0;
+  closeModalAnimated(document.getElementById("progressModal"));
+}
+
+function renderProgressDraft() {
+  const heroValue = document.getElementById("progressHeroValue");
+  const heroLabel = document.getElementById("progressHeroLabel");
+  const stepsWrap = document.getElementById("progressSteps");
+
+  if (!heroValue || !heroLabel || !stepsWrap) return;
+
+  const stage = PROGRESS_STAGES.find(s => s.percent === progressDraftPercent) || PROGRESS_STAGES[0];
+  heroValue.textContent = `${stage.percent}%`;
+  heroLabel.textContent = stage.label;
+
+  stepsWrap.innerHTML = "";
+
+  PROGRESS_STAGES.forEach((item, index) => {
+    const checked = item.percent <= progressDraftPercent;
+    const stepEl = document.createElement("button");
+    stepEl.type = "button";
+    stepEl.className = `progress-step ${checked ? "done" : ""} ${item.percent === progressDraftPercent ? "current" : ""}`;
+
+    stepEl.innerHTML = `
+      <span class="progress-step-check">${checked ? "✓" : "○"}</span>
+      <span class="progress-step-main">
+        <strong>${item.percent}%</strong>
+        <small>${item.label}</small>
+      </span>
+    `;
+
+    stepEl.addEventListener("click", () => {
+      if (item.percent < progressDraftPercent) {
+        progressDraftPercent = item.percent;
+      } else if (item.percent > progressDraftPercent) {
+        progressDraftPercent = item.percent;
+      } else {
+        progressDraftPercent = index > 0 ? PROGRESS_STAGES[index - 1].percent : 0;
+      }
+
+      renderProgressDraft();
+    });
+
+    stepsWrap.appendChild(stepEl);
+  });
+}
+
+async function saveProgress() {
+  if (!progressEditProject) return;
+
+  try {
+    await updateProjectProgress(progressEditProject.id, progressDraftPercent);
+
+    closeProgressModal();
+  } catch (err) {
+    console.error("Erro ao salvar progresso:", err);
+  }
 }
 
 /* =========================
@@ -525,6 +658,7 @@ function exportProjects() {
     "Esteira",
     "Entrega",
     "Instalação",
+    "Progresso",
     "Observação",
     "Criado por",
     "Data criação",
@@ -541,6 +675,7 @@ function exportProjects() {
     "esteira",
     "entrega",
     "instalacao",
+    "progresso_percent",
     "observacao",
     "created_by",
     "created_at",

@@ -100,6 +100,42 @@ header span {
   white-space: nowrap;
 }
 
+.progress-pill {
+  position: relative;
+  width: 130px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  background: #e2e8f0;
+  overflow: hidden;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.progress-pill:hover {
+  transform: translateY(-1px);
+}
+
+.progress-pill-bar {
+  position: absolute;
+  inset: 0;
+  width: var(--progress);
+  background: linear-gradient(90deg, #2563eb, #06b6d4);
+  transition: width 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.progress-pill-text {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  mix-blend-mode: multiply;
+}
+
 /* =========================
    ✨ MICRO ANIMAÇÕES – LINHAS
 ========================= */
@@ -169,16 +205,10 @@ header span {
 
 .form-actions {
   grid-column: span 2;
-  /* ocupa as duas colunas */
   display: flex;
   justify-content: center;
-  /* centraliza horizontalmente */
-  gap: 14px;
-  margin-top: 18px;
-  overflow-y: auto;
-  padding-right: 4px;
-  grid-template-columns: 1fr 1fr;
   gap: 20px;
+  margin-top: 18px;
 }
 
 .actions {
@@ -591,12 +621,6 @@ button.danger:hover {
   color: #111827;
 }
 
-.alimentador-value:empty,
-.alimentador-value:not(:empty):contains("Nenhum") {
-  color: #9ca3af;
-  font-weight: 500;
-}
-
 .summary-tabs {
   display: flex;
   gap: 8px;
@@ -623,4 +647,106 @@ button.danger:hover {
 
 .summary-content.active {
   display: block;
+}
+
+/* =========================
+   MODAL DE PROGRESSO
+========================= */
+
+.modal-progress {
+  width: min(720px, 92vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.progress-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.progress-modal-header h3 {
+  margin: 0;
+}
+
+.progress-hero {
+  background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 14px 30px rgba(14, 116, 144, 0.25);
+}
+
+.progress-hero-value {
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.progress-hero-label {
+  font-size: 14px;
+  opacity: 0.96;
+}
+
+.progress-steps {
+  display: grid;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.progress-step {
+  width: 100%;
+  border: 1px solid var(--border-soft);
+  background: #fff;
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-main);
+}
+
+.progress-step.done {
+  background: linear-gradient(180deg, #f8fbff, #eef6ff);
+  border-color: rgba(37, 99, 235, 0.35);
+}
+
+.progress-step.current {
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.15);
+  transform: translateX(2px);
+}
+
+.progress-step-check {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: #e2e8f0;
+}
+
+.progress-step.done .progress-step-check {
+  background: #16a34a;
+  color: #fff;
+}
+
+.progress-step-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.progress-step-main strong {
+  font-size: 14px;
+}
+
+.progress-step-main small {
+  font-size: 13px;
+  color: var(--text-muted);
 }

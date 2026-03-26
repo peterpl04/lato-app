@@ -47,6 +47,7 @@
             <th>Esteira</th>
             <th>Entrega</th>
             <th>Instalação</th>
+            <th>Progresso</th>
             <!-- <th>Observação</th> -->
           </tr>
         </thead>
@@ -244,6 +245,31 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- MODAL PROGRESSO -->
+  <div class="modal-bg" id="progressModal">
+    <div class="modal modal-progress">
+      <div class="progress-modal-header">
+        <div>
+          <h3>Andamento do Projeto</h3>
+          <p id="progressProjectName" class="modal-text">Selecione as etapas concluídas.</p>
+        </div>
+        <button class="close-btn" onclick="closeProgressModal()">✕</button>
+      </div>
+
+      <div class="progress-hero">
+        <div id="progressHeroValue" class="progress-hero-value">0%</div>
+        <div id="progressHeroLabel" class="progress-hero-label">Em Definição 🤔</div>
+      </div>
+
+      <div class="progress-steps" id="progressSteps"></div>
+
+      <div class="modal-actions">
+        <button type="button" class="cancel" onclick="closeProgressModal()">Cancelar</button>
+        <button type="button" onclick="saveProgress()">Salvar Progresso</button>
+      </div>
     </div>
   </div>
 

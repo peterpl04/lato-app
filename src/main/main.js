@@ -312,14 +312,14 @@ ipcMain.handle(
 
       // DWG
       if (ext.toLowerCase() === ".dwg") {
-        const match = name.match(/_(\d+)PC$/i);
+        const match = name.match(/(\d+)\s*PC$/i);
         if (!match) return;
 
         const qtd = Number(match[1]);
         const novaQtd = qtd * mult;
 
-        const base = name.replace(/_(\d+)PC$/i, "");
-        const novoNome = `${base}_${novaQtd}PC${ext}`;
+        const novoNomeSemExt = name.replace(/(\d+)\s*PC$/i, `${novaQtd}PC`);
+        const novoNome = `${novoNomeSemExt}${ext}`;
 
         fs.copyFileSync(
           origemArquivo,
@@ -442,6 +442,14 @@ function initAutoUpdater() {
   log.info("Inicializando autoUpdater");
   log.info(`App empacotado: ${app.isPackaged}`);
   log.info(`GH_TOKEN configurado: ${Boolean(ghToken && ghToken !== "undefined" && ghToken !== "null")}`);
+
+  if (!app.isPackaged) {
+    log.info("Modo desenvolvimento: liberando login sem bloquear por autoUpdater.");
+    updateIsAvailable = false;
+    updateCheckResolved = true;
+    tryOpenLoginAfterStartup();
+    return;
+  }
 
   autoUpdater.on("checking-for-update", () => {
     log.info("Verificando atualização...");

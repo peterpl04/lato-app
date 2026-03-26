@@ -1,7 +1,7 @@
 let launcherState = {
   context: {
     user: "Operador",
-    environment: "Producao",
+    environment: "Produção",
     version: "v1.0.0",
     lastSyncAt: null
   },
@@ -90,7 +90,7 @@ function renderContext() {
   const version = document.getElementById("ctx-version");
 
   if (user) user.textContent = `Usuário: ${normalizeUserLabel(context.user)}`;
-  if (env) env.textContent = `Ambiente: ${context.environment || "Producao"}`;
+  if (env) env.textContent = `Ambiente: ${context.environment || "Produção"}`;
   if (sync) sync.textContent = `Sync: ${formatTime(context.lastSyncAt)}`;
   if (version) version.textContent = ` ${context.version || "v1.0.0"}`;
 }

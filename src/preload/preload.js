@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld("api", {
   getLoggedUser: () =>
     ipcRenderer.invoke("get-logged-user"),
 
+  getAppEnvironment: () =>
+    ipcRenderer.invoke("get-app-environment"),
+
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
   getModuleUpdateStatus: () => ipcRenderer.invoke("get-module-update-status"),

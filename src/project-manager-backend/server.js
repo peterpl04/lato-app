@@ -14,6 +14,22 @@ const io = new Server(server, {
   cors: { origin: "*" }
 });
 
+function normalizeEnvironment(value) {
+  const raw = String(value || "").trim().toLowerCase();
+
+  if (["dev", "development", "local"].includes(raw)) {
+    return "dev";
+  }
+
+  return "prod";
+}
+
+function getRequestEnvironment(req) {
+  return normalizeEnvironment(
+    req.headers["x-app-env"] || req.query.env || req.body?.env || process.env.APP_ENV
+  );
+}
+
 /* =========================
    INIT DATABASE
 ========================= */
@@ -31,6 +47,7 @@ async function initDB() {
       esteira TEXT,
       entrega DATE,
       instalacao DATE,
+      environment TEXT NOT NULL DEFAULT 'prod',
       progresso_percent INTEGER NOT NULL DEFAULT 0,
       created_by TEXT NOT NULL,
       created_at TIMESTAMP DEFAULT NOW()
@@ -38,6 +55,7 @@ async function initDB() {
   `);
 
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS progresso_percent INTEGER NOT NULL DEFAULT 0`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'prod'`);
 
   console.log("🟢 Tabela projects pronta");
 }
@@ -50,6 +68,9 @@ initDB().catch(err => {
 ========================= */
 
 io.on("connection", socket => {
+  const socketEnv = normalizeEnvironment(socket.handshake.query?.env);
+  socket.join(`projects:${socketEnv}`);
+
   console.log("🟢 Cliente conectado");
 
   socket.on("disconnect", () => {
@@ -63,9 +84,12 @@ io.on("connection", socket => {
 
 // GET ALL
 app.get("/projects", async (req, res) => {
+  const env = getRequestEnvironment(req);
+
   try {
   const result = await pool.query(
-    "SELECT * FROM projects ORDER BY id DESC"
+    "SELECT * FROM projects WHERE environment = $1 ORDER BY id DESC",
+    [env]
   );
   res.json(result.rows);
   } catch (err) {
@@ -76,6 +100,7 @@ app.get("/projects", async (req, res) => {
 // CREATE
 app.post("/projects", async (req, res) => {
   const p = req.body;
+  const env = getRequestEnvironment(req);
   const createdBy =
     typeof p.createdBy === "object"
       ? p.createdBy.name
@@ -99,10 +124,11 @@ app.post("/projects", async (req, res) => {
         esteira,
         entrega,
         instalacao,
+        environment,
         created_by
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
       )
 
       RETURNING *
@@ -124,11 +150,12 @@ app.post("/projects", async (req, res) => {
         p.esteira || null,
         p.entrega || null,
         p.instalacao || null,
+        env,
         createdBy
       ]
     );
 
-    io.emit("projects:update");
+    io.to(`projects:${env}`).emit("projects:update");
     res.json(result.rows[0]);
 
   } catch (err) {
@@ -142,9 +169,10 @@ app.post("/projects", async (req, res) => {
 app.put("/projects/:id", async (req, res) => {
   const { id } = req.params;
   const p = req.body;
+  const env = getRequestEnvironment(req);
 
   try {
-  await pool.query(
+  const result = await pool.query(
     `
     UPDATE projects SET
   obra=$1,
@@ -162,6 +190,7 @@ app.put("/projects/:id", async (req, res) => {
   entrega=$13,
   instalacao=$14
 WHERE id=$15
+AND environment = $16
 
     `,
     [
@@ -181,11 +210,16 @@ WHERE id=$15
       p.esteira,
       p.entrega,
       p.instalacao,
-      id
+      id,
+      env
     ]
   );
 
-  io.emit("projects:update");
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "Projeto não encontrado para este ambiente" });
+  }
+
+  io.to(`projects:${env}`).emit("projects:update");
   res.json({ success: true });
   } catch (err) {
     res.status(500).json(err);
@@ -195,22 +229,27 @@ WHERE id=$15
 // UPDATE PROGRESS
 app.patch("/projects/:id/progress", async (req, res) => {
   const { id } = req.params;
+  const env = getRequestEnvironment(req);
   const percentRaw = Number(req.body.progressPercent);
 
   const validStages = [0, 25, 50, 65, 90, 100];
   const progressPercent = validStages.includes(percentRaw) ? percentRaw : 0;
 
   try {
-    await pool.query(
+    const result = await pool.query(
       `
       UPDATE projects
       SET progresso_percent = $1
-      WHERE id = $2
+      WHERE id = $2 AND environment = $3
       `,
-      [progressPercent, id]
+      [progressPercent, id, env]
     );
 
-    io.emit("projects:update");
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "Projeto não encontrado para este ambiente" });
+    }
+
+    io.to(`projects:${env}`).emit("projects:update");
     res.json({ success: true, progresso_percent: progressPercent });
   } catch (err) {
     res.status(500).json(err);
@@ -219,13 +258,19 @@ app.patch("/projects/:id/progress", async (req, res) => {
 
 // DELETE
 app.delete("/projects/:id", async (req, res) => {
+  const env = getRequestEnvironment(req);
+
   try {
-  await pool.query(
-    "DELETE FROM projects WHERE id=$1",
-    [req.params.id]
+  const result = await pool.query(
+    "DELETE FROM projects WHERE id=$1 AND environment = $2",
+    [req.params.id, env]
   );
 
-  io.emit("projects:update");
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "Projeto não encontrado para este ambiente" });
+  }
+
+  io.to(`projects:${env}`).emit("projects:update");
   res.json({ success: true });
   } catch (err) {
     res.status(500).json(err);

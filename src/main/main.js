@@ -76,6 +76,19 @@ function normalizeUserName(value) {
   return "Operador";
 }
 
+function getAppEnvironmentKey() {
+  const raw = String(process.env.APP_ENV || "").trim().toLowerCase();
+  if (["dev", "development", "local"].includes(raw)) {
+    return "dev";
+  }
+
+  if (["prod", "production"].includes(raw)) {
+    return "prod";
+  }
+
+  return app.isPackaged ? "prod" : "dev";
+}
+
 function parseVersion(version) {
   const clean = String(version || "")
     .trim()
@@ -720,6 +733,10 @@ ipcMain.handle("get-logged-user", () => {
   return normalizeUserName(loggedUser);
 });
 
+ipcMain.handle("get-app-environment", () => {
+  return getAppEnvironmentKey();
+});
+
 
 ipcMain.handle("open-dwg-renamer", () => {
   openDWGRenamer();
@@ -735,7 +752,7 @@ ipcMain.handle("get-launcher-state", () => {
   return {
     context: {
       user: normalizeUserName(loggedUser),
-      environment: app.isPackaged ? "Producao" : "Desenvolvimento",
+      environment: app.isPackaged ? "Produção" : "Desenvolvimento",
       version: `v${app.getVersion()}`,
       lastSyncAt: state.lastSyncAt
     },

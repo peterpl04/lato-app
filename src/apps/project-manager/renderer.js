@@ -4,6 +4,7 @@
 
 const API_URL = "https://lato-app-production.up.railway.app";
 const TABLE_LOADING_MIN_MS = 1500;
+let appEnv = "prod";
 
 let projects = [];
 let editingId = null;
@@ -32,15 +33,37 @@ const PROGRESS_STAGES = [
    SOCKET.IO
 ========================= */
 
-const socket = io(API_URL);
+let socket;
 
-socket.on("connect", () => {
-  console.log("🟢 Conectado ao servidor em tempo real");
-});
+function getApiHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "x-app-env": appEnv
+  };
+}
 
-socket.on("projects:update", () => {
-  loadProjects();
-});
+function resolveEnvironmentLabel(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (["dev", "development", "local"].includes(raw)) {
+    return "dev";
+  }
+
+  return "prod";
+}
+
+function initRealtime() {
+  socket = io(API_URL, {
+    query: { env: appEnv }
+  });
+
+  socket.on("connect", () => {
+    console.log(`🟢 Conectado ao servidor em tempo real (${appEnv})`);
+  });
+
+  socket.on("projects:update", () => {
+    loadProjects();
+  });
+}
 
 /* =========================
    INIT
@@ -52,6 +75,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch {
     currentUser = "Usuário desconhecido";
   }
+
+  try {
+    appEnv = resolveEnvironmentLabel(await window.api.getAppEnvironment());
+  } catch {
+    appEnv = "prod";
+  }
+
+  initRealtime();
 
   initModalBindings();
   loadProjects();
@@ -77,7 +108,9 @@ async function loadProjects() {
   const loadingToken = beginTableLoading();
 
   try {
-    const res = await fetch(`${API_URL}/projects`);
+    const res = await fetch(`${API_URL}/projects?env=${encodeURIComponent(appEnv)}`, {
+      headers: { "x-app-env": appEnv }
+    });
     projects = await res.json();
 
     projects = projects.map(project => ({
@@ -128,7 +161,7 @@ function endTableLoading(token) {
 async function createProject(project) {
   await fetch(`${API_URL}/projects`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: getApiHeaders(),
     body: JSON.stringify(project)
   });
 }
@@ -136,21 +169,22 @@ async function createProject(project) {
 async function updateProject(id, project) {
   await fetch(`${API_URL}/projects/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
+    headers: getApiHeaders(),
     body: JSON.stringify(project)
   });
 }
 
 async function deleteProject(id) {
   await fetch(`${API_URL}/projects/${id}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: { "x-app-env": appEnv }
   });
 }
 
 async function updateProjectProgress(id, percent) {
   await fetch(`${API_URL}/projects/${id}/progress`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: getApiHeaders(),
     body: JSON.stringify({ progressPercent: percent })
   });
 }

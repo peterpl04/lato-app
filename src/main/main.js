@@ -12,7 +12,7 @@ const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 const MODULE_VERSIONS_PATH = path.join(__dirname, "..", "..", "data", "module-versions.json");
-const MODULE_UPDATE_CACHE_TTL_MS = 60 * 1000;
+const MODULE_UPDATE_CACHE_TTL_MS = 5 * 60 * 1000;
 const MANUAL_APP_UPDATE_TRIGGER = false;
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
@@ -266,7 +266,13 @@ async function getModuleUpdateStatus(options = {}) {
     };
     moduleUpdateCacheAt = now;
     return moduleUpdateCache;
-  } catch {
+  } catch (err) {
+    log.warn("Falha ao verificar status dos módulos no GitHub:", err?.message || err);
+
+    if (moduleUpdateCache) {
+      return moduleUpdateCache;
+    }
+
     moduleUpdateCache = {
       checkedAt: new Date().toISOString(),
       dwg: {

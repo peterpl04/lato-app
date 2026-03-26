@@ -319,20 +319,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   window.addEventListener("focus", () => {
-    loadModuleUpdateStatus(true);
+    loadModuleUpdateStatus();
   });
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      loadModuleUpdateStatus(true);
+      loadModuleUpdateStatus();
     }
   });
 
   setInterval(() => {
-    loadModuleUpdateStatus(true);
+    loadModuleUpdateStatus();
   }, MODULE_STATUS_POLL_MS);
 
   await loadLauncherState();
-  await loadModuleUpdateStatus(true);
+  await loadModuleUpdateStatus();
 });
 

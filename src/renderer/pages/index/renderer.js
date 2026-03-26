@@ -16,6 +16,7 @@ let launcherState = {
   recents: [],
   activity: []
 };
+const MODULE_STATUS_POLL_MS = 60 * 1000;
 
 function openDWG() {
   window.api.openDWGRenamer();
@@ -129,12 +130,12 @@ function renderModuleStatusBadge(elementId, status) {
   badge.textContent = "ATUALIZADO";
 }
 
-async function loadModuleUpdateStatus() {
+async function loadModuleUpdateStatus(force = false) {
   renderModuleStatusBadge("dwg-status", null);
   renderModuleStatusBadge("pm-status", null);
 
   try {
-    const updateStatus = await window.api.getModuleUpdateStatus();
+    const updateStatus = await window.api.getModuleUpdateStatus({ force });
     renderModuleStatusBadge("dwg-status", updateStatus?.dwg);
     renderModuleStatusBadge("pm-status", updateStatus?.pm);
   } catch {
@@ -246,7 +247,13 @@ async function handleAction(action) {
       activity
     });
 
-    await loadModuleUpdateStatus();
+    try {
+      await window.api.checkAppUpdate();
+    } catch {
+      // Ignore manual update check failures to keep launcher responsive.
+    }
+
+    await loadModuleUpdateStatus(true);
   }
 }
 
@@ -311,7 +318,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     await handleAction("refresh");
   });
 
+  window.addEventListener("focus", () => {
+    loadModuleUpdateStatus(true);
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      loadModuleUpdateStatus(true);
+    }
+  });
+
+  setInterval(() => {
+    loadModuleUpdateStatus(true);
+  }, MODULE_STATUS_POLL_MS);
+
   await loadLauncherState();
-  await loadModuleUpdateStatus();
+  await loadModuleUpdateStatus(true);
 });
 

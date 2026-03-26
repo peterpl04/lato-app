@@ -12,7 +12,8 @@ const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 const MODULE_VERSIONS_PATH = path.join(__dirname, "..", "..", "data", "module-versions.json");
-const MODULE_UPDATE_CACHE_TTL_MS = 5 * 60 * 1000;
+const MODULE_UPDATE_CACHE_TTL_MS = 60 * 1000;
+const MANUAL_APP_UPDATE_TRIGGER = false;
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 app.setAppUserModelId("com.latoapps.desktop");
@@ -49,6 +50,7 @@ let loggedUser = null;
 let splashDelayDone = false;
 let updateCheckResolved = false;
 let updateIsAvailable = false;
+let isUpdateCheckInProgress = false;
 const SPLASH_HANDOFF_MS = 340;
 
 function normalizeUserName(value) {
@@ -218,9 +220,10 @@ function findLatestReleaseVersionForPrefix(releases, prefix) {
   return latest;
 }
 
-async function getModuleUpdateStatus() {
+async function getModuleUpdateStatus(options = {}) {
+  const forceRefresh = Boolean(options?.force);
   const now = Date.now();
-  if (moduleUpdateCache && (now - moduleUpdateCacheAt) < MODULE_UPDATE_CACHE_TTL_MS) {
+  if (!forceRefresh && moduleUpdateCache && (now - moduleUpdateCacheAt) < MODULE_UPDATE_CACHE_TTL_MS) {
     return moduleUpdateCache;
   }
 
@@ -786,8 +789,30 @@ ipcMain.handle("save-launcher-state", (_, patch) => {
   return true;
 });
 
-ipcMain.handle("get-module-update-status", async () => {
-  return getModuleUpdateStatus();
+ipcMain.handle("get-module-update-status", async (_, options) => {
+  return getModuleUpdateStatus(options);
+});
+
+ipcMain.handle("check-app-update", async () => {
+  if (!app.isPackaged) {
+    return { started: false, reason: "development" };
+  }
+
+  if (isUpdateCheckInProgress) {
+    return { started: false, reason: "in-progress" };
+  }
+
+  isUpdateCheckInProgress = true;
+
+  try {
+    await autoUpdater.checkForUpdatesAndNotify();
+    return { started: true };
+  } catch (err) {
+    log.error("Falha ao verificar atualizações manualmente:", err);
+    return { started: false, reason: "error" };
+  } finally {
+    isUpdateCheckInProgress = false;
+  }
 });
 
 ipcMain.handle("load-project-data", () => {
@@ -973,6 +998,14 @@ function initAutoUpdater() {
 
   if (!app.isPackaged) {
     log.info("Modo desenvolvimento: liberando login sem bloquear por autoUpdater.");
+    updateIsAvailable = false;
+    updateCheckResolved = true;
+    tryOpenLoginAfterStartup();
+    return;
+  }
+
+  if (MANUAL_APP_UPDATE_TRIGGER) {
+    log.info("Modo manual de atualização: verificação somente por comando do usuário.");
     updateIsAvailable = false;
     updateCheckResolved = true;
     tryOpenLoginAfterStartup();

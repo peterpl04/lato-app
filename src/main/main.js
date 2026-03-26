@@ -11,12 +11,20 @@ const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
+const MODULE_VERSIONS_PATH = path.join(__dirname, "..", "..", "data", "module-versions.json");
+const MODULE_UPDATE_CACHE_TTL_MS = 5 * 60 * 1000;
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
+app.setAppUserModelId("com.latoapps.desktop");
+const LAUNCHER_STATE_PATH = path.join(app.getPath("userData"), "launcher-state.json");
 
 const { autoUpdater } = require("electron-updater");
 
 const ghToken = process.env.GH_TOKEN;
+const GITHUB_OWNER = "peterpl04";
+const GITHUB_REPO = "lato-app";
+let moduleUpdateCache = null;
+let moduleUpdateCacheAt = 0;
 
 if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
   autoUpdater.requestHeaders = {
@@ -35,19 +43,252 @@ let loginWindow;
 let mainWindow;
 let splashWindow;
 let updateWindow;
+let dwgRenamerWindow;
+let projectManagerWindow;
 let loggedUser = null;
 let splashDelayDone = false;
 let updateCheckResolved = false;
 let updateIsAvailable = false;
+const SPLASH_HANDOFF_MS = 340;
+
+function normalizeUserName(value) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed || "Operador";
+  }
+
+  if (value && typeof value === "object") {
+    const candidates = [
+      value.username,
+      value.user,
+      value.name,
+      value.displayName,
+      value.email
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim()) {
+        return candidate.trim();
+      }
+    }
+  }
+
+  return "Operador";
+}
+
+function parseVersion(version) {
+  const clean = String(version || "")
+    .trim()
+    .replace(/^v/i, "")
+    .split("-")[0];
+  const parts = clean.split(".").map(part => Number.parseInt(part, 10) || 0);
+
+  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+}
+
+function compareVersions(a, b) {
+  const left = parseVersion(a);
+  const right = parseVersion(b);
+
+  for (let i = 0; i < 3; i += 1) {
+    if (left[i] > right[i]) return 1;
+    if (left[i] < right[i]) return -1;
+  }
+
+  return 0;
+}
+
+function readModuleVersionConfig() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(MODULE_VERSIONS_PATH, "utf-8"));
+
+    return {
+      dwg: {
+        currentVersion: parsed?.dwg?.currentVersion || "1.0.0",
+        releaseTagPrefix: parsed?.dwg?.releaseTagPrefix || "dwg-renamer-v"
+      },
+      pm: {
+        currentVersion: parsed?.pm?.currentVersion || "1.0.0",
+        releaseTagPrefix: parsed?.pm?.releaseTagPrefix || "project-manager-v"
+      }
+    };
+  } catch {
+    return {
+      dwg: { currentVersion: "1.0.0", releaseTagPrefix: "dwg-renamer-v" },
+      pm: { currentVersion: "1.0.0", releaseTagPrefix: "project-manager-v" }
+    };
+  }
+}
+
+function buildGithubHeaders() {
+  const headers = {
+    Accept: "application/vnd.github+json",
+    "User-Agent": "LatoApps"
+  };
+
+  if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
+    headers.Authorization = `token ${ghToken}`;
+  }
+
+  return headers;
+}
+
+async function fetchGithubReleases() {
+  const response = await fetch(
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=100`,
+    { headers: buildGithubHeaders() }
+  );
+
+  if (!response.ok) {
+    throw new Error(`GitHub releases request failed: ${response.status}`);
+  }
+
+  const releases = await response.json();
+  return Array.isArray(releases) ? releases : [];
+}
+
+function getLatestReleaseTag(releases) {
+  const latest = releases.find(release => !release?.draft && !release?.prerelease);
+  return latest?.tag_name || null;
+}
+
+async function fetchModuleVersionConfigFromReleaseTag(tagName) {
+  const response = await fetch(
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/data/module-versions.json?ref=${encodeURIComponent(tagName)}`,
+    { headers: buildGithubHeaders() }
+  );
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const contentResponse = await response.json();
+  const encoded = contentResponse?.content;
+  if (!encoded) {
+    return null;
+  }
+
+  const decoded = Buffer.from(String(encoded).replace(/\n/g, ""), "base64").toString("utf-8");
+  const parsed = JSON.parse(decoded);
+
+  return {
+    dwg: {
+      currentVersion: parsed?.dwg?.currentVersion || "1.0.0",
+      releaseTagPrefix: parsed?.dwg?.releaseTagPrefix || "dwg-renamer-v"
+    },
+    pm: {
+      currentVersion: parsed?.pm?.currentVersion || "1.0.0",
+      releaseTagPrefix: parsed?.pm?.releaseTagPrefix || "project-manager-v"
+    }
+  };
+}
+
+function findLatestReleaseVersionForPrefix(releases, prefix) {
+  let latest = null;
+
+  releases.forEach(release => {
+    const tag = String(release?.tag_name || "").trim();
+    if (!tag.toLowerCase().startsWith(String(prefix).toLowerCase())) {
+      return;
+    }
+
+    const version = tag.slice(prefix.length).replace(/^v/i, "").trim();
+    if (!version) {
+      return;
+    }
+
+    if (!latest || compareVersions(version, latest) > 0) {
+      latest = version;
+    }
+  });
+
+  return latest;
+}
+
+async function getModuleUpdateStatus() {
+  const now = Date.now();
+  if (moduleUpdateCache && (now - moduleUpdateCacheAt) < MODULE_UPDATE_CACHE_TTL_MS) {
+    return moduleUpdateCache;
+  }
+
+  const localConfig = readModuleVersionConfig();
+
+  try {
+    const releases = await fetchGithubReleases();
+    const latestReleaseTag = getLatestReleaseTag(releases);
+    const remoteConfig = latestReleaseTag
+      ? await fetchModuleVersionConfigFromReleaseTag(latestReleaseTag)
+      : null;
+
+    const dwgLatestFromReleaseFile = remoteConfig?.dwg?.currentVersion;
+    const pmLatestFromReleaseFile = remoteConfig?.pm?.currentVersion;
+
+    const dwgLatestFromTag = findLatestReleaseVersionForPrefix(
+      releases,
+      localConfig.dwg.releaseTagPrefix
+    );
+    const pmLatestFromTag = findLatestReleaseVersionForPrefix(
+      releases,
+      localConfig.pm.releaseTagPrefix
+    );
+
+    const dwgLatest = dwgLatestFromReleaseFile || dwgLatestFromTag || localConfig.dwg.currentVersion;
+    const pmLatest = pmLatestFromReleaseFile || pmLatestFromTag || localConfig.pm.currentVersion;
+
+    moduleUpdateCache = {
+      checkedAt: new Date().toISOString(),
+      dwg: {
+        currentVersion: localConfig.dwg.currentVersion,
+        latestVersion: dwgLatest,
+        isUpdatable: compareVersions(dwgLatest, localConfig.dwg.currentVersion) > 0
+      },
+      pm: {
+        currentVersion: localConfig.pm.currentVersion,
+        latestVersion: pmLatest,
+        isUpdatable: compareVersions(pmLatest, localConfig.pm.currentVersion) > 0
+      }
+    };
+    moduleUpdateCacheAt = now;
+    return moduleUpdateCache;
+  } catch {
+    moduleUpdateCache = {
+      checkedAt: new Date().toISOString(),
+      dwg: {
+        currentVersion: localConfig.dwg.currentVersion,
+        latestVersion: localConfig.dwg.currentVersion,
+        isUpdatable: false
+      },
+      pm: {
+        currentVersion: localConfig.pm.currentVersion,
+        latestVersion: localConfig.pm.currentVersion,
+        isUpdatable: false
+      }
+    };
+    moduleUpdateCacheAt = now;
+    return moduleUpdateCache;
+  }
+}
 
 function tryOpenLoginAfterStartup() {
   if (!splashDelayDone || !updateCheckResolved || updateIsAvailable || loginWindow) {
     return;
   }
 
-  if (splashWindow) {
-    splashWindow.close();
-    splashWindow = null;
+  if (splashWindow && !splashWindow.isDestroyed()) {
+    splashWindow.webContents.send("splash-start-exit");
+
+    setTimeout(() => {
+      createLoginWindow();
+
+      setTimeout(() => {
+        if (splashWindow && !splashWindow.isDestroyed()) {
+          splashWindow.close();
+          splashWindow = null;
+        }
+      }, 120);
+    }, SPLASH_HANDOFF_MS);
+
+    return;
   }
 
   createLoginWindow();
@@ -94,7 +335,8 @@ function createSplashWindow() {
     skipTaskbar: true,     // não aparece na barra
     icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
-      preload: path.join(__dirname, "../preload/preload.js")
+      preload: path.join(__dirname, "../preload/preload.js"),
+      backgroundThrottling: false
     }
   });
 
@@ -108,13 +350,40 @@ function createLoginWindow() {
     width: 420,
     height: 520,
     resizable: false,
+    show: false,
     frame: false,               // 🔥 remove barra do Windows
     autoHideMenuBar: true,
-    backgroundColor: "#f8fafc", // evita flicker
+    backgroundColor: "#081022",
     icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js")
     }
+  });
+
+  loginWindow.once("ready-to-show", () => {
+    loginWindow.setOpacity(0);
+    loginWindow.show();
+
+    let opacity = 0;
+    const step = 0.12;
+    const timer = setInterval(() => {
+      opacity = Math.min(1, opacity + step);
+
+      if (!loginWindow || loginWindow.isDestroyed()) {
+        clearInterval(timer);
+        return;
+      }
+
+      loginWindow.setOpacity(opacity);
+
+      if (opacity >= 1) {
+        clearInterval(timer);
+      }
+    }, 16);
+  });
+
+  loginWindow.on("closed", () => {
+    loginWindow = null;
   });
 
   loginWindow.loadFile(
@@ -137,6 +406,28 @@ function createMainWindow() {
   mainWindow.setMenu(null);
   mainWindow.loadFile(path.join(__dirname, "../renderer/pages/index/index.html"));
 
+  mainWindow.on("close", async event => {
+    if (!hasOpenAppWindows()) {
+      return;
+    }
+
+    event.preventDefault();
+
+    await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      title: "Feche os apps primeiro",
+      message: "O launcher nao pode ser fechado enquanto houver app aberto.",
+      detail: "Feche o DWG Renamer e o Project Manager antes de sair do launcher.",
+      buttons: ["OK"]
+    });
+
+    focusFirstOpenAppWindow();
+  });
+
+  mainWindow.on("closed", () => {
+    mainWindow = null;
+  });
+
   // 🔁 Ctrl + R → reload da janela principal
   globalShortcut.register("CommandOrControl+R", () => {
     if (mainWindow) {
@@ -152,17 +443,56 @@ function createMainWindow() {
   });
 }
 
+function hasOpenAppWindows() {
+  return Boolean(
+    (dwgRenamerWindow && !dwgRenamerWindow.isDestroyed()) ||
+      (projectManagerWindow && !projectManagerWindow.isDestroyed())
+  );
+}
+
+function focusFirstOpenAppWindow() {
+  if (dwgRenamerWindow && !dwgRenamerWindow.isDestroyed()) {
+    dwgRenamerWindow.focus();
+    return;
+  }
+
+  if (projectManagerWindow && !projectManagerWindow.isDestroyed()) {
+    projectManagerWindow.focus();
+  }
+}
+
 
 function openDWGRenamer() {
+  if (dwgRenamerWindow && !dwgRenamerWindow.isDestroyed()) {
+    dwgRenamerWindow.focus();
+    return;
+  }
+
   const win = new BrowserWindow({
     width: 560,
     height: 630,
     resizable: false,
-    parent: mainWindow,
+    title: "DWG Renamer",
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js")
     }
+  });
+
+  if (process.platform === "win32") {
+    win.setAppDetails({
+      appId: "com.latoapps.dwg-renamer",
+      appIconPath: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
+      relaunchCommand: process.execPath,
+      relaunchDisplayName: "DWG Renamer"
+    });
+  }
+
+  dwgRenamerWindow = win;
+  recordLauncherEvent("dwg");
+  win.on("closed", () => {
+    dwgRenamerWindow = null;
   });
 
   win.setMenu(null);
@@ -170,15 +500,42 @@ function openDWGRenamer() {
 }
 
 function openProjectManager() {
+  if (projectManagerWindow && !projectManagerWindow.isDestroyed()) {
+    projectManagerWindow.focus();
+    return;
+  }
+
   const win = new BrowserWindow({
     width: 1100,
     height: 700,
     resizable: true,
-    parent: mainWindow,
+    show: false,
+    title: "Project Manager",
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js")
     }
+  });
+
+  if (process.platform === "win32") {
+    win.setAppDetails({
+      appId: "com.latoapps.project-manager",
+      appIconPath: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
+      relaunchCommand: process.execPath,
+      relaunchDisplayName: "Project Manager"
+    });
+  }
+
+  projectManagerWindow = win;
+  recordLauncherEvent("pm");
+  win.maximize();
+  win.once("ready-to-show", () => {
+    win.show();
+  });
+
+  win.on("closed", () => {
+    projectManagerWindow = null;
   });
 
   win.setMenu(null);
@@ -199,6 +556,116 @@ function readProjectData() {
 
 function writeProjectData(data) {
   fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
+}
+
+function defaultLauncherState() {
+  return {
+    lastSyncAt: null,
+    moduleMetrics: {
+      dwgLaunches: 0,
+      pmLaunches: 0
+    },
+    moduleLastUsedAt: {
+      dwg: null,
+      pm: null
+    },
+    recents: [],
+    activity: []
+  };
+}
+
+function ensureLauncherStateFile() {
+  if (!fs.existsSync(LAUNCHER_STATE_PATH)) {
+    fs.mkdirSync(path.dirname(LAUNCHER_STATE_PATH), { recursive: true });
+    fs.writeFileSync(
+      LAUNCHER_STATE_PATH,
+      JSON.stringify(defaultLauncherState(), null, 2)
+    );
+  }
+}
+
+function readLauncherState() {
+  ensureLauncherStateFile();
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(LAUNCHER_STATE_PATH, "utf-8"));
+
+    return {
+      ...defaultLauncherState(),
+      ...parsed,
+      moduleMetrics: {
+        ...defaultLauncherState().moduleMetrics,
+        ...(parsed.moduleMetrics || {})
+      },
+      moduleLastUsedAt: {
+        ...defaultLauncherState().moduleLastUsedAt,
+        ...(parsed.moduleLastUsedAt || {})
+      },
+      recents: Array.isArray(parsed.recents) ? parsed.recents : [],
+      activity: Array.isArray(parsed.activity) ? parsed.activity : []
+    };
+  } catch {
+    return defaultLauncherState();
+  }
+}
+
+function writeLauncherState(state) {
+  fs.writeFileSync(LAUNCHER_STATE_PATH, JSON.stringify(state, null, 2));
+}
+
+function pushActivity(activity, message, tone = "info") {
+  activity.unshift({
+    message,
+    tone,
+    at: new Date().toISOString()
+  });
+
+  return activity.slice(0, 12);
+}
+
+function pushRecent(recents, item) {
+  const next = [item, ...recents.filter(entry => entry.label !== item.label)];
+  return next.slice(0, 12);
+}
+
+function recordLauncherEvent(type) {
+  const now = new Date().toISOString();
+  const state = readLauncherState();
+  const userName = normalizeUserName(loggedUser);
+
+  if (type === "dwg") {
+    state.moduleMetrics.dwgLaunches += 1;
+    state.moduleLastUsedAt.dwg = now;
+    state.recents = pushRecent(state.recents, {
+      label: "DWG Renamer aberto",
+      action: "open-dwg",
+      keywords: "dwg renamer abertura",
+      at: now
+    });
+    state.activity = pushActivity(
+      state.activity,
+      `DWG Renamer aberto por ${userName}`,
+      "ok"
+    );
+  }
+
+  if (type === "pm") {
+    state.moduleMetrics.pmLaunches += 1;
+    state.moduleLastUsedAt.pm = now;
+    state.recents = pushRecent(state.recents, {
+      label: "Project Manager aberto",
+      action: "open-pm",
+      keywords: "project manager abertura",
+      at: now
+    });
+    state.activity = pushActivity(
+      state.activity,
+      `Project Manager aberto por ${userName}`,
+      "ok"
+    );
+  }
+
+  writeLauncherState(state);
 }
 
 
@@ -239,7 +706,7 @@ ipcMain.on("close-login-window", () => {
 
 
 ipcMain.handle("login-success", (_, username) => {
-  loggedUser = username;
+  loggedUser = normalizeUserName(username);
 
   if (loginWindow) {
     loginWindow.close();
@@ -250,7 +717,7 @@ ipcMain.handle("login-success", (_, username) => {
 });
 
 ipcMain.handle("get-logged-user", () => {
-  return loggedUser;
+  return normalizeUserName(loggedUser);
 });
 
 
@@ -260,6 +727,50 @@ ipcMain.handle("open-dwg-renamer", () => {
 
 ipcMain.handle("open-project-manager", () => {
   openProjectManager();
+});
+
+ipcMain.handle("get-launcher-state", () => {
+  const state = readLauncherState();
+
+  return {
+    context: {
+      user: normalizeUserName(loggedUser),
+      environment: app.isPackaged ? "Producao" : "Desenvolvimento",
+      version: `v${app.getVersion()}`,
+      lastSyncAt: state.lastSyncAt
+    },
+    moduleMetrics: state.moduleMetrics,
+    moduleLastUsedAt: state.moduleLastUsedAt,
+    recents: state.recents,
+    activity: state.activity
+  };
+});
+
+ipcMain.handle("save-launcher-state", (_, patch) => {
+  const state = readLauncherState();
+
+  const nextState = {
+    ...state,
+    ...patch,
+    moduleMetrics: {
+      ...state.moduleMetrics,
+      ...(patch && patch.moduleMetrics ? patch.moduleMetrics : {})
+    },
+    moduleLastUsedAt: {
+      ...state.moduleLastUsedAt,
+      ...(patch && patch.moduleLastUsedAt ? patch.moduleLastUsedAt : {})
+    },
+    recents: Array.isArray(patch?.recents) ? patch.recents.slice(0, 12) : state.recents,
+    activity: Array.isArray(patch?.activity) ? patch.activity.slice(0, 12) : state.activity,
+    lastSyncAt: patch?.lastSyncAt || state.lastSyncAt
+  };
+
+  writeLauncherState(nextState);
+  return true;
+});
+
+ipcMain.handle("get-module-update-status", async () => {
+  return getModuleUpdateStatus();
 });
 
 ipcMain.handle("load-project-data", () => {

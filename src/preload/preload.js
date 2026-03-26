@@ -11,6 +11,9 @@ contextBridge.exposeInMainWorld("api", {
   onUpdateDone: cb =>
     ipcRenderer.on("update-done", cb),
 
+  onSplashStartExit: cb =>
+    ipcRenderer.on("splash-start-exit", cb),
+
   closeLogin: () => ipcRenderer.send("close-login-window"),
 
 
@@ -22,6 +25,10 @@ contextBridge.exposeInMainWorld("api", {
 
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
+  getModuleUpdateStatus: () => ipcRenderer.invoke("get-module-update-status"),
+
+  getLauncherState: () => ipcRenderer.invoke("get-launcher-state"),
+  saveLauncherState: (state) => ipcRenderer.invoke("save-launcher-state", state),
 
   loadProjectData: () => ipcRenderer.invoke("load-project-data"),
   saveProjectData: (data) =>

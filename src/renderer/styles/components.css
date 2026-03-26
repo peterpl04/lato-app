@@ -1,0 +1,30 @@
+.app-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-soft);
+}
+
+.app-btn {
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+  transition: background var(--transition-default), box-shadow var(--transition-default);
+}
+
+.app-btn:hover {
+  background: var(--accent-hover);
+}
+
+.app-input {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+
+.app-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}

@@ -8,37 +8,82 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css"
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-  <div class="launcher">
+  <main class="launcher" aria-label="Launcher de aplicativos">
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
 
-    <!-- 🔝 HEADER -->
-    <div class="header">
-      <img src="../../../assets/icons/logo.png" class="logo" alt="Lato Tecnologia" />
-    </div>
-
-    <!-- 📦 APPS -->
-    <div class="apps">
-      <div class="app-card" onclick="openDWG()">
-        <div class="app-icon">
-          <img src="../../../assets/icons/dwg-renamer.svg" alt="DWG Renamer">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <img src="../../../assets/icons/logo.png" class="logo" alt="Lato Tecnologia" />
+        <div>
+          <h1>Sistema Lato</h1>
+          <p>Central de módulos</p>
         </div>
-        <div class="app-name">DWG Renamer</div>
-        <div class="app-desc">Automação</div>
       </div>
+      <div class="context-chips" aria-label="Contexto do sistema">
+        <span class="chip" id="ctx-user">Usuário: Operador</span>
+        <span class="chip" id="ctx-env">Ambiente: Produção</span>
+        <span class="chip" id="ctx-sync">Sync: agora</span>
+        <span class="chip" id="ctx-version">v1.0.0</span>
+      </div>
+    </header>
 
-      <div class="app-card" onclick="openProjectManager()">
-        <div class="app-icon">
-          <img src="../../../assets/icons/project-manager.svg" alt="Project Manager">
+    <div class="content-grid">
+      <section class="main-column" aria-label="Area principal">
+        <section class="favorites" aria-label="Favoritos">
+          <h2>Favoritos</h2>
+          <div class="favorites-list">
+            <button class="favorite-chip" data-app="pm" type="button">Project Manager</button>
+            <button class="favorite-chip" data-app="dwg" type="button">DWG Renamer</button>
+          </div>
+        </section>
+
+        <section class="apps" aria-label="Aplicativos disponiveis">
+          <button class="app-card" data-app="dwg" type="button" aria-label="Abrir DWG Renamer" data-keywords="dwg renamer arquivo lote renomeacao">
+            <div class="card-head">
+              <span class="status-badge info" id="dwg-status">Verificando...</span>
+              <span class="card-meta" id="dwg-meta">0 execs hoje</span>
+            </div>
+            <div class="app-icon">
+              <img src="../../../assets/icons/dwg-renamer.svg" alt="">
+            </div>
+            <div class="app-name">DWG Renamer</div>
+            <div class="app-desc">Renomeação em lote de arquivos DWG</div>
+            <div class="card-foot">
+              <span id="dwg-last-use">Último uso: nunca</span>
+            </div>
+          </button>
+
+          <button class="app-card" data-app="pm" type="button" aria-label="Abrir Project Manager" data-keywords="project manager projetos progresso entregas dashboard">
+            <div class="card-head">
+              <span class="status-badge info" id="pm-status">Verificando...</span>
+              <span class="card-meta" id="pm-meta">0 execs hoje</span>
+            </div>
+            <div class="app-icon">
+              <img src="../../../assets/icons/project-manager.svg" alt="">
+            </div>
+            <div class="app-name">Project Manager</div>
+            <div class="app-desc">Controle de projetos, progresso e entregas</div>
+            <div class="card-foot">
+              <span id="pm-last-use">Último uso: nunca</span>
+            </div>
+          </button>
+        </section>
+      </section>
+
+      <aside class="activity" aria-label="Atividade do sistema">
+        <div class="section-title">
+          <h2>Atividade</h2>
         </div>
-        <div class="app-name">Project Manager</div>
-        <div class="app-desc">Automação</div>
-      </div>
+        <ul class="activity-list" id="activity-list"></ul>
+      </aside>
     </div>
+  </main>
 
-  </div>
   <script src="renderer.js"></script>
 </body>
 

@@ -1,18 +1,54 @@
-const button = document.querySelector("button");
+const form = document.getElementById("login-form");
+const userInput = document.getElementById("user");
+const passInput = document.getElementById("pass");
+const submitButton = document.getElementById("submit-login");
+const togglePassButton = document.getElementById("toggle-pass");
 const wrapper = document.querySelector(".login-wrapper");
+const errorEl = document.getElementById("error");
+const capsLockEl = document.getElementById("caps-lock");
+
+let isLoading = false;
+const LAST_USER_KEY = "latoapps:last-user";
+
+function setLoadingState(enabled) {
+  isLoading = enabled;
+  submitButton.disabled = enabled;
+  userInput.disabled = enabled;
+  passInput.disabled = enabled;
+  togglePassButton.disabled = enabled;
+
+  submitButton.classList.toggle("loading", enabled);
+  submitButton.textContent = enabled ? "Entrando..." : "Entrar";
+}
+
+function showError(message) {
+  errorEl.textContent = message;
+  wrapper.classList.remove("shake");
+  void wrapper.offsetWidth;
+  wrapper.classList.add("shake");
+}
+
+function updateCapsLockState(event) {
+  const enabled = event.getModifierState && event.getModifierState("CapsLock");
+  capsLockEl.textContent = enabled ? "Caps Lock ativado" : "";
+}
 
 async function login() {
-  button.classList.add("press");
-  setTimeout(() => button.classList.remove("press"), 120);
-
-  const user = document.getElementById("user").value.trim();
-  const pass = document.getElementById("pass").value;
-  const error = document.getElementById("error");
-
-  if (!user || !pass) {
-    error.textContent = "Informe usuário e senha";
+  if (isLoading) {
     return;
   }
+
+  const user = userInput.value.trim();
+  const pass = passInput.value;
+
+  errorEl.textContent = "";
+
+  if (!user || !pass) {
+    showError("Informe usuario e senha");
+    return;
+  }
+
+  setLoadingState(true);
 
   try {
     const res = await fetch("https://lato-app-production.up.railway.app/auth/login", {
@@ -21,23 +57,46 @@ async function login() {
       body: JSON.stringify({ user, pass })
     });
 
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      error.textContent = data.error || "Login inválido";
-      wrapper.classList.remove("shake");
-      void wrapper.offsetWidth;
-      wrapper.classList.add("shake");
+      showError(data.error || "Login invalido");
+      setLoadingState(false);
       return;
     }
 
+    localStorage.setItem(LAST_USER_KEY, user);
     window.api.loginSuccess(data.user);
-
   } catch (err) {
-    error.textContent = "Erro de conexão";
+    showError("Nao foi possivel conectar ao servidor");
+    setLoadingState(false);
   }
 }
 
-document.addEventListener("keydown", e => {
-  if (e.key === "Enter") login();
+form.addEventListener("submit", event => {
+  event.preventDefault();
+  login();
+});
+
+togglePassButton.addEventListener("click", () => {
+  const reveal = passInput.type === "password";
+  passInput.type = reveal ? "text" : "password";
+  togglePassButton.textContent = reveal ? "Ocultar" : "Mostrar";
+  togglePassButton.setAttribute("aria-label", reveal ? "Ocultar senha" : "Mostrar senha");
+  passInput.focus();
+});
+
+passInput.addEventListener("keyup", updateCapsLockState);
+passInput.addEventListener("keydown", updateCapsLockState);
+document.addEventListener("keyup", updateCapsLockState);
+
+window.addEventListener("DOMContentLoaded", () => {
+  const lastUser = localStorage.getItem(LAST_USER_KEY);
+
+  if (lastUser) {
+    userInput.value = lastUser;
+    passInput.focus();
+  } else {
+    userInput.focus();
+  }
 });

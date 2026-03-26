@@ -3,6 +3,7 @@
 ========================= */
 
 const API_URL = "https://lato-app-production.up.railway.app";
+const TABLE_LOADING_MIN_MS = 1500;
 
 let projects = [];
 let editingId = null;
@@ -13,6 +14,8 @@ const modal = document.getElementById("modal");
 let currentUser = "Usuário desconhecido";
 let contextMenu;
 let summaryTabsInitialized = false;
+let modalBindingsInitialized = false;
+let tableLoadingCounter = 0;
 let progressEditProject = null;
 let progressDraftPercent = 0;
 
@@ -50,14 +53,29 @@ document.addEventListener("DOMContentLoaded", async () => {
     currentUser = "Usuário desconhecido";
   }
 
+  initModalBindings();
   loadProjects();
 });
+
+function initModalBindings() {
+  if (modalBindingsInitialized) return;
+
+  const inputAlimentador = document.getElementById("alimentador");
+  inputAlimentador?.addEventListener("input", e => {
+    updateAlimentadorSelecionado(e.target.value.trim());
+  });
+
+  enableKeyboardNavigation();
+  modalBindingsInitialized = true;
+}
 
 /* =========================
    API
 ========================= */
 
 async function loadProjects() {
+  const loadingToken = beginTableLoading();
+
   try {
     const res = await fetch(`${API_URL}/projects`);
     projects = await res.json();
@@ -70,7 +88,41 @@ async function loadProjects() {
     renderTable();
   } catch (err) {
     console.error("Erro ao carregar projetos:", err);
+  } finally {
+    endTableLoading(loadingToken);
   }
+}
+
+function beginTableLoading() {
+  tableLoadingCounter += 1;
+
+  const loadingEl = document.getElementById("tableLoading");
+  if (loadingEl) {
+    loadingEl.classList.add("active");
+    loadingEl.setAttribute("aria-hidden", "false");
+    loadingEl.closest(".list")?.classList.add("table-busy");
+  }
+
+  return {
+    id: tableLoadingCounter,
+    startedAt: Date.now()
+  };
+}
+
+function endTableLoading(token) {
+  const loadingEl = document.getElementById("tableLoading");
+  if (!loadingEl) return;
+
+  const elapsed = Date.now() - token.startedAt;
+  const wait = Math.max(TABLE_LOADING_MIN_MS - elapsed, 0);
+
+  setTimeout(() => {
+    if (token.id !== tableLoadingCounter) return;
+
+    loadingEl.classList.remove("active");
+    loadingEl.setAttribute("aria-hidden", "true");
+    loadingEl.closest(".list")?.classList.remove("table-busy");
+  }, wait);
 }
 
 async function createProject(project) {
@@ -189,16 +241,8 @@ function openModal(id = null) {
     if (p) fillForm(p);
   }
 
-  const inputAlimentador = document.getElementById("alimentador");
-
-  inputAlimentador.addEventListener("input", e => {
-    updateAlimentadorSelecionado(e.target.value.trim());
-  });
-
-
   setTimeout(() => {
     document.getElementById("obra")?.focus();
-    enableKeyboardNavigation();
   }, 0);
 }
 
@@ -314,17 +358,26 @@ function closeConfirm() {
   closeModalAnimated(document.getElementById("confirmModal"));
 }
 
+function closeConfirmImmediate() {
+  const confirmModal = document.getElementById("confirmModal");
+  if (!confirmModal) return;
+
+  confirmModal.classList.remove("active");
+  confirmModal.style.display = "none";
+}
+
 async function confirmDelete() {
   if (!deleteId) return;
 
+  const idToDelete = deleteId;
+  deleteId = null;
+  closeConfirmImmediate();
+
   try {
-    await deleteProject(deleteId);
+    await deleteProject(idToDelete);
   } catch (err) {
     console.error("Erro ao excluir:", err);
   }
-
-  deleteId = null;
-  closeModalAnimated(document.getElementById("confirmModal"));
 }
 
 /* =========================
@@ -352,6 +405,7 @@ function renderTable() {
     const tr = document.createElement("tr");
     const createdBy = p.created_by || "Desconhecido";
     const progress = getProjectProgress(p);
+    const tone = getProgressTone(progress.percent);
 
     tr.innerHTML = `
       <td>${p.obra}</td>
@@ -364,7 +418,7 @@ function renderTable() {
       <td>${formatDateBR(p.instalacao)}</td>
       <td>
         <button class="progress-pill" type="button" data-progress-id="${p.id}">
-          <span class="progress-pill-bar" style="--progress:${progress.percent}%"></span>
+          <span class="progress-pill-bar" style="--progress:${progress.percent}%; --progress-fill:${tone.gradient}; --progress-glow-a:${tone.glowA}; --progress-glow-b:${tone.glowB};"></span>
           <span class="progress-pill-text">${progress.percent}%</span>
         </button>
       </td>
@@ -398,6 +452,19 @@ function renderTable() {
       openProgressModal(p.id);
     });
 
+    progressBtn?.addEventListener("mousemove", e => {
+      e.stopPropagation();
+      tooltip.style.left = e.clientX + 14 + "px";
+      tooltip.style.top = e.clientY + 14 + "px";
+      tooltip.innerHTML = `<strong>${progress.percent}%</strong> - ${progress.label}`;
+      tooltip.style.opacity = "1";
+    });
+
+    progressBtn?.addEventListener("mouseleave", e => {
+      e.stopPropagation();
+      tooltip.style.opacity = "0";
+    });
+
     tbody.appendChild(tr);
   });
 }
@@ -417,6 +484,30 @@ function getProjectProgress(project) {
   return {
     percent: currentStage.percent,
     label: currentStage.label
+  };
+}
+
+function getProgressTone(percent) {
+  if (percent >= 100) {
+    return {
+      gradient: "linear-gradient(90deg, #16a34a 0%, #22c55e 55%, #86efac 100%)",
+      glowA: "rgba(34, 197, 94, 0.5)",
+      glowB: "rgba(134, 239, 172, 0.38)"
+    };
+  }
+
+  if (percent >= 65) {
+    return {
+      gradient: "linear-gradient(90deg, #2563eb 0%, #0284c7 45%, #06b6d4 100%)",
+      glowA: "rgba(37, 99, 235, 0.5)",
+      glowB: "rgba(6, 182, 212, 0.35)"
+    };
+  }
+
+  return {
+    gradient: "linear-gradient(90deg, #f59e0b 0%, #fb923c 50%, #fbbf24 100%)",
+    glowA: "rgba(245, 158, 11, 0.48)",
+    glowB: "rgba(251, 191, 36, 0.36)"
   };
 }
 
@@ -595,6 +686,8 @@ function enableKeyboardNavigation() {
   const fields = Array.from(document.querySelectorAll("#modal input"));
 
   fields.forEach((field, index) => {
+    if (field.dataset.navBound === "true") return;
+
     field.addEventListener("keydown", e => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -606,6 +699,8 @@ function enableKeyboardNavigation() {
       }
       if (e.key === "Escape") closeModal();
     });
+
+    field.dataset.navBound = "true";
   });
 }
 

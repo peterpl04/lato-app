@@ -12,10 +12,11 @@
   </div>
 
   <script>
-    // dispara a animação de saída
-    setTimeout(() => {
-      document.getElementById("splash").classList.add("exit");
-    }, 2200); // tempo antes de sumir
+    const splash = document.getElementById("splash");
+
+    window.api.onSplashStartExit(() => {
+      splash.classList.add("exit");
+    });
   </script>
 </body>
 

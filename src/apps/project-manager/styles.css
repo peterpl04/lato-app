@@ -1,40 +1,13 @@
-/* =========================
-   🎨 TEMA CLARO (FIXO)
-========================= */
-
-:root {
-  --bg-main: #ffffff;
-  --bg-gradient: #f1f5f9;
-  --bg-card: #ffffff;
-  --bg-soft: #f8fafc;
-
-  --border-soft: #e5e7eb;
-
-  --accent: #2563eb;
-  --accent-hover: #1e40af;
-
-  --text-main: #0f172a;
-  --text-muted: #475569;
-
-  --overlay: rgba(15, 23, 42, 0.4);
-}
+@import "../../renderer/styles/tokens.css";
+@import "../../renderer/styles/base.css";
+@import "../../renderer/styles/components.css";
 
 /* =========================
-   BASE
+   BASE OVERRIDES
 ========================= */
-
-* {
-  box-sizing: border-box;
-  font-family: 'Inter', sans-serif;
-}
 
 body {
-  margin: 0;
   height: 100vh;
-  background: radial-gradient(circle at top,
-      var(--bg-gradient),
-      var(--bg-main));
-  color: var(--text-main);
 }
 
 /* =========================
@@ -62,10 +35,59 @@ header span {
 
 .list {
   background: var(--bg-card);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   overflow-x: auto;
   border: 1px solid var(--border-soft);
+  position: relative;
+}
+
+.table-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(2px);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 6;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.table-loading.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.list.table-busy .grid,
+.list.table-busy .grid * {
+  pointer-events: none;
+}
+
+.list.table-busy .grid {
+  cursor: progress;
+}
+
+.table-loading i {
+  font-size: 18px;
+  color: var(--accent);
+  animation: tableSpin 0.85s linear infinite;
+}
+
+@keyframes tableSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .list-header {
@@ -105,26 +127,64 @@ header span {
   width: 130px;
   height: 30px;
   border-radius: 999px;
-  border: 1px solid rgba(37, 99, 235, 0.25);
-  background: #e2e8f0;
+  border: 1px solid rgba(37, 99, 235, 0.3);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(180deg, #ecf3ff 0%, #dbe7fb 100%);
   overflow: hidden;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.35),
+    0 8px 18px rgba(37, 99, 235, 0.16);
+  transition: transform 0.2s ease, box-shadow 0.25s ease;
 }
 
 .progress-pill:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1px) scale(1.02);
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 42%),
+    linear-gradient(180deg, #ffffff 0%, #f7f9fc 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 0 0 1px rgba(255, 255, 255, 0.58),
+    0 10px 22px rgba(148, 163, 184, 0.28);
 }
 
 .progress-pill-bar {
   position: absolute;
-  inset: 0;
+  inset: 2px;
+  border-radius: 999px;
   width: var(--progress);
-  background: linear-gradient(90deg, #2563eb, #06b6d4);
+  background:
+    linear-gradient(
+      100deg,
+      rgba(255, 255, 255, 0.1) 0%,
+      rgba(255, 255, 255, 0.35) 30%,
+      rgba(255, 255, 255, 0.08) 55%
+    ),
+    var(--progress-fill, linear-gradient(90deg, #2563eb 0%, #0284c7 45%, #06b6d4 100%));
+  background-size: 220% 100%, 100% 100%;
+  animation: progressShine 2.1s linear infinite;
   transition: width 0.55s cubic-bezier(0.2, 0.8, 0.2, 1);
+  box-shadow:
+    0 0 8px var(--progress-glow-a, rgba(37, 99, 235, 0.5)),
+    0 0 16px var(--progress-glow-b, rgba(6, 182, 212, 0.35));
+}
+
+.progress-pill::after {
+  content: "";
+  position: absolute;
+  inset: -45% auto -45% -35%;
+  width: 40%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  opacity: 0.65;
+  animation: progressSweep 2.8s linear infinite;
 }
 
 .progress-pill-text {
@@ -132,8 +192,28 @@ header span {
   z-index: 1;
   font-size: 12px;
   font-weight: 700;
-  color: #0f172a;
-  mix-blend-mode: multiply;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(2, 6, 23, 0.45);
+}
+
+@keyframes progressShine {
+  from {
+    background-position: 0% 0%, 0% 0%;
+  }
+
+  to {
+    background-position: 220% 0%, 0% 0%;
+  }
+}
+
+@keyframes progressSweep {
+  from {
+    left: -40%;
+  }
+
+  to {
+    left: 120%;
+  }
 }
 
 /* =========================
@@ -175,15 +255,13 @@ header span {
 .modal {
   background: var(--bg-card);
   padding: 32px;
-  border-radius: 18px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--border-soft);
   width: 740px;
   overflow-x: hidden;
-
-}
-
-.modal-large {
-  width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-text {
@@ -270,6 +348,11 @@ header span {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+  margin-top: 16px;
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-card);
+  padding-top: 12px;
 }
 
 
@@ -420,12 +503,6 @@ button.danger:hover {
   }
 }
 
-.modal {
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-
 .modal-large {
   width: 900px;
   /* mais largo */
@@ -436,15 +513,6 @@ button.danger:hover {
   overflow-y: auto;
   /* scroll interno se precisar */
   padding: 32px;
-}
-
-/* garante que os botões fiquem sempre visíveis */
-.modal-actions {
-  margin-top: 16px;
-  position: sticky;
-  bottom: 0;
-  background: var(--bg-card);
-  padding-top: 12px;
 }
 
 .modal-tabs {
@@ -628,17 +696,24 @@ button.danger:hover {
 }
 
 .summary-tab {
-  background: #f1f1f1;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  padding: 6px 14px;
+  border-radius: 999px;
   cursor: pointer;
-  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.summary-tab:hover {
+  background: #e5e7eb;
 }
 
 .summary-tab.active {
-  background: #111;
-  color: #fff;
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
 }
 
 .summary-content {
@@ -654,7 +729,7 @@ button.danger:hover {
 ========================= */
 
 .modal-progress {
-  width: min(720px, 92vw);
+  width: min(660px, 92vw);
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -663,7 +738,7 @@ button.danger:hover {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .progress-modal-header h3 {
@@ -673,40 +748,50 @@ button.danger:hover {
 .progress-hero {
   background: linear-gradient(135deg, #1d4ed8 0%, #0ea5e9 100%);
   color: #fff;
-  border-radius: 16px;
-  padding: 18px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
   box-shadow: 0 14px 30px rgba(14, 116, 144, 0.25);
 }
 
 .progress-hero-value {
-  font-size: 34px;
+  font-size: 24px;
   font-weight: 700;
   line-height: 1;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .progress-hero-label {
-  font-size: 14px;
+  font-size: 12px;
   opacity: 0.96;
 }
 
 .progress-steps {
   display: grid;
-  gap: 10px;
-  margin: 16px 0;
+  gap: 5px;
+  margin: 8px 0;
 }
 
 .progress-step {
   width: 100%;
   border: 1px solid var(--border-soft);
   background: #fff;
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 8px;
+  padding: 6px 8px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 7px;
   color: var(--text-main);
+  cursor: default;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.progress-step:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+  border-color: #cfd8e3;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.92),
+    0 6px 14px rgba(15, 23, 42, 0.06);
 }
 
 .progress-step.done {
@@ -714,19 +799,36 @@ button.danger:hover {
   border-color: rgba(37, 99, 235, 0.35);
 }
 
+.progress-step.done:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f7fc 100%);
+  border-color: #cfd8e3;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.94),
+    0 6px 14px rgba(15, 23, 42, 0.06);
+}
+
 .progress-step.current {
   box-shadow: 0 8px 20px rgba(37, 99, 235, 0.15);
   transform: translateX(2px);
 }
 
+.progress-step:active {
+  transform: none;
+}
+
+.progress-step.current:active {
+  transform: translateX(2px);
+}
+
 .progress-step-check {
-  width: 30px;
-  height: 30px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  font-size: 11px;
   background: #e2e8f0;
 }
 
@@ -739,14 +841,14 @@ button.danger:hover {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: 1px;
 }
 
 .progress-step-main strong {
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .progress-step-main small {
-  font-size: 13px;
+  font-size: 11px;
   color: var(--text-muted);
 }

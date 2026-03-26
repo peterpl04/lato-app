@@ -7,36 +7,47 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+  <div class="bg-layer"></div>
+  <div class="bg-orb bg-orb-a"></div>
+  <div class="bg-orb bg-orb-b"></div>
+  <div class="bg-grid"></div>
 
-  <!-- BOTÃO FECHAR -->
   <div class="login-close">
-    <button class="close-btn" onclick="window.api.closeLogin()">✕</button>
+    <button class="close-btn" onclick="window.api.closeLogin()" aria-label="Fechar login">✕</button>
   </div>
 
-  <!-- LOGO SOLTA -->
-  <div class="bg-logo">
-    <img src="../../../assets/icons/lato-infinite.png" alt="LatoApps">
-  </div>
+  <main class="login-container">
+    <section class="login-wrapper" aria-label="Autenticacao">
+      <div class="brand-wrap">
+        <img src="../../../assets/icons/lato-infinite.png" alt="LatoApps" class="brand-logo">
+        <div class="brand-text">
+          <h1>LatoApps</h1>
+          <p>Bem-vindo de volta</p>
+        </div>
+      </div>
 
-  <!-- LOGIN -->
-  <div class="login-container">
-    <div class="login-wrapper">
+      <form id="login-form" class="login-form" autocomplete="on">
+        <label for="user">Usuário</label>
+        <input id="user" name="username" autocomplete="username" placeholder="Digite seu usuario">
 
-      <div class="login-title">Login</div>
+        <label for="pass">Senha</label>
+        <div class="pass-wrap">
+          <input id="pass" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+          <button type="button" id="toggle-pass" class="toggle-pass" aria-label="Mostrar senha">Mostrar</button>
+        </div>
 
-      <input id="user" placeholder="Usuário">
-      <input id="pass" type="password" placeholder="Senha">
+        <div id="caps-lock" class="caps-lock" aria-live="polite"></div>
+        <div id="error" class="error" aria-live="polite"></div>
 
-      <button class="login-btn" onclick="login()">ENTRAR</button>
-      <div id="error" class="error"></div>
-
-    </div>
-  </div>
+        <button id="submit-login" class="login-btn" type="submit">Entrar</button>
+      </form>
+    </section>
+  </main>
 
   <script src="login.js"></script>
 </body>

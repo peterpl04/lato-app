@@ -11,8 +11,7 @@ const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
-const MODULE_VERSIONS_PATH = path.join(__dirname, "..", "..", "data", "module-versions.json");
-const MODULE_UPDATE_CACHE_TTL_MS = 60 * 1000;
+const GLOBAL_UPDATE_STATUS_CACHE_TTL_MS = 60 * 1000;
 const MANUAL_APP_UPDATE_TRIGGER = false;
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
@@ -24,8 +23,8 @@ const { autoUpdater } = require("electron-updater");
 const ghToken = process.env.GH_TOKEN;
 const GITHUB_OWNER = "peterpl04";
 const GITHUB_REPO = "lato-app";
-let moduleUpdateCache = null;
-let moduleUpdateCacheAt = 0;
+let globalUpdateStatusCache = null;
+let globalUpdateStatusCacheAt = 0;
 
 if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
   autoUpdater.requestHeaders = {
@@ -113,28 +112,6 @@ function compareVersions(a, b) {
   return 0;
 }
 
-function readModuleVersionConfig() {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(MODULE_VERSIONS_PATH, "utf-8"));
-
-    return {
-      dwg: {
-        currentVersion: parsed?.dwg?.currentVersion || "1.0.0",
-        releaseTagPrefix: parsed?.dwg?.releaseTagPrefix || "dwg-renamer-v"
-      },
-      pm: {
-        currentVersion: parsed?.pm?.currentVersion || "1.0.0",
-        releaseTagPrefix: parsed?.pm?.releaseTagPrefix || "project-manager-v"
-      }
-    };
-  } catch {
-    return {
-      dwg: { currentVersion: "1.0.0", releaseTagPrefix: "dwg-renamer-v" },
-      pm: { currentVersion: "1.0.0", releaseTagPrefix: "project-manager-v" }
-    };
-  }
-}
-
 function buildGithubHeaders() {
   const headers = {
     Accept: "application/vnd.github+json",
@@ -162,165 +139,64 @@ async function fetchGithubReleases() {
   return Array.isArray(releases) ? releases : [];
 }
 
-function getLatestReleaseTag(releases) {
-  const latest = releases.find(release => !release?.draft && !release?.prerelease);
-  return latest?.tag_name || null;
+function pickLatestStableVersionFromReleases(releases) {
+  const stable = releases.find(release => {
+    if (!release || release.draft || release.prerelease) return false;
+    const tag = String(release.tag_name || "").trim();
+    return /^v?\d+\.\d+\.\d+$/.test(tag);
+  });
+
+  const rawTag = String(stable?.tag_name || "").trim();
+  return rawTag ? rawTag.replace(/^v/i, "") : null;
 }
 
-async function fetchModuleVersionConfigFromReleaseTag(tagName) {
-  const parsed = await fetchModuleVersionConfigByRef(tagName);
-  if (!parsed) {
-    return null;
-  }
-
-  return {
-    dwg: {
-      currentVersion: parsed?.dwg?.currentVersion || "1.0.0",
-      releaseTagPrefix: parsed?.dwg?.releaseTagPrefix || "dwg-renamer-v"
-    },
-    pm: {
-      currentVersion: parsed?.pm?.currentVersion || "1.0.0",
-      releaseTagPrefix: parsed?.pm?.releaseTagPrefix || "project-manager-v"
-    }
-  };
-}
-
-async function fetchModuleVersionConfigByRef(ref) {
-  const refValue = String(ref || "").trim();
-  if (!refValue) {
-    return null;
-  }
-
-  const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${encodeURIComponent(refValue)}/data/module-versions.json`;
-
-  try {
-    const rawResponse = await fetch(rawUrl, { headers: { "User-Agent": "LatoApps" } });
-    if (rawResponse.ok) {
-      return rawResponse.json();
-    }
-  } catch {
-    // fallback below
-  }
-
-  try {
-    const contentResponse = await fetch(
-      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/data/module-versions.json?ref=${encodeURIComponent(refValue)}`,
-      { headers: buildGithubHeaders() }
-    );
-
-    if (!contentResponse.ok) {
-      return null;
-    }
-
-    const payload = await contentResponse.json();
-    const encoded = payload?.content;
-    if (!encoded) {
-      return null;
-    }
-
-    const decoded = Buffer.from(String(encoded).replace(/\n/g, ""), "base64").toString("utf-8");
-    return JSON.parse(decoded);
-  } catch {
-    return null;
-  }
-}
-
-async function fetchModuleVersionConfigFromMain() {
-  const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/data/module-versions.json?ts=${Date.now()}`;
-
-  try {
-    const response = await fetch(url, {
-      headers: { "User-Agent": "LatoApps" }
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const parsed = await response.json();
-    return {
-      dwg: {
-        currentVersion: parsed?.dwg?.currentVersion || "1.0.0",
-        releaseTagPrefix: parsed?.dwg?.releaseTagPrefix || "dwg-renamer-v"
-      },
-      pm: {
-        currentVersion: parsed?.pm?.currentVersion || "1.0.0",
-        releaseTagPrefix: parsed?.pm?.releaseTagPrefix || "project-manager-v"
-      }
-    };
-  } catch {
-    return null;
-  }
-}
-
-async function getModuleUpdateStatus(options = {}) {
+async function getGlobalAppUpdateStatus(options = {}) {
   const forceRefresh = Boolean(options?.force);
   const now = Date.now();
-  if (!forceRefresh && moduleUpdateCache && (now - moduleUpdateCacheAt) < MODULE_UPDATE_CACHE_TTL_MS) {
-    return moduleUpdateCache;
+
+  if (
+    !forceRefresh &&
+    globalUpdateStatusCache &&
+    now - globalUpdateStatusCacheAt < GLOBAL_UPDATE_STATUS_CACHE_TTL_MS
+  ) {
+    return globalUpdateStatusCache;
   }
 
-  const localConfig = readModuleVersionConfig();
+  const currentVersion = app.getVersion();
 
   try {
-    let remoteConfig = await fetchModuleVersionConfigFromMain();
+    const releases = await fetchGithubReleases();
+    const latestVersion = pickLatestStableVersionFromReleases(releases);
 
-    if (!remoteConfig) {
-      const releases = await fetchGithubReleases();
-      const latestReleaseTag = getLatestReleaseTag(releases);
-
-      remoteConfig = latestReleaseTag
-        ? await fetchModuleVersionConfigFromReleaseTag(latestReleaseTag)
-        : null;
-
-      if (!remoteConfig && latestReleaseTag) {
-        remoteConfig = await fetchModuleVersionConfigByRef(`refs/tags/${latestReleaseTag}`);
-      }
+    if (!latestVersion) {
+      throw new Error("Nenhuma release estável encontrada");
     }
 
-    const dwgLatestFromReleaseFile = remoteConfig?.dwg?.currentVersion;
-    const pmLatestFromReleaseFile = remoteConfig?.pm?.currentVersion;
-
-    const dwgLatest = dwgLatestFromReleaseFile || localConfig.dwg.currentVersion;
-    const pmLatest = pmLatestFromReleaseFile || localConfig.pm.currentVersion;
-
-    moduleUpdateCache = {
+    globalUpdateStatusCache = {
       checkedAt: new Date().toISOString(),
-      dwg: {
-        currentVersion: localConfig.dwg.currentVersion,
-        latestVersion: dwgLatest,
-        isUpdatable: compareVersions(dwgLatest, localConfig.dwg.currentVersion) > 0
-      },
-      pm: {
-        currentVersion: localConfig.pm.currentVersion,
-        latestVersion: pmLatest,
-        isUpdatable: compareVersions(pmLatest, localConfig.pm.currentVersion) > 0
-      }
+      currentVersion,
+      latestVersion,
+      isOutdated: compareVersions(latestVersion, currentVersion) > 0
     };
-    moduleUpdateCacheAt = now;
-    return moduleUpdateCache;
+    globalUpdateStatusCacheAt = now;
+
+    return globalUpdateStatusCache;
   } catch (err) {
-    log.warn("Falha ao verificar status dos módulos no GitHub:", err?.message || err);
+    log.warn("Falha ao verificar status global de atualização:", err?.message || err);
 
-    if (moduleUpdateCache) {
-      return moduleUpdateCache;
+    if (globalUpdateStatusCache) {
+      return globalUpdateStatusCache;
     }
 
-    moduleUpdateCache = {
+    globalUpdateStatusCache = {
       checkedAt: new Date().toISOString(),
-      dwg: {
-        currentVersion: localConfig.dwg.currentVersion,
-        latestVersion: localConfig.dwg.currentVersion,
-        isUpdatable: false
-      },
-      pm: {
-        currentVersion: localConfig.pm.currentVersion,
-        latestVersion: localConfig.pm.currentVersion,
-        isUpdatable: false
-      }
+      currentVersion,
+      latestVersion: currentVersion,
+      isOutdated: Boolean(updateIsAvailable)
     };
-    moduleUpdateCacheAt = now;
-    return moduleUpdateCache;
+    globalUpdateStatusCacheAt = now;
+
+    return globalUpdateStatusCache;
   }
 }
 
@@ -828,8 +704,8 @@ ipcMain.handle("save-launcher-state", (_, patch) => {
   return true;
 });
 
-ipcMain.handle("get-module-update-status", async (_, options) => {
-  return getModuleUpdateStatus(options);
+ipcMain.handle("get-global-app-update-status", async (_, options) => {
+  return getGlobalAppUpdateStatus(options);
 });
 
 ipcMain.handle("check-app-update", async () => {
@@ -968,6 +844,13 @@ autoUpdater.on("update-available", info => {
   log.info("Atualização disponível:", info.version);
   updateIsAvailable = true;
   updateCheckResolved = true;
+  globalUpdateStatusCache = {
+    checkedAt: new Date().toISOString(),
+    currentVersion: app.getVersion(),
+    latestVersion: info?.version || app.getVersion(),
+    isOutdated: true
+  };
+  globalUpdateStatusCacheAt = Date.now();
 
   if (splashWindow) {
     splashWindow.close();
@@ -1008,6 +891,13 @@ autoUpdater.on("update-downloaded", () => {
 autoUpdater.on("update-not-available", () => {
   updateIsAvailable = false;
   updateCheckResolved = true;
+  globalUpdateStatusCache = {
+    checkedAt: new Date().toISOString(),
+    currentVersion: app.getVersion(),
+    latestVersion: app.getVersion(),
+    isOutdated: false
+  };
+  globalUpdateStatusCacheAt = Date.now();
   tryOpenLoginAfterStartup();
 });
 

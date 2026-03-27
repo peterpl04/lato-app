@@ -16,7 +16,7 @@ let launcherState = {
   recents: [],
   activity: []
 };
-const MODULE_STATUS_POLL_MS = 60 * 1000;
+const APP_STATUS_POLL_MS = 60 * 1000;
 
 function openDWG() {
   window.api.openDWGRenamer();
@@ -108,8 +108,8 @@ function renderMetrics() {
   if (pmLast) pmLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.pm)}`;
 }
 
-function renderModuleStatusBadge(elementId, status) {
-  const badge = document.getElementById(elementId);
+function renderGlobalUpdateBadge(status) {
+  const badge = document.getElementById("ctx-update-status");
   if (!badge) return;
 
   badge.classList.remove("ok", "update", "updated", "info");
@@ -120,59 +120,30 @@ function renderModuleStatusBadge(elementId, status) {
     return;
   }
 
-  if (status.error) {
+  if (status.error || status.isOutdated == null) {
     badge.classList.add("info");
-    badge.textContent = "SEM DADOS";
+    badge.textContent = "Status indisponível";
     return;
   }
 
-  if (status.isUpdatable) {
+  if (status.isOutdated) {
     badge.classList.add("update");
-    badge.textContent = "ATUALIZÁVEL";
+    badge.textContent = "Desatualizado";
     return;
   }
 
-  badge.classList.add("updated");
-  badge.textContent = "ATUALIZADO";
+  badge.classList.add("ok");
+  badge.textContent = "Atualizado";
 }
 
-function renderModuleVersion(elementId, status) {
-  const el = document.getElementById(elementId);
-  if (!el) return;
-
-  if (!status) {
-    el.textContent = "v-";
-    return;
-  }
-
-  const current = status.currentVersion ? `v${status.currentVersion}` : "v-";
-  const latest = status.latestVersion ? `v${status.latestVersion}` : current;
-
-  if (status.isUpdatable && latest !== current) {
-    el.textContent = `${current} -> ${latest}`;
-    return;
-  }
-
-  el.textContent = current;
-}
-
-async function loadModuleUpdateStatus(force = false) {
-  renderModuleStatusBadge("dwg-status", null);
-  renderModuleStatusBadge("pm-status", null);
-  renderModuleVersion("dwg-version", null);
-  renderModuleVersion("pm-version", null);
+async function loadGlobalUpdateStatus(force = false) {
+  renderGlobalUpdateBadge(null);
 
   try {
-    const updateStatus = await window.api.getModuleUpdateStatus({ force });
-    renderModuleStatusBadge("dwg-status", updateStatus?.dwg);
-    renderModuleStatusBadge("pm-status", updateStatus?.pm);
-    renderModuleVersion("dwg-version", updateStatus?.dwg);
-    renderModuleVersion("pm-version", updateStatus?.pm);
+    const updateStatus = await window.api.getGlobalAppUpdateStatus({ force });
+    renderGlobalUpdateBadge(updateStatus);
   } catch {
-    renderModuleStatusBadge("dwg-status", { error: true });
-    renderModuleStatusBadge("pm-status", { error: true });
-    renderModuleVersion("dwg-version", null);
-    renderModuleVersion("pm-version", null);
+    renderGlobalUpdateBadge({ error: true });
   }
 }
 
@@ -285,7 +256,7 @@ async function handleAction(action) {
       // Ignore manual update check failures to keep launcher responsive.
     }
 
-    await loadModuleUpdateStatus(true);
+    await loadGlobalUpdateStatus(true);
   }
 }
 
@@ -351,20 +322,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   window.addEventListener("focus", () => {
-    loadModuleUpdateStatus();
+    loadGlobalUpdateStatus();
   });
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      loadModuleUpdateStatus();
+      loadGlobalUpdateStatus();
     }
   });
 
   setInterval(() => {
-    loadModuleUpdateStatus();
-  }, MODULE_STATUS_POLL_MS);
+    loadGlobalUpdateStatus();
+  }, APP_STATUS_POLL_MS);
 
   await loadLauncherState();
-  await loadModuleUpdateStatus();
+  await loadGlobalUpdateStatus();
 });
 

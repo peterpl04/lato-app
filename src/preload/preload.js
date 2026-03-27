@@ -28,7 +28,7 @@ contextBridge.exposeInMainWorld("api", {
 
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
-  getModuleUpdateStatus: (options) => ipcRenderer.invoke("get-module-update-status", options),
+  getGlobalAppUpdateStatus: (options) => ipcRenderer.invoke("get-global-app-update-status", options),
   checkAppUpdate: () => ipcRenderer.invoke("check-app-update"),
 
   getLauncherState: () => ipcRenderer.invoke("get-launcher-state"),

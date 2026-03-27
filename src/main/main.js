@@ -54,6 +54,7 @@ let isUpdateCheckInProgress = false;
 const SPLASH_HANDOFF_MS = 340;
 const ACTIVITY_PREVIEW_LIMIT = 32;
 const ACTIVITY_LOG_LIMIT = 2000;
+const ACTIVITY_RETENTION_DAYS = 30;
 const ACTIVITY_API_URL = String(
   process.env.ACTIVITY_API_URL ||
   process.env.PROJECT_MANAGER_API_URL ||
@@ -632,10 +633,10 @@ function readLauncherState() {
         ...(parsed.moduleLastUsedAt || {})
       },
       recents: Array.isArray(parsed.recents) ? parsed.recents : [],
-      activity: Array.isArray(parsed.activity) ? parsed.activity : [],
+      activity: pruneActivitiesByRetention(Array.isArray(parsed.activity) ? parsed.activity : []),
       activityLog: Array.isArray(parsed.activityLog)
-        ? parsed.activityLog
-        : (Array.isArray(parsed.activity) ? parsed.activity : [])
+        ? pruneActivitiesByRetention(parsed.activityLog)
+        : pruneActivitiesByRetention(Array.isArray(parsed.activity) ? parsed.activity : [])
     };
   } catch {
     return defaultLauncherState();
@@ -663,6 +664,28 @@ function normalizeActivityEntry(rawEntry) {
   };
 }
 
+function isActivityWithinRetention(entry) {
+  if (!entry?.at) {
+    return false;
+  }
+
+  const atMs = new Date(entry.at).getTime();
+  if (Number.isNaN(atMs)) {
+    return false;
+  }
+
+  const retentionMs = ACTIVITY_RETENTION_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - atMs <= retentionMs;
+}
+
+function pruneActivitiesByRetention(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  return list.filter(isActivityWithinRetention);
+}
+
 function registerActivity(state, payload = {}) {
   const entry = normalizeActivityEntry({
     ...payload,
@@ -673,8 +696,8 @@ function registerActivity(state, payload = {}) {
   const currentPreview = Array.isArray(state.activity) ? state.activity : [];
   const currentLog = Array.isArray(state.activityLog) ? state.activityLog : currentPreview;
 
-  state.activity = [entry, ...currentPreview].slice(0, ACTIVITY_PREVIEW_LIMIT);
-  state.activityLog = [entry, ...currentLog].slice(0, ACTIVITY_LOG_LIMIT);
+  state.activity = pruneActivitiesByRetention([entry, ...currentPreview]).slice(0, ACTIVITY_PREVIEW_LIMIT);
+  state.activityLog = pruneActivitiesByRetention([entry, ...currentLog]).slice(0, ACTIVITY_LOG_LIMIT);
 
   return entry;
 }
@@ -865,10 +888,10 @@ ipcMain.handle("save-launcher-state", (_, patch) => {
     },
     recents: Array.isArray(patch?.recents) ? patch.recents.slice(0, 12) : state.recents,
     activity: Array.isArray(patch?.activity)
-      ? patch.activity.map(normalizeActivityEntry).slice(0, ACTIVITY_PREVIEW_LIMIT)
+      ? pruneActivitiesByRetention(patch.activity.map(normalizeActivityEntry)).slice(0, ACTIVITY_PREVIEW_LIMIT)
       : state.activity,
     activityLog: Array.isArray(patch?.activityLog)
-      ? patch.activityLog.map(normalizeActivityEntry).slice(0, ACTIVITY_LOG_LIMIT)
+      ? pruneActivitiesByRetention(patch.activityLog.map(normalizeActivityEntry)).slice(0, ACTIVITY_LOG_LIMIT)
       : state.activityLog,
     lastSyncAt: patch?.lastSyncAt || state.lastSyncAt
   };

@@ -8,6 +8,8 @@ const bcrypt = require("bcrypt");
 const app = express();
 app.use(cors());
 app.use(express.json());
+const ACTIVITY_RETENTION_DAYS = 30;
+const ACTIVITY_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -88,6 +90,24 @@ function mapActivityRow(row) {
   };
 }
 
+async function cleanupOldActivities() {
+  try {
+    const result = await pool.query(
+      `
+      DELETE FROM launcher_activities
+      WHERE occurred_at < (NOW() - ($1::int * INTERVAL '1 day'))
+      `,
+      [ACTIVITY_RETENTION_DAYS]
+    );
+
+    if (Number(result.rowCount) > 0) {
+      console.log(`🧹 Limpeza de atividades: ${result.rowCount} registro(s) removido(s)`);
+    }
+  } catch (err) {
+    console.error("❌ Erro ao limpar atividades antigas:", err);
+  }
+}
+
 /* =========================
    INIT DATABASE
 ========================= */
@@ -141,6 +161,9 @@ async function initDB() {
 initDB().catch(err => {
   console.error("❌ Erro ao iniciar banco:", err);
 });
+
+cleanupOldActivities();
+setInterval(cleanupOldActivities, ACTIVITY_CLEANUP_INTERVAL_MS);
 /* =========================
    SOCKET
 ========================= */

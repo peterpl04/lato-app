@@ -601,8 +601,49 @@ function defaultLauncherState() {
     },
     recents: [],
     activity: [],
-    activityLog: []
+    activityLog: [],
+    dismissedActivityKeys: []
   };
+}
+
+function normalizeDismissedKeys(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const unique = [];
+  value.forEach((item) => {
+    if (typeof item !== "string") return;
+    const trimmed = item.trim();
+    if (!trimmed) return;
+    if (!unique.includes(trimmed)) {
+      unique.push(trimmed);
+    }
+  });
+
+  return unique.slice(0, ACTIVITY_LOG_LIMIT);
+}
+
+function getActivityEntryKey(entry) {
+  if (!entry || typeof entry !== "object") {
+    return "";
+  }
+
+  if (entry.id) {
+    return `id:${entry.id}`;
+  }
+
+  return `fallback:${entry.message || ""}|${entry.at || ""}`;
+}
+
+function collectActivityKeys(list) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  return list
+    .map(getActivityEntryKey)
+    .filter(Boolean);
 }
 
 function ensureLauncherStateFile() {
@@ -636,7 +677,8 @@ function readLauncherState() {
       activity: pruneActivitiesByRetention(Array.isArray(parsed.activity) ? parsed.activity : []),
       activityLog: Array.isArray(parsed.activityLog)
         ? pruneActivitiesByRetention(parsed.activityLog)
-        : pruneActivitiesByRetention(Array.isArray(parsed.activity) ? parsed.activity : [])
+        : pruneActivitiesByRetention(Array.isArray(parsed.activity) ? parsed.activity : []),
+      dismissedActivityKeys: normalizeDismissedKeys(parsed.dismissedActivityKeys)
     };
   } catch {
     return defaultLauncherState();
@@ -858,6 +900,14 @@ ipcMain.handle("get-launcher-state", () => {
   const state = readLauncherState();
   const env = getAppEnvironmentKey();
 
+  const validDismissedKeys = normalizeDismissedKeys(state.dismissedActivityKeys)
+    .filter((key) => collectActivityKeys(state.activityLog).includes(key));
+
+  if (validDismissedKeys.length !== state.dismissedActivityKeys.length) {
+    state.dismissedActivityKeys = validDismissedKeys;
+    writeLauncherState(state);
+  }
+
   return {
     context: {
       user: normalizeUserName(loggedUser),
@@ -868,7 +918,8 @@ ipcMain.handle("get-launcher-state", () => {
     moduleMetrics: state.moduleMetrics,
     moduleLastUsedAt: state.moduleLastUsedAt,
     recents: state.recents,
-    activity: state.activity
+    activity: state.activity,
+    dismissedActivityKeys: state.dismissedActivityKeys
   };
 });
 
@@ -893,12 +944,19 @@ ipcMain.handle("save-launcher-state", (_, patch) => {
     activityLog: Array.isArray(patch?.activityLog)
       ? pruneActivitiesByRetention(patch.activityLog.map(normalizeActivityEntry)).slice(0, ACTIVITY_LOG_LIMIT)
       : state.activityLog,
+    dismissedActivityKeys: Array.isArray(patch?.dismissedActivityKeys)
+      ? normalizeDismissedKeys(patch.dismissedActivityKeys)
+      : normalizeDismissedKeys(state.dismissedActivityKeys),
     lastSyncAt: patch?.lastSyncAt || state.lastSyncAt
   };
 
   if (!Array.isArray(nextState.activityLog) || !nextState.activityLog.length) {
     nextState.activityLog = (nextState.activity || []).map(normalizeActivityEntry);
   }
+
+  const allowedKeys = collectActivityKeys(nextState.activityLog);
+  nextState.dismissedActivityKeys = normalizeDismissedKeys(nextState.dismissedActivityKeys)
+    .filter((key) => allowedKeys.includes(key));
 
   writeLauncherState(nextState);
   return true;

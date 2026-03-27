@@ -144,6 +144,34 @@ body {
   color: #1e293b;
 }
 
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.activity-clear-btn {
+  border: 1px solid #dbe4f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12px;
+  line-height: 1;
+  padding: 5px 7px;
+  cursor: pointer;
+}
+
+.activity-clear-btn:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.activity-clear-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.16);
+}
+
 .favorites-list {
   display: flex;
   flex-wrap: wrap;

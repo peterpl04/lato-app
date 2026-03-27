@@ -14,7 +14,8 @@ let launcherState = {
     pm: null
   },
   recents: [],
-  activity: []
+  activity: [],
+  dismissedActivityKeys: []
 };
 const APP_STATUS_POLL_MS = 60 * 1000;
 const ACTIVITY_PREVIEW_ITEMS = 5;
@@ -27,6 +28,32 @@ let activityModalElements = null;
 let activitySocket = null;
 let activityApiUrl = DEFAULT_ACTIVITY_API_URL;
 let activityEnv = "prod";
+const dismissedActivityKeys = new Set();
+
+function hydrateDismissedKeys(keys) {
+  dismissedActivityKeys.clear();
+
+  if (!Array.isArray(keys)) {
+    return;
+  }
+
+  keys.forEach((key) => {
+    if (typeof key === "string" && key.trim()) {
+      dismissedActivityKeys.add(key.trim());
+    }
+  });
+}
+
+async function persistDismissedKeys() {
+  const keys = Array.from(dismissedActivityKeys);
+  launcherState.dismissedActivityKeys = keys;
+
+  try {
+    await persistLauncherPatch({ dismissedActivityKeys: keys });
+  } catch {
+    // Keep UI responsive even if persistence fails.
+  }
+}
 
 function openDWG() {
   window.api.openDWGRenamer();
@@ -84,6 +111,25 @@ function normalizeRealtimeEnvironment(value) {
   }
 
   return "prod";
+}
+
+function getActivityEntryKey(entry) {
+  if (!entry || typeof entry !== "object") {
+    return "";
+  }
+
+  if (entry.id) {
+    return `id:${entry.id}`;
+  }
+
+  return `fallback:${entry.message || ""}|${entry.at || ""}`;
+}
+
+function getVisibleActivityEntries() {
+  return (launcherState.activity || []).filter((entry) => {
+    const key = getActivityEntryKey(entry);
+    return key && !dismissedActivityKeys.has(key);
+  });
 }
 
 function mergeActivityEntry(entry) {
@@ -318,24 +364,16 @@ function renderActivity() {
 
   activityList.innerHTML = "";
 
-  const activity = launcherState.activity.length
-    ? launcherState.activity
+  const visibleActivity = getVisibleActivityEntries();
+  const previewItems = visibleActivity.length
+    ? visibleActivity.slice(0, ACTIVITY_PREVIEW_ITEMS)
     : [
       {
         message: "Aguardando eventos do launcher",
-        tone: "info"
+        tone: "info",
+        at: null
       }
     ];
-
-  const previewItems = activity.slice(0, ACTIVITY_PREVIEW_ITEMS);
-
-  while (previewItems.length < ACTIVITY_PREVIEW_ITEMS) {
-    previewItems.push({
-      message: "Sem novos eventos",
-      tone: "info",
-      at: null
-    });
-  }
 
   previewItems.forEach((entry) => {
     const item = document.createElement("li");
@@ -352,6 +390,20 @@ function renderActivity() {
     item.append(dot, message, time);
     activityList.appendChild(item);
   });
+}
+
+async function clearActivityCardNotifications() {
+  const visibleEntries = getVisibleActivityEntries();
+
+  visibleEntries.forEach((entry) => {
+    const key = getActivityEntryKey(entry);
+    if (key) {
+      dismissedActivityKeys.add(key);
+    }
+  });
+
+  renderActivity();
+  await persistDismissedKeys();
 }
 
 async function getDailyActivityEntries() {
@@ -509,6 +561,7 @@ function bindActivityInteractions() {
   const card = document.getElementById("activity-card");
   const backdrop = document.getElementById("activity-modal");
   const closeButton = document.getElementById("activity-modal-close");
+  const clearButton = document.getElementById("activity-clear-btn");
   const list = document.getElementById("activity-day-list");
   const subtitle = document.getElementById("activity-modal-subtitle");
 
@@ -516,6 +569,7 @@ function bindActivityInteractions() {
     card,
     backdrop,
     closeButton,
+    clearButton,
     list,
     subtitle
   };
@@ -528,6 +582,10 @@ function bindActivityInteractions() {
   });
 
   closeButton?.addEventListener("click", closeActivityModal);
+  clearButton?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void clearActivityCardNotifications();
+  });
 
   backdrop?.addEventListener("click", (event) => {
     if (event.target === backdrop) {
@@ -571,8 +629,13 @@ async function loadLauncherState() {
         ...(loaded.moduleLastUsedAt || {})
       },
       recents: Array.isArray(loaded.recents) ? loaded.recents : [],
-      activity: Array.isArray(loaded.activity) ? loaded.activity : []
+      activity: Array.isArray(loaded.activity) ? loaded.activity : [],
+      dismissedActivityKeys: Array.isArray(loaded.dismissedActivityKeys)
+        ? loaded.dismissedActivityKeys
+        : []
     };
+
+    hydrateDismissedKeys(launcherState.dismissedActivityKeys);
   } catch {
     // Keep defaults when IPC is unavailable.
   }

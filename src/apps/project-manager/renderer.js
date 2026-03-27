@@ -3,7 +3,7 @@
 ========================= */
 
 const API_URL = "https://lato-app-production.up.railway.app";
-const TABLE_LOADING_MIN_MS = 1500;
+const TABLE_LOADING_MIN_MS = 1000;
 let appEnv = "prod";
 
 let projects = [];

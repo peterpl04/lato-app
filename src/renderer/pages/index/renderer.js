@@ -364,7 +364,15 @@ function renderActivity() {
 
   activityList.innerHTML = "";
 
-  const visibleActivity = getVisibleActivityEntries();
+  let visibleActivity = getVisibleActivityEntries();
+  
+  // Sort by time descending (most recent first)
+  visibleActivity = visibleActivity.sort((a, b) => {
+    const timeA = a.at ? new Date(a.at).getTime() : 0;
+    const timeB = b.at ? new Date(b.at).getTime() : 0;
+    return timeB - timeA;
+  });
+
   const previewItems = visibleActivity.length
     ? visibleActivity.slice(0, ACTIVITY_PREVIEW_ITEMS)
     : [
@@ -394,13 +402,30 @@ function renderActivity() {
 
 async function clearActivityCardNotifications() {
   const visibleEntries = getVisibleActivityEntries();
+  const activityList = document.getElementById("activity-list");
 
+  // Animate fade-out for all visible items
+  const items = activityList?.querySelectorAll("li");
+  if (items) {
+    items.forEach((item) => {
+      // Skip the placeholder message item
+      if (item.textContent.includes("Aguardando eventos")) {
+        return;
+      }
+      item.classList.add("fade-out");
+    });
+  }
+
+  // Mark entries as dismissed
   visibleEntries.forEach((entry) => {
     const key = getActivityEntryKey(entry);
     if (key) {
       dismissedActivityKeys.add(key);
     }
   });
+
+  // Wait for animation to complete before re-rendering
+  await new Promise((resolve) => setTimeout(resolve, 200));
 
   renderActivity();
   await persistDismissedKeys();

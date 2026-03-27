@@ -131,7 +131,8 @@ async function initDB() {
     )
   `);
 
-  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_launcher_activities_activity_id ON launcher_activities(activity_id) WHERE activity_id IS NOT NULL`);
+  await pool.query(`DROP INDEX IF EXISTS ux_launcher_activities_activity_id`);
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_launcher_activities_activity_id ON launcher_activities(activity_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_launcher_activities_env_occurred ON launcher_activities(environment, occurred_at DESC)`);
 
   console.log("🟢 Tabela projects pronta");

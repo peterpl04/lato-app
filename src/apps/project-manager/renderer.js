@@ -189,6 +189,57 @@ async function updateProjectProgress(id, percent) {
   });
 }
 
+async function trackLauncherActivity(payload) {
+  if (!window.api?.trackLauncherActivity) {
+    return;
+  }
+
+  try {
+    await window.api.trackLauncherActivity(payload);
+  } catch {
+    // Activity tracking should never interrupt PM actions.
+  }
+}
+
+function normalizeText(value) {
+  return String(value ?? "").trim();
+}
+
+function formatDateValue(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function describeProjectChanges(previousProject, nextProject) {
+  if (!previousProject || !nextProject) {
+    return [];
+  }
+
+  const trackedFields = [
+    { key: "obra", label: "Obra" },
+    { key: "cliente", label: "Cliente" },
+    { key: "unidade", label: "Unidade" },
+    { key: "alimentador", label: "Alimentador" },
+    { key: "observacao", label: "Observação" },
+    { key: "entrega", label: "Data de Entrega", isDate: true },
+    { key: "instalacao", label: "Data de Instalação", isDate: true }
+  ];
+
+  return trackedFields
+    .filter(({ key, isDate }) => {
+      const before = isDate ? (previousProject[key] || null) : normalizeText(previousProject[key]);
+      const after = isDate ? (nextProject[key] || null) : normalizeText(nextProject[key]);
+      return before !== after;
+    })
+    .map(({ key, label, isDate }) => {
+      const beforeValue = isDate ? formatDateValue(previousProject[key]) : (normalizeText(previousProject[key]) || "-");
+      const afterValue = isDate ? formatDateValue(nextProject[key]) : (normalizeText(nextProject[key]) || "-");
+      return `${label}: ${beforeValue} -> ${afterValue}`;
+    });
+}
+
 /* =========================
    MODAL HELPERS (ANIMAÇÃO)
 ========================= */
@@ -368,9 +419,38 @@ async function save() {
 
   try {
     if (editingId) {
+      const previousProject = projects.find(p => p.id === editingId);
+      const changes = describeProjectChanges(previousProject, project);
+      const dateChanged = changes.some(change => change.startsWith("Data de Entrega") || change.startsWith("Data de Instalação"));
+
       await updateProject(editingId, project);
+
+      await trackLauncherActivity({
+        module: "project-manager",
+        eventType: dateChanged ? "project-date-change" : "project-update",
+        tone: "info",
+        message: `Projeto ${project.obra || "sem nome"} atualizado`,
+        user: currentUser,
+        details: {
+          projectId: editingId,
+          obra: project.obra || "",
+          changes
+        }
+      });
     } else {
       await createProject(project);
+
+      await trackLauncherActivity({
+        module: "project-manager",
+        eventType: "project-create",
+        tone: "ok",
+        message: `Projeto ${project.obra || "sem nome"} criado`,
+        user: currentUser,
+        details: {
+          obra: project.obra || "",
+          cliente: project.cliente || ""
+        }
+      });
     }
     closeModal();
   } catch (err) {
@@ -404,11 +484,24 @@ async function confirmDelete() {
   if (!deleteId) return;
 
   const idToDelete = deleteId;
+  const projectToDelete = projects.find(p => p.id === idToDelete);
   deleteId = null;
   closeConfirmImmediate();
 
   try {
     await deleteProject(idToDelete);
+
+    await trackLauncherActivity({
+      module: "project-manager",
+      eventType: "project-delete",
+      tone: "info",
+      message: `Projeto ${(projectToDelete?.obra || "sem nome")} excluído`,
+      user: currentUser,
+      details: {
+        projectId: idToDelete,
+        obra: projectToDelete?.obra || ""
+      }
+    });
   } catch (err) {
     console.error("Erro ao excluir:", err);
   }
@@ -614,7 +707,22 @@ async function saveProgress() {
   if (!progressEditProject) return;
 
   try {
+    const previousPercent = getProjectProgress(progressEditProject).percent;
     await updateProjectProgress(progressEditProject.id, progressDraftPercent);
+
+    await trackLauncherActivity({
+      module: "project-manager",
+      eventType: "project-progress-update",
+      tone: "ok",
+      message: `Progresso de ${progressEditProject.obra || "projeto"} alterado para ${progressDraftPercent}%`,
+      user: currentUser,
+      details: {
+        projectId: progressEditProject.id,
+        obra: progressEditProject.obra || "",
+        fromPercent: previousPercent,
+        toPercent: progressDraftPercent
+      }
+    });
 
     closeProgressModal();
   } catch (err) {

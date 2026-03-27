@@ -17,8 +17,15 @@ let launcherState = {
   activity: []
 };
 const APP_STATUS_POLL_MS = 60 * 1000;
+const ACTIVITY_PREVIEW_ITEMS = 5;
+const ACTIVITY_STATE_LIMIT = 32;
+const DEFAULT_ACTIVITY_API_URL = "https://lato-app-production.up.railway.app";
 
 let lastSuccessfulUpdateStatus = null;
+let activityModalElements = null;
+let activitySocket = null;
+let activityApiUrl = DEFAULT_ACTIVITY_API_URL;
+let activityEnv = "prod";
 
 function openDWG() {
   window.api.openDWGRenamer();
@@ -43,6 +50,117 @@ function formatActivityTime(iso) {
     hour: "2-digit",
     minute: "2-digit"
   });
+}
+
+function formatActivityDate(iso) {
+  if (!iso) return "--/--/----";
+
+  return new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+}
+
+function getDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function mapModuleLabel(moduleName) {
+  if (moduleName === "project-manager") return "Project Manager";
+  if (moduleName === "dwg-renamer") return "DWG Renamer";
+  return "Launcher";
+}
+
+function normalizeRealtimeEnvironment(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (["dev", "development", "local"].includes(raw)) {
+    return "dev";
+  }
+
+  return "prod";
+}
+
+function mergeActivityEntry(entry) {
+  if (!entry || typeof entry !== "object") {
+    return;
+  }
+
+  const next = [entry, ...(launcherState.activity || [])]
+    .filter((item, index, list) => {
+      if (!item?.id) {
+        return index === list.findIndex((candidate) =>
+          candidate?.message === item?.message && candidate?.at === item?.at
+        );
+      }
+
+      return index === list.findIndex((candidate) => candidate?.id === item.id);
+    })
+    .slice(0, ACTIVITY_STATE_LIMIT);
+
+  launcherState.activity = next;
+  renderActivity();
+
+  if (
+    activityModalElements?.backdrop &&
+    !activityModalElements.backdrop.classList.contains("is-hidden")
+  ) {
+    getDailyActivityEntries().then(renderActivityDayList);
+  }
+}
+
+async function initActivityRealtime() {
+  if (typeof io !== "function") {
+    return;
+  }
+
+  try {
+    const config = await window.api.getActivityRealtimeConfig();
+    const configuredUrl = String(config?.apiUrl || "").trim().replace(/\/+$/, "");
+
+    if (configuredUrl) {
+      activityApiUrl = configuredUrl;
+    }
+
+    activityEnv = normalizeRealtimeEnvironment(config?.env);
+  } catch {
+    activityApiUrl = DEFAULT_ACTIVITY_API_URL;
+    activityEnv = "prod";
+  }
+
+  activitySocket = io(activityApiUrl, {
+    query: { env: activityEnv }
+  });
+
+  activitySocket.on("activity:new", (entry) => {
+    mergeActivityEntry(entry);
+  });
+}
+
+function formatEntryDetails(details) {
+  if (!details || typeof details !== "object") {
+    return "";
+  }
+
+  if (Array.isArray(details.changes) && details.changes.length) {
+    return details.changes.join(" | ");
+  }
+
+  if (
+    Number.isFinite(details.fromPercent) &&
+    Number.isFinite(details.toPercent)
+  ) {
+    return `Progresso: ${details.fromPercent}% -> ${details.toPercent}%`;
+  }
+
+  const bits = [];
+  if (details.obra) bits.push(`Obra: ${details.obra}`);
+  if (details.cliente) bits.push(`Cliente: ${details.cliente}`);
+  return bits.join(" | ");
 }
 
 function formatAgo(iso) {
@@ -187,7 +305,17 @@ function renderActivity() {
       }
     ];
 
-  activity.slice(0, 4).forEach((entry) => {
+  const previewItems = activity.slice(0, ACTIVITY_PREVIEW_ITEMS);
+
+  while (previewItems.length < ACTIVITY_PREVIEW_ITEMS) {
+    previewItems.push({
+      message: "Sem novos eventos",
+      tone: "info",
+      at: null
+    });
+  }
+
+  previewItems.forEach((entry) => {
     const item = document.createElement("li");
     const dot = document.createElement("span");
     const message = document.createElement("span");
@@ -201,6 +329,156 @@ function renderActivity() {
 
     item.append(dot, message, time);
     activityList.appendChild(item);
+  });
+}
+
+async function getDailyActivityEntries() {
+  const dayKey = getDateKey();
+
+  try {
+    const response = await fetch(
+      `${activityApiUrl}/activities?day=${encodeURIComponent(dayKey)}&env=${encodeURIComponent(activityEnv)}`,
+      {
+        headers: {
+          "x-app-env": activityEnv
+        }
+      }
+    );
+
+    if (response.ok) {
+      const list = await response.json();
+      if (Array.isArray(list)) {
+        return list;
+      }
+    }
+  } catch {
+    // Fallback to local launcher state when backend is unavailable.
+  }
+
+  try {
+    const list = await window.api.getLauncherActivityDay({ day: dayKey });
+    if (Array.isArray(list)) {
+      return list;
+    }
+  } catch {
+    // Fallback to local loaded state when IPC is unavailable.
+  }
+
+  return (launcherState.activity || [])
+    .filter((entry) => getDateKey(entry.at) === dayKey)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+function renderActivityDayList(entries) {
+  if (!activityModalElements?.list || !activityModalElements?.subtitle) return;
+
+  activityModalElements.list.innerHTML = "";
+
+  if (!entries.length) {
+    const empty = document.createElement("li");
+    empty.className = "activity-day-item";
+    empty.textContent = "Sem atividades registradas para hoje.";
+    activityModalElements.list.appendChild(empty);
+    activityModalElements.subtitle.textContent = "Nenhum evento registrado hoje";
+    return;
+  }
+
+  activityModalElements.subtitle.textContent = `${entries.length} evento(s) em ${formatActivityDate(entries[0].at)}`;
+
+  entries.forEach((entry) => {
+    const item = document.createElement("li");
+    item.className = "activity-day-item";
+
+    const head = document.createElement("div");
+    head.className = "activity-day-item-head";
+
+    const dot = document.createElement("span");
+    dot.className = `dot ${entry.tone || "info"}`;
+
+    const time = document.createElement("span");
+    time.className = "activity-day-item-time";
+    time.textContent = formatActivityTime(entry.at);
+
+    const user = document.createElement("span");
+    user.className = "activity-day-item-user";
+    user.textContent = entry.user || "Operador";
+
+    head.append(dot, time, user);
+
+    const message = document.createElement("div");
+    message.className = "activity-day-item-message";
+    message.textContent = entry.message || "Evento registrado";
+
+    const meta = document.createElement("div");
+    meta.className = "activity-day-item-meta";
+    meta.textContent = `Módulo: ${mapModuleLabel(entry.module)}`;
+
+    const details = formatEntryDetails(entry.details);
+    if (details) {
+      const detailsLine = document.createElement("div");
+      detailsLine.className = "activity-day-item-meta";
+      detailsLine.textContent = details;
+      item.append(head, message, meta, detailsLine);
+      activityModalElements.list.appendChild(item);
+      return;
+    }
+
+    item.append(head, message, meta);
+    activityModalElements.list.appendChild(item);
+  });
+}
+
+async function openActivityModal() {
+  if (!activityModalElements?.backdrop) return;
+
+  activityModalElements.backdrop.classList.remove("is-hidden");
+  activityModalElements.backdrop.setAttribute("aria-hidden", "false");
+
+  const entries = await getDailyActivityEntries();
+  renderActivityDayList(entries);
+}
+
+function closeActivityModal() {
+  if (!activityModalElements?.backdrop) return;
+
+  activityModalElements.backdrop.classList.add("is-hidden");
+  activityModalElements.backdrop.setAttribute("aria-hidden", "true");
+}
+
+function bindActivityInteractions() {
+  const card = document.getElementById("activity-card");
+  const backdrop = document.getElementById("activity-modal");
+  const closeButton = document.getElementById("activity-modal-close");
+  const list = document.getElementById("activity-day-list");
+  const subtitle = document.getElementById("activity-modal-subtitle");
+
+  activityModalElements = {
+    card,
+    backdrop,
+    closeButton,
+    list,
+    subtitle
+  };
+
+  card?.addEventListener("click", openActivityModal);
+  card?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    openActivityModal();
+  });
+
+  closeButton?.addEventListener("click", closeActivityModal);
+
+  backdrop?.addEventListener("click", (event) => {
+    if (event.target === backdrop) {
+      closeActivityModal();
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && activityModalElements?.backdrop && !activityModalElements.backdrop.classList.contains("is-hidden")) {
+      closeActivityModal();
+    }
   });
 }
 
@@ -257,23 +535,23 @@ async function handleAction(action) {
 
   if (action === "refresh") {
     const syncAt = new Date().toISOString();
-    const activity = [
-      {
-        message: "Sincronização manual executada",
-        tone: "info",
-        at: syncAt
-      },
-      ...launcherState.activity
-    ].slice(0, 12);
 
     launcherState.context.lastSyncAt = syncAt;
-    launcherState.activity = activity;
     renderLauncher();
 
-    await persistLauncherPatch({
-      lastSyncAt: syncAt,
-      activity
-    });
+    await persistLauncherPatch({ lastSyncAt: syncAt });
+
+    try {
+      await window.api.trackLauncherActivity({
+        module: "launcher",
+        eventType: "manual-sync",
+        message: "Sincronização manual executada",
+        tone: "info"
+      });
+      await loadLauncherState();
+    } catch {
+      // Ignore tracking failures to keep manual sync responsive.
+    }
 
     try {
       await window.api.checkAppUpdate();
@@ -301,6 +579,8 @@ function isSyncShortcut(event) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  bindActivityInteractions();
+
   const cards = document.querySelectorAll(".app-card[data-app]");
   const favoriteButtons = document.querySelectorAll(".favorite-chip[data-app]");
 
@@ -361,6 +641,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }, APP_STATUS_POLL_MS);
 
   await loadLauncherState();
+  await initActivityRealtime();
   await loadGlobalUpdateStatus();
 });
 

@@ -78,15 +78,31 @@
         </section>
       </section>
 
-      <aside class="activity" aria-label="Atividade do sistema">
+      <aside class="activity" id="activity-card" aria-label="Atividade do sistema" role="button" tabindex="0" title="Clique para ver todas as atividades do dia">
         <div class="section-title">
           <h2>Atividade</h2>
         </div>
         <ul class="activity-list" id="activity-list"></ul>
+        <p class="activity-hint">Clique para ver todas do dia</p>
       </aside>
     </div>
   </main>
 
+  <div class="modal-backdrop is-hidden" id="activity-modal" aria-hidden="true">
+    <div class="activity-modal" role="dialog" aria-modal="true" aria-labelledby="activity-modal-title">
+      <div class="activity-modal-head">
+        <div>
+          <h3 id="activity-modal-title">Atividades do dia</h3>
+          <p id="activity-modal-subtitle">Eventos registrados hoje</p>
+        </div>
+        <button class="activity-modal-close" id="activity-modal-close" type="button" aria-label="Fechar">Fechar</button>
+      </div>
+
+      <ul class="activity-day-list" id="activity-day-list"></ul>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="renderer.js"></script>
 </body>
 

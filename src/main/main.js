@@ -13,6 +13,7 @@ const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 const GLOBAL_UPDATE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minutes instead of 1
 const MANUAL_APP_UPDATE_TRIGGER = false;
+const DEFAULT_ACTIVITY_API_URL = "https://lato-app-production.up.railway.app";
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 app.setAppUserModelId("com.latoapps.desktop");
@@ -51,6 +52,15 @@ let updateCheckResolved = false;
 let updateIsAvailable = false;
 let isUpdateCheckInProgress = false;
 const SPLASH_HANDOFF_MS = 340;
+const ACTIVITY_PREVIEW_LIMIT = 32;
+const ACTIVITY_LOG_LIMIT = 2000;
+const ACTIVITY_API_URL = String(
+  process.env.ACTIVITY_API_URL ||
+  process.env.PROJECT_MANAGER_API_URL ||
+  DEFAULT_ACTIVITY_API_URL
+)
+  .trim()
+  .replace(/\/+$/, "");
 
 function normalizeUserName(value) {
   if (typeof value === "string") {
@@ -88,6 +98,31 @@ function getAppEnvironmentKey() {
   }
 
   return app.isPackaged ? "prod" : "dev";
+}
+
+function getEnvironmentLabel(key) {
+  return key === "prod" ? "Produção" : "Desenvolvimento";
+}
+
+function toDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateKey(value) {
+  if (typeof value !== "string") {
+    return toDateKey();
+  }
+
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return toDateKey();
 }
 
 function parseVersion(version) {
@@ -409,8 +444,8 @@ function createMainWindow() {
 
     await dialog.showMessageBox(mainWindow, {
       type: "warning",
-      title: "Feche os apps primeiro",
-      message: "O launcher nao pode ser fechado enquanto houver app aberto.",
+      title: "Feche as instâncias",
+      message: "O launcher não pode ser fechado enquanto houver qualquer instância aberta.",
       detail: "Feche o DWG Renamer e o Project Manager antes de sair do launcher.",
       buttons: ["OK"]
     });
@@ -564,7 +599,8 @@ function defaultLauncherState() {
       pm: null
     },
     recents: [],
-    activity: []
+    activity: [],
+    activityLog: []
   };
 }
 
@@ -596,7 +632,10 @@ function readLauncherState() {
         ...(parsed.moduleLastUsedAt || {})
       },
       recents: Array.isArray(parsed.recents) ? parsed.recents : [],
-      activity: Array.isArray(parsed.activity) ? parsed.activity : []
+      activity: Array.isArray(parsed.activity) ? parsed.activity : [],
+      activityLog: Array.isArray(parsed.activityLog)
+        ? parsed.activityLog
+        : (Array.isArray(parsed.activity) ? parsed.activity : [])
     };
   } catch {
     return defaultLauncherState();
@@ -607,14 +646,67 @@ function writeLauncherState(state) {
   fs.writeFileSync(LAUNCHER_STATE_PATH, JSON.stringify(state, null, 2));
 }
 
-function pushActivity(activity, message, tone = "info") {
-  activity.unshift({
-    message,
-    tone,
-    at: new Date().toISOString()
+function normalizeActivityEntry(rawEntry) {
+  const entry = rawEntry && typeof rawEntry === "object" ? rawEntry : {};
+  const at = entry.at || new Date().toISOString();
+
+  return {
+    id: entry.id || `${Date.now()}-${Math.round(Math.random() * 100000)}`,
+    message: String(entry.message || "Evento registrado"),
+    tone: entry.tone || "info",
+    at,
+    day: normalizeDateKey(entry.day || toDateKey(at)),
+    user: normalizeUserName(entry.user || loggedUser),
+    module: String(entry.module || "launcher"),
+    eventType: String(entry.eventType || "generic"),
+    details: entry.details && typeof entry.details === "object" ? entry.details : {}
+  };
+}
+
+function registerActivity(state, payload = {}) {
+  const entry = normalizeActivityEntry({
+    ...payload,
+    at: payload.at || new Date().toISOString(),
+    user: payload.user || loggedUser
   });
 
-  return activity.slice(0, 12);
+  const currentPreview = Array.isArray(state.activity) ? state.activity : [];
+  const currentLog = Array.isArray(state.activityLog) ? state.activityLog : currentPreview;
+
+  state.activity = [entry, ...currentPreview].slice(0, ACTIVITY_PREVIEW_LIMIT);
+  state.activityLog = [entry, ...currentLog].slice(0, ACTIVITY_LOG_LIMIT);
+
+  return entry;
+}
+
+async function syncActivityToBackend(entry, environment) {
+  if (!ACTIVITY_API_URL) {
+    return { synced: false, reason: "missing-api-url" };
+  }
+
+  try {
+    const response = await fetch(`${ACTIVITY_API_URL}/activities`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-app-env": environment
+      },
+      body: JSON.stringify({
+        ...entry,
+        env: environment
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`status ${response.status}`);
+    }
+
+    const remoteEntry = await response.json();
+    return { synced: true, entry: remoteEntry };
+  } catch (err) {
+    log.warn("Falha ao sincronizar activity no backend:", err?.message || err);
+    return { synced: false, reason: err?.message || "unknown" };
+  }
 }
 
 function pushRecent(recents, item) {
@@ -626,6 +718,8 @@ function recordLauncherEvent(type) {
   const now = new Date().toISOString();
   const state = readLauncherState();
   const userName = normalizeUserName(loggedUser);
+  const env = getAppEnvironmentKey();
+  let trackedEntry = null;
 
   if (type === "dwg") {
     state.moduleMetrics.dwgLaunches += 1;
@@ -636,11 +730,14 @@ function recordLauncherEvent(type) {
       keywords: "dwg renamer abertura",
       at: now
     });
-    state.activity = pushActivity(
-      state.activity,
-      `DWG Renamer aberto por ${userName}`,
-      "ok"
-    );
+    trackedEntry = registerActivity(state, {
+      module: "dwg-renamer",
+      eventType: "open-module",
+      message: "DWG Renamer aberto",
+      tone: "ok",
+      user: userName,
+      at: now
+    });
   }
 
   if (type === "pm") {
@@ -652,14 +749,21 @@ function recordLauncherEvent(type) {
       keywords: "project manager abertura",
       at: now
     });
-    state.activity = pushActivity(
-      state.activity,
-      `Project Manager aberto por ${userName}`,
-      "ok"
-    );
+    trackedEntry = registerActivity(state, {
+      module: "project-manager",
+      eventType: "open-module",
+      message: "Project Manager aberto",
+      tone: "ok",
+      user: userName,
+      at: now
+    });
   }
 
   writeLauncherState(state);
+
+  if (trackedEntry) {
+    void syncActivityToBackend(trackedEntry, env);
+  }
 }
 
 
@@ -729,11 +833,12 @@ ipcMain.handle("open-project-manager", () => {
 
 ipcMain.handle("get-launcher-state", () => {
   const state = readLauncherState();
+  const env = getAppEnvironmentKey();
 
   return {
     context: {
       user: normalizeUserName(loggedUser),
-      environment: app.isPackaged ? "Produção" : "Desenvolvimento",
+      environment: getEnvironmentLabel(env),
       version: `v${app.getVersion()}`,
       lastSyncAt: state.lastSyncAt
     },
@@ -759,16 +864,58 @@ ipcMain.handle("save-launcher-state", (_, patch) => {
       ...(patch && patch.moduleLastUsedAt ? patch.moduleLastUsedAt : {})
     },
     recents: Array.isArray(patch?.recents) ? patch.recents.slice(0, 12) : state.recents,
-    activity: Array.isArray(patch?.activity) ? patch.activity.slice(0, 12) : state.activity,
+    activity: Array.isArray(patch?.activity)
+      ? patch.activity.map(normalizeActivityEntry).slice(0, ACTIVITY_PREVIEW_LIMIT)
+      : state.activity,
+    activityLog: Array.isArray(patch?.activityLog)
+      ? patch.activityLog.map(normalizeActivityEntry).slice(0, ACTIVITY_LOG_LIMIT)
+      : state.activityLog,
     lastSyncAt: patch?.lastSyncAt || state.lastSyncAt
   };
+
+  if (!Array.isArray(nextState.activityLog) || !nextState.activityLog.length) {
+    nextState.activityLog = (nextState.activity || []).map(normalizeActivityEntry);
+  }
 
   writeLauncherState(nextState);
   return true;
 });
 
+ipcMain.handle("track-launcher-activity", async (_, payload) => {
+  const state = readLauncherState();
+  const entry = registerActivity(state, payload || {});
+  writeLauncherState(state);
+  const env = getAppEnvironmentKey();
+  const syncResult = await syncActivityToBackend(entry, env);
+  return {
+    entry,
+    environment: env,
+    synced: Boolean(syncResult?.synced)
+  };
+});
+
+ipcMain.handle("get-launcher-activity-day", (_, options) => {
+  const state = readLauncherState();
+  const day = normalizeDateKey(options?.day);
+  const source = Array.isArray(state.activityLog) && state.activityLog.length
+    ? state.activityLog
+    : state.activity;
+
+  return source
+    .map(normalizeActivityEntry)
+    .filter(entry => normalizeDateKey(entry.day || toDateKey(entry.at)) === day)
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+});
+
 ipcMain.handle("get-global-app-update-status", async (_, options) => {
   return getGlobalAppUpdateStatus(options);
+});
+
+ipcMain.handle("get-activity-realtime-config", () => {
+  return {
+    apiUrl: ACTIVITY_API_URL,
+    env: getAppEnvironmentKey()
+  };
 });
 
 ipcMain.handle("check-app-update", async () => {

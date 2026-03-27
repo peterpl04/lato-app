@@ -30,9 +30,12 @@ contextBridge.exposeInMainWorld("api", {
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
   getGlobalAppUpdateStatus: (options) => ipcRenderer.invoke("get-global-app-update-status", options),
   checkAppUpdate: () => ipcRenderer.invoke("check-app-update"),
+  getActivityRealtimeConfig: () => ipcRenderer.invoke("get-activity-realtime-config"),
 
   getLauncherState: () => ipcRenderer.invoke("get-launcher-state"),
   saveLauncherState: (state) => ipcRenderer.invoke("save-launcher-state", state),
+  trackLauncherActivity: (payload) => ipcRenderer.invoke("track-launcher-activity", payload),
+  getLauncherActivityDay: (options) => ipcRenderer.invoke("get-launcher-activity-day", options),
 
   loadProjectData: () => ipcRenderer.invoke("load-project-data"),
   saveProjectData: (data) =>

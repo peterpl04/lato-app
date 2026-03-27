@@ -30,6 +30,64 @@ function getRequestEnvironment(req) {
   );
 }
 
+function toDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeDateKey(value) {
+  if (typeof value !== "string") {
+    return toDateKey();
+  }
+
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  return toDateKey();
+}
+
+function normalizeActivityPayload(payload, env) {
+  const raw = payload && typeof payload === "object" ? payload : {};
+  const parsedDate = raw.at ? new Date(raw.at) : new Date();
+  const occurredAt = Number.isNaN(parsedDate.getTime()) ? new Date() : parsedDate;
+
+  return {
+    id: typeof raw.id === "string" && raw.id.trim() ? raw.id.trim() : `${Date.now()}-${Math.round(Math.random() * 100000)}`,
+    message: typeof raw.message === "string" && raw.message.trim() ? raw.message.trim() : "Evento registrado",
+    tone: typeof raw.tone === "string" && raw.tone.trim() ? raw.tone.trim() : "info",
+    user: typeof raw.user === "string" && raw.user.trim() ? raw.user.trim() : "Operador",
+    module: typeof raw.module === "string" && raw.module.trim() ? raw.module.trim() : "launcher",
+    eventType: typeof raw.eventType === "string" && raw.eventType.trim() ? raw.eventType.trim() : "generic",
+    details: raw.details && typeof raw.details === "object" ? raw.details : {},
+    environment: env,
+    at: occurredAt.toISOString(),
+    day: normalizeDateKey(raw.day || toDateKey(occurredAt))
+  };
+}
+
+function mapActivityRow(row) {
+  const occurredAt = row.occurred_at instanceof Date
+    ? row.occurred_at.toISOString()
+    : new Date(row.occurred_at || Date.now()).toISOString();
+
+  return {
+    id: row.activity_id || String(row.id),
+    message: row.message,
+    tone: row.tone,
+    user: row.user_name,
+    module: row.module,
+    eventType: row.event_type,
+    details: row.details || {},
+    at: occurredAt,
+    day: toDateKey(occurredAt)
+  };
+}
+
 /* =========================
    INIT DATABASE
 ========================= */
@@ -57,6 +115,25 @@ async function initDB() {
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS progresso_percent INTEGER NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'prod'`);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS launcher_activities (
+      id BIGSERIAL PRIMARY KEY,
+      activity_id TEXT,
+      message TEXT NOT NULL,
+      tone TEXT NOT NULL DEFAULT 'info',
+      user_name TEXT NOT NULL DEFAULT 'Operador',
+      module TEXT NOT NULL DEFAULT 'launcher',
+      event_type TEXT NOT NULL DEFAULT 'generic',
+      details JSONB NOT NULL DEFAULT '{}'::jsonb,
+      environment TEXT NOT NULL DEFAULT 'prod',
+      occurred_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_launcher_activities_activity_id ON launcher_activities(activity_id) WHERE activity_id IS NOT NULL`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ix_launcher_activities_env_occurred ON launcher_activities(environment, occurred_at DESC)`);
+
   console.log("🟢 Tabela projects pronta");
 }
 
@@ -70,6 +147,7 @@ initDB().catch(err => {
 io.on("connection", socket => {
   const socketEnv = normalizeEnvironment(socket.handshake.query?.env);
   socket.join(`projects:${socketEnv}`);
+  socket.join(`activities:${socketEnv}`);
 
   console.log("🟢 Cliente conectado");
 
@@ -274,6 +352,88 @@ app.delete("/projects/:id", async (req, res) => {
   res.json({ success: true });
   } catch (err) {
     res.status(500).json(err);
+  }
+});
+
+// GET ACTIVITIES BY DAY
+app.get("/activities", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const day = normalizeDateKey(req.query.day);
+  const requestedLimit = Number.parseInt(req.query.limit, 10);
+  const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(500, requestedLimit)) : 200;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT *
+      FROM launcher_activities
+      WHERE environment = $1
+        AND occurred_at >= $2::date
+        AND occurred_at < ($2::date + INTERVAL '1 day')
+      ORDER BY occurred_at DESC
+      LIMIT $3
+      `,
+      [env, day, limit]
+    );
+
+    res.json(result.rows.map(mapActivityRow));
+  } catch (err) {
+    console.error("❌ ERRO AO CONSULTAR ACTIVITIES:", err);
+    res.status(500).json({ error: "Erro ao consultar atividades" });
+  }
+});
+
+// CREATE ACTIVITY
+app.post("/activities", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const normalized = normalizeActivityPayload(req.body, env);
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO launcher_activities (
+        activity_id,
+        message,
+        tone,
+        user_name,
+        module,
+        event_type,
+        details,
+        environment,
+        occurred_at
+      )
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      ON CONFLICT (activity_id)
+      DO UPDATE SET
+        message = EXCLUDED.message,
+        tone = EXCLUDED.tone,
+        user_name = EXCLUDED.user_name,
+        module = EXCLUDED.module,
+        event_type = EXCLUDED.event_type,
+        details = EXCLUDED.details,
+        environment = EXCLUDED.environment,
+        occurred_at = EXCLUDED.occurred_at
+      RETURNING *
+      `,
+      [
+        normalized.id,
+        normalized.message,
+        normalized.tone,
+        normalized.user,
+        normalized.module,
+        normalized.eventType,
+        JSON.stringify(normalized.details || {}),
+        normalized.environment,
+        normalized.at
+      ]
+    );
+
+    const entry = mapActivityRow(result.rows[0]);
+    io.to(`activities:${env}`).emit("activity:new", entry);
+    res.json(entry);
+  } catch (err) {
+    console.error("❌ ERRO AO INSERIR ACTIVITY:", err);
+    res.status(500).json({ error: "Erro ao registrar atividade" });
   }
 });
 

@@ -115,7 +115,9 @@ function compareVersions(a, b) {
 function buildGithubHeaders() {
   const headers = {
     Accept: "application/vnd.github+json",
-    "User-Agent": "LatoApps"
+    "User-Agent": "LatoApps",
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache"
   };
 
   if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
@@ -125,17 +127,34 @@ function buildGithubHeaders() {
   return headers;
 }
 
-async function fetchGithubReleases() {
-  const response = await fetch(
-    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=100`,
-    { headers: buildGithubHeaders() }
-  );
+async function fetchGithubJson(url) {
+  const withAuthHeaders = buildGithubHeaders();
+  let response = await fetch(url, { headers: withAuthHeaders });
+
+  // Public repositories can be queried without token. If token is invalid/expired,
+  // retry without Authorization to avoid hard-failing status checks.
+  if (response.status === 401 && withAuthHeaders.Authorization) {
+    const anonymousHeaders = {
+      Accept: "application/vnd.github+json",
+      "User-Agent": "LatoApps",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache"
+    };
+
+    response = await fetch(url, { headers: anonymousHeaders });
+  }
 
   if (!response.ok) {
     throw new Error(`GitHub releases request failed: ${response.status}`);
   }
 
-  const releases = await response.json();
+  return response.json();
+}
+
+async function fetchGithubReleases() {
+  const releases = await fetchGithubJson(
+    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases?per_page=100&t=${Date.now()}`
+  );
   return Array.isArray(releases) ? releases : [];
 }
 
@@ -151,16 +170,9 @@ function extractSemver(value) {
 
 async function fetchLatestStableVersionFromGithub() {
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
-      { headers: buildGithubHeaders() }
+    const release = await fetchGithubJson(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest?t=${Date.now()}`
     );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const release = await response.json();
     if (!release || release.draft || release.prerelease) {
       return null;
     }
@@ -229,6 +241,16 @@ async function getGlobalAppUpdateStatus(options = {}) {
     return globalUpdateStatusCache;
   } catch (err) {
     log.warn("Falha ao verificar status global de atualização:", err?.message || err);
+
+    if (forceRefresh) {
+      return {
+        checkedAt: new Date().toISOString(),
+        currentVersion,
+        latestVersion: globalUpdateStatusCache?.latestVersion || null,
+        isOutdated: null,
+        error: true
+      };
+    }
 
     if (globalUpdateStatusCache) {
       return globalUpdateStatusCache;

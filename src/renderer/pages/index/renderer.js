@@ -113,18 +113,25 @@ function renderGlobalUpdateBadge(status) {
   if (!badge) return;
 
   badge.classList.remove("ok", "update", "updated", "info");
+  badge.title = "";
 
   if (!status) {
     badge.classList.add("info");
     badge.textContent = "Verificando...";
+    badge.title = "Consultando versão remota...";
     return;
   }
 
   if (status.error || status.isOutdated == null) {
     badge.classList.add("info");
     badge.textContent = "Status indisponível";
+    badge.title = "Não foi possível validar atualização agora.";
     return;
   }
+
+  const currentLabel = status.currentVersion ? `v${status.currentVersion}` : "v-";
+  const latestLabel = status.latestVersion ? `v${status.latestVersion}` : "v-";
+  badge.title = `Atual: ${currentLabel} | Remota: ${latestLabel}`;
 
   if (status.isOutdated) {
     badge.classList.add("update");

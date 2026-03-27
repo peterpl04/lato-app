@@ -322,12 +322,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   window.addEventListener("focus", () => {
-    loadGlobalUpdateStatus();
+    loadGlobalUpdateStatus(true);
   });
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
-      loadGlobalUpdateStatus();
+      loadGlobalUpdateStatus(true);
     }
   });
 

@@ -139,15 +139,57 @@ async function fetchGithubReleases() {
   return Array.isArray(releases) ? releases : [];
 }
 
-function pickLatestStableVersionFromReleases(releases) {
-  const stable = releases.find(release => {
-    if (!release || release.draft || release.prerelease) return false;
-    const tag = String(release.tag_name || "").trim();
-    return /^v?\d+\.\d+\.\d+$/.test(tag);
-  });
+function extractSemver(value) {
+  const text = String(value || "").trim();
+  if (!text) return null;
 
-  const rawTag = String(stable?.tag_name || "").trim();
-  return rawTag ? rawTag.replace(/^v/i, "") : null;
+  const match = text.match(/(\d+)\.(\d+)\.(\d+)/);
+  if (!match) return null;
+
+  return `${Number.parseInt(match[1], 10)}.${Number.parseInt(match[2], 10)}.${Number.parseInt(match[3], 10)}`;
+}
+
+async function fetchLatestStableVersionFromGithub() {
+  try {
+    const response = await fetch(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
+      { headers: buildGithubHeaders() }
+    );
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const release = await response.json();
+    if (!release || release.draft || release.prerelease) {
+      return null;
+    }
+
+    return extractSemver(release.tag_name) || extractSemver(release.name);
+  } catch {
+    return null;
+  }
+}
+
+function pickLatestStableVersionFromReleases(releases) {
+  let latest = null;
+
+  for (const release of releases) {
+    if (!release || release.draft || release.prerelease) {
+      continue;
+    }
+
+    const version = extractSemver(release.tag_name) || extractSemver(release.name);
+    if (!version) {
+      continue;
+    }
+
+    if (!latest || compareVersions(version, latest) > 0) {
+      latest = version;
+    }
+  }
+
+  return latest;
 }
 
 async function getGlobalAppUpdateStatus(options = {}) {
@@ -165,8 +207,12 @@ async function getGlobalAppUpdateStatus(options = {}) {
   const currentVersion = app.getVersion();
 
   try {
-    const releases = await fetchGithubReleases();
-    const latestVersion = pickLatestStableVersionFromReleases(releases);
+    let latestVersion = await fetchLatestStableVersionFromGithub();
+
+    if (!latestVersion) {
+      const releases = await fetchGithubReleases();
+      latestVersion = pickLatestStableVersionFromReleases(releases);
+    }
 
     if (!latestVersion) {
       throw new Error("Nenhuma release estável encontrada");

@@ -17,10 +17,8 @@ let launcherState = {
   activity: []
 };
 const APP_STATUS_POLL_MS = 60 * 1000;
-const FAILED_STATUS_RETRY_MS = 5 * 1000;
 
 let lastSuccessfulUpdateStatus = null;
-let updateStatusRetryTimeout = null;
 
 function openDWG() {
   window.api.openDWGRenamer();
@@ -147,16 +145,6 @@ function renderGlobalUpdateBadge(status) {
   badge.textContent = "Atualizado";
 }
 
-function scheduleUpdateStatusRetry() {
-  if (updateStatusRetryTimeout) {
-    clearTimeout(updateStatusRetryTimeout);
-  }
-
-  updateStatusRetryTimeout = setTimeout(() => {
-    loadGlobalUpdateStatus(true);
-  }, FAILED_STATUS_RETRY_MS);
-}
-
 async function loadGlobalUpdateStatus(force = false) {
   renderGlobalUpdateBadge(null);
 
@@ -171,9 +159,6 @@ async function loadGlobalUpdateStatus(force = false) {
     } else {
       renderGlobalUpdateBadge({ error: true });
     }
-
-    // Retry automatically a few seconds later
-    scheduleUpdateStatusRetry();
   }
 }
 

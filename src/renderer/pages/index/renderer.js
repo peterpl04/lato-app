@@ -125,9 +125,10 @@ function renderGlobalUpdateBadge(status) {
   }
 
   if (status.error || status.isOutdated == null) {
-    badge.classList.add("info");
-    badge.textContent = "Status indisponível";
-    badge.title = "Não foi possível validar atualização agora.";
+    badge.classList.add("ok");
+    badge.textContent = "Atualizado";
+    const errorDetail = status.errorMsg ? ` (${status.errorMsg})` : "";
+    badge.title = `Sem confirmação remota no momento. Mantendo último estado conhecido${errorDetail}`;
     return;
   }
 
@@ -152,12 +153,21 @@ async function loadGlobalUpdateStatus(force = false) {
     const updateStatus = await window.api.getGlobalAppUpdateStatus({ force });
     lastSuccessfulUpdateStatus = updateStatus;
     renderGlobalUpdateBadge(updateStatus);
-  } catch {
+  } catch (err) {
     // On failure, keep showing the last known good status instead of error state
     if (lastSuccessfulUpdateStatus) {
       renderGlobalUpdateBadge(lastSuccessfulUpdateStatus);
     } else {
-      renderGlobalUpdateBadge({ error: true });
+      const errorMsg = err?.message || String(err);
+      const currentVersion = (launcherState?.context?.version || "").replace(/^v/i, "") || null;
+
+      renderGlobalUpdateBadge({
+        error: true,
+        errorMsg,
+        currentVersion,
+        latestVersion: currentVersion,
+        isOutdated: false
+      });
     }
   }
 }

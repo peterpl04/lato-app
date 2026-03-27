@@ -11,7 +11,7 @@ const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
-const GLOBAL_UPDATE_STATUS_CACHE_TTL_MS = 60 * 1000;
+const GLOBAL_UPDATE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minutes instead of 1
 const MANUAL_APP_UPDATE_TRIGGER = false;
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
@@ -131,9 +131,11 @@ async function fetchGithubJson(url) {
   const withAuthHeaders = buildGithubHeaders();
   let response = await fetch(url, { headers: withAuthHeaders });
 
-  // Public repositories can be queried without token. If token is invalid/expired,
+  // Public repositories can be queried without token. If token is invalid/expired/rate-limited,
   // retry without Authorization to avoid hard-failing status checks.
-  if (response.status === 401 && withAuthHeaders.Authorization) {
+  if ((response.status === 401 || response.status === 403) && withAuthHeaders.Authorization) {
+    log.info(`GitHub request returned ${response.status}, retrying without token...`);
+
     const anonymousHeaders = {
       Accept: "application/vnd.github+json",
       "User-Agent": "LatoApps",
@@ -142,6 +144,7 @@ async function fetchGithubJson(url) {
     };
 
     response = await fetch(url, { headers: anonymousHeaders });
+    log.info(`Retry without token returned: ${response.status}`);
   }
 
   if (!response.ok) {
@@ -242,20 +245,12 @@ async function getGlobalAppUpdateStatus(options = {}) {
   } catch (err) {
     log.warn("Falha ao verificar status global de atualização:", err?.message || err);
 
-    if (forceRefresh) {
-      return {
-        checkedAt: new Date().toISOString(),
-        currentVersion,
-        latestVersion: globalUpdateStatusCache?.latestVersion || null,
-        isOutdated: null,
-        error: true
-      };
-    }
-
+    // Always prefer returning cached status over error state
     if (globalUpdateStatusCache) {
       return globalUpdateStatusCache;
     }
 
+    // Only return error if this is the first check with no cache available
     globalUpdateStatusCache = {
       checkedAt: new Date().toISOString(),
       currentVersion,

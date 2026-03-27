@@ -19,6 +19,7 @@ let launcherState = {
 const APP_STATUS_POLL_MS = 60 * 1000;
 const ACTIVITY_PREVIEW_ITEMS = 5;
 const ACTIVITY_STATE_LIMIT = 32;
+const ACTIVITY_FEED_POLL_MS = 12000;
 const DEFAULT_ACTIVITY_API_URL = "https://lato-app-production.up.railway.app";
 
 let lastSuccessfulUpdateStatus = null;
@@ -110,6 +111,27 @@ function mergeActivityEntry(entry) {
     !activityModalElements.backdrop.classList.contains("is-hidden")
   ) {
     getDailyActivityEntries().then(renderActivityDayList);
+  }
+}
+
+function mergeActivityEntries(entries) {
+  if (!Array.isArray(entries) || !entries.length) {
+    return;
+  }
+
+  let changed = false;
+  entries.forEach((entry) => {
+    const beforeSize = (launcherState.activity || []).length;
+    mergeActivityEntry(entry);
+    const afterSize = (launcherState.activity || []).length;
+
+    if (afterSize !== beforeSize || (launcherState.activity && launcherState.activity[0]?.id === entry?.id)) {
+      changed = true;
+    }
+  });
+
+  if (changed) {
+    renderActivity();
   }
 }
 
@@ -367,6 +389,44 @@ async function getDailyActivityEntries() {
   return (launcherState.activity || [])
     .filter((entry) => getDateKey(entry.at) === dayKey)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+}
+
+async function fetchRecentActivities() {
+  try {
+    const response = await fetch(
+      `${activityApiUrl}/activities?day=${encodeURIComponent(getDateKey())}&env=${encodeURIComponent(activityEnv)}&limit=${ACTIVITY_STATE_LIMIT}`,
+      {
+        headers: {
+          "x-app-env": activityEnv
+        }
+      }
+    );
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const list = await response.json();
+    return Array.isArray(list) ? list : [];
+  } catch {
+    return [];
+  }
+}
+
+async function refreshActivityFeed() {
+  const recent = await fetchRecentActivities();
+  if (!recent.length) {
+    return;
+  }
+
+  mergeActivityEntries(recent);
+
+  if (
+    activityModalElements?.backdrop &&
+    !activityModalElements.backdrop.classList.contains("is-hidden")
+  ) {
+    renderActivityDayList(recent);
+  }
 }
 
 function renderActivityDayList(entries) {
@@ -628,11 +688,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   window.addEventListener("focus", () => {
     loadGlobalUpdateStatus(true);
+    refreshActivityFeed();
   });
 
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       loadGlobalUpdateStatus(true);
+      refreshActivityFeed();
     }
   });
 
@@ -640,8 +702,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     loadGlobalUpdateStatus();
   }, APP_STATUS_POLL_MS);
 
+  setInterval(() => {
+    refreshActivityFeed();
+  }, ACTIVITY_FEED_POLL_MS);
+
   await loadLauncherState();
   await initActivityRealtime();
+  await refreshActivityFeed();
   await loadGlobalUpdateStatus();
 });
 

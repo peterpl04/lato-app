@@ -12,7 +12,7 @@ const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
 const MODULE_VERSIONS_PATH = path.join(__dirname, "..", "..", "data", "module-versions.json");
-const MODULE_UPDATE_CACHE_TTL_MS = 5 * 60 * 1000;
+const MODULE_UPDATE_CACHE_TTL_MS = 60 * 1000;
 const MANUAL_APP_UPDATE_TRIGGER = false;
 
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
@@ -168,23 +168,10 @@ function getLatestReleaseTag(releases) {
 }
 
 async function fetchModuleVersionConfigFromReleaseTag(tagName) {
-  const response = await fetch(
-    `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/data/module-versions.json?ref=${encodeURIComponent(tagName)}`,
-    { headers: buildGithubHeaders() }
-  );
-
-  if (!response.ok) {
+  const parsed = await fetchModuleVersionConfigByRef(tagName);
+  if (!parsed) {
     return null;
   }
-
-  const contentResponse = await response.json();
-  const encoded = contentResponse?.content;
-  if (!encoded) {
-    return null;
-  }
-
-  const decoded = Buffer.from(String(encoded).replace(/\n/g, ""), "base64").toString("utf-8");
-  const parsed = JSON.parse(decoded);
 
   return {
     dwg: {
@@ -198,26 +185,72 @@ async function fetchModuleVersionConfigFromReleaseTag(tagName) {
   };
 }
 
-function findLatestReleaseVersionForPrefix(releases, prefix) {
-  let latest = null;
+async function fetchModuleVersionConfigByRef(ref) {
+  const refValue = String(ref || "").trim();
+  if (!refValue) {
+    return null;
+  }
 
-  releases.forEach(release => {
-    const tag = String(release?.tag_name || "").trim();
-    if (!tag.toLowerCase().startsWith(String(prefix).toLowerCase())) {
-      return;
+  const rawUrl = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${encodeURIComponent(refValue)}/data/module-versions.json`;
+
+  try {
+    const rawResponse = await fetch(rawUrl, { headers: { "User-Agent": "LatoApps" } });
+    if (rawResponse.ok) {
+      return rawResponse.json();
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    const contentResponse = await fetch(
+      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/data/module-versions.json?ref=${encodeURIComponent(refValue)}`,
+      { headers: buildGithubHeaders() }
+    );
+
+    if (!contentResponse.ok) {
+      return null;
     }
 
-    const version = tag.slice(prefix.length).replace(/^v/i, "").trim();
-    if (!version) {
-      return;
+    const payload = await contentResponse.json();
+    const encoded = payload?.content;
+    if (!encoded) {
+      return null;
     }
 
-    if (!latest || compareVersions(version, latest) > 0) {
-      latest = version;
-    }
-  });
+    const decoded = Buffer.from(String(encoded).replace(/\n/g, ""), "base64").toString("utf-8");
+    return JSON.parse(decoded);
+  } catch {
+    return null;
+  }
+}
 
-  return latest;
+async function fetchModuleVersionConfigFromMain() {
+  const url = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/data/module-versions.json?ts=${Date.now()}`;
+
+  try {
+    const response = await fetch(url, {
+      headers: { "User-Agent": "LatoApps" }
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const parsed = await response.json();
+    return {
+      dwg: {
+        currentVersion: parsed?.dwg?.currentVersion || "1.0.0",
+        releaseTagPrefix: parsed?.dwg?.releaseTagPrefix || "dwg-renamer-v"
+      },
+      pm: {
+        currentVersion: parsed?.pm?.currentVersion || "1.0.0",
+        releaseTagPrefix: parsed?.pm?.releaseTagPrefix || "project-manager-v"
+      }
+    };
+  } catch {
+    return null;
+  }
 }
 
 async function getModuleUpdateStatus(options = {}) {
@@ -230,26 +263,26 @@ async function getModuleUpdateStatus(options = {}) {
   const localConfig = readModuleVersionConfig();
 
   try {
-    const releases = await fetchGithubReleases();
-    const latestReleaseTag = getLatestReleaseTag(releases);
-    const remoteConfig = latestReleaseTag
-      ? await fetchModuleVersionConfigFromReleaseTag(latestReleaseTag)
-      : null;
+    let remoteConfig = await fetchModuleVersionConfigFromMain();
+
+    if (!remoteConfig) {
+      const releases = await fetchGithubReleases();
+      const latestReleaseTag = getLatestReleaseTag(releases);
+
+      remoteConfig = latestReleaseTag
+        ? await fetchModuleVersionConfigFromReleaseTag(latestReleaseTag)
+        : null;
+
+      if (!remoteConfig && latestReleaseTag) {
+        remoteConfig = await fetchModuleVersionConfigByRef(`refs/tags/${latestReleaseTag}`);
+      }
+    }
 
     const dwgLatestFromReleaseFile = remoteConfig?.dwg?.currentVersion;
     const pmLatestFromReleaseFile = remoteConfig?.pm?.currentVersion;
 
-    const dwgLatestFromTag = findLatestReleaseVersionForPrefix(
-      releases,
-      localConfig.dwg.releaseTagPrefix
-    );
-    const pmLatestFromTag = findLatestReleaseVersionForPrefix(
-      releases,
-      localConfig.pm.releaseTagPrefix
-    );
-
-    const dwgLatest = dwgLatestFromReleaseFile || dwgLatestFromTag || localConfig.dwg.currentVersion;
-    const pmLatest = pmLatestFromReleaseFile || pmLatestFromTag || localConfig.pm.currentVersion;
+    const dwgLatest = dwgLatestFromReleaseFile || localConfig.dwg.currentVersion;
+    const pmLatest = pmLatestFromReleaseFile || localConfig.pm.currentVersion;
 
     moduleUpdateCache = {
       checkedAt: new Date().toISOString(),

@@ -120,6 +120,12 @@ function renderModuleStatusBadge(elementId, status) {
     return;
   }
 
+  if (status.error) {
+    badge.classList.add("info");
+    badge.textContent = "SEM DADOS";
+    return;
+  }
+
   if (status.isUpdatable) {
     badge.classList.add("update");
     badge.textContent = "ATUALIZÁVEL";
@@ -130,17 +136,43 @@ function renderModuleStatusBadge(elementId, status) {
   badge.textContent = "ATUALIZADO";
 }
 
+function renderModuleVersion(elementId, status) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+
+  if (!status) {
+    el.textContent = "v-";
+    return;
+  }
+
+  const current = status.currentVersion ? `v${status.currentVersion}` : "v-";
+  const latest = status.latestVersion ? `v${status.latestVersion}` : current;
+
+  if (status.isUpdatable && latest !== current) {
+    el.textContent = `${current} -> ${latest}`;
+    return;
+  }
+
+  el.textContent = current;
+}
+
 async function loadModuleUpdateStatus(force = false) {
   renderModuleStatusBadge("dwg-status", null);
   renderModuleStatusBadge("pm-status", null);
+  renderModuleVersion("dwg-version", null);
+  renderModuleVersion("pm-version", null);
 
   try {
     const updateStatus = await window.api.getModuleUpdateStatus({ force });
     renderModuleStatusBadge("dwg-status", updateStatus?.dwg);
     renderModuleStatusBadge("pm-status", updateStatus?.pm);
+    renderModuleVersion("dwg-version", updateStatus?.dwg);
+    renderModuleVersion("pm-version", updateStatus?.pm);
   } catch {
-    renderModuleStatusBadge("dwg-status", { isUpdatable: false });
-    renderModuleStatusBadge("pm-status", { isUpdatable: false });
+    renderModuleStatusBadge("dwg-status", { error: true });
+    renderModuleStatusBadge("pm-status", { error: true });
+    renderModuleVersion("dwg-version", null);
+    renderModuleVersion("pm-version", null);
   }
 }
 

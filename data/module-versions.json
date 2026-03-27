@@ -1,10 +1,10 @@
 {
   "dwg": {
-    "currentVersion": "1.0.9",
+    "currentVersion": "1.0.0",
     "releaseTagPrefix": "dwg-renamer-v"
   },
   "pm": {
-    "currentVersion": "1.0.5",
+    "currentVersion": "1.0.1",
     "releaseTagPrefix": "project-manager-v"
   }
 }

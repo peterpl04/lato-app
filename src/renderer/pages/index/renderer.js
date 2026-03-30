@@ -28,7 +28,79 @@ let activityModalElements = null;
 let activitySocket = null;
 let activityApiUrl = DEFAULT_ACTIVITY_API_URL;
 let activityEnv = "prod";
+let hoverTooltipEl = null;
 const dismissedActivityKeys = new Set();
+
+function ensureHoverTooltip() {
+  if (hoverTooltipEl) {
+    return hoverTooltipEl;
+  }
+
+  hoverTooltipEl = document.getElementById("hoverTooltip");
+  return hoverTooltipEl;
+}
+
+function showHoverTooltip(event, html) {
+  const tooltip = ensureHoverTooltip();
+  if (!tooltip || !event) return;
+
+  tooltip.style.left = `${event.clientX + 14}px`;
+  tooltip.style.top = `${event.clientY + 14}px`;
+  tooltip.innerHTML = html;
+  tooltip.classList.add("is-visible");
+  tooltip.setAttribute("aria-hidden", "false");
+}
+
+function hideHoverTooltip() {
+  const tooltip = ensureHoverTooltip();
+  if (!tooltip) return;
+
+  tooltip.classList.remove("is-visible");
+  tooltip.setAttribute("aria-hidden", "true");
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function trimMessagePreview(message, limit = 52) {
+  const text = String(message || "").trim();
+  if (text.length <= limit) {
+    return text;
+  }
+
+  return `${text.slice(0, limit - 1)}...`;
+}
+
+function getSortedVisibleActivityEntries() {
+  return getVisibleActivityEntries().sort((a, b) => {
+    const timeA = a.at ? new Date(a.at).getTime() : 0;
+    const timeB = b.at ? new Date(b.at).getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
+function getActivityCardTooltipHtml() {
+  const visibleEntries = getSortedVisibleActivityEntries();
+
+  if (!visibleEntries.length) {
+    return "Atividade: <strong>0 eventos novos</strong><br>Clique para ver todas do dia";
+  }
+
+  const latestEntry = visibleEntries[0];
+  const latestTime = formatActivityTime(latestEntry.at) || "--:--";
+  const latestMessage = escapeHtml(trimMessagePreview(latestEntry.message || "Evento registrado"));
+
+  return [
+    `Atividade: <strong>${visibleEntries.length} evento(s)</strong>`,
+    `Novo: ${latestTime} - ${latestMessage}`,
+  ].join("<br>");
+}
 
 function hydrateDismissedKeys(keys) {
   dismissedActivityKeys.clear();
@@ -302,11 +374,11 @@ function renderGlobalUpdateBadge(status) {
 
   badge.classList.remove("ok", "update", "updated", "info");
   badge.title = "";
+  badge.dataset.hoverTooltip = "Consultando versao remota...";
 
   if (!status) {
     badge.classList.add("info");
     badge.textContent = "Verificando...";
-    badge.title = "Consultando versão remota...";
     return;
   }
 
@@ -314,13 +386,13 @@ function renderGlobalUpdateBadge(status) {
     badge.classList.add("ok");
     badge.textContent = "Atualizado";
     const errorDetail = status.errorMsg ? ` (${status.errorMsg})` : "";
-    badge.title = `Sem confirmação remota no momento. Mantendo último estado conhecido${errorDetail}`;
+    badge.dataset.hoverTooltip = `Sem confirmacao remota no momento.<br>Mantendo ultimo estado conhecido${escapeHtml(errorDetail)}`;
     return;
   }
 
   const currentLabel = status.currentVersion ? `v${status.currentVersion}` : "v-";
   const latestLabel = status.latestVersion ? `v${status.latestVersion}` : "v-";
-  badge.title = `Atual: ${currentLabel} | Remota: ${latestLabel}`;
+  badge.dataset.hoverTooltip = `Atual: <strong>${escapeHtml(currentLabel)}</strong><br>Remota: <strong>${escapeHtml(latestLabel)}</strong>`;
 
   if (status.isOutdated) {
     badge.classList.add("update");
@@ -364,14 +436,7 @@ function renderActivity() {
 
   activityList.innerHTML = "";
 
-  let visibleActivity = getVisibleActivityEntries();
-  
-  // Sort by time descending (most recent first)
-  visibleActivity = visibleActivity.sort((a, b) => {
-    const timeA = a.at ? new Date(a.at).getTime() : 0;
-    const timeB = b.at ? new Date(b.at).getTime() : 0;
-    return timeB - timeA;
-  });
+  const visibleActivity = getSortedVisibleActivityEntries();
 
   const previewItems = visibleActivity.length
     ? visibleActivity.slice(0, ACTIVITY_PREVIEW_ITEMS)
@@ -584,6 +649,7 @@ function closeActivityModal() {
 
 function bindActivityInteractions() {
   const card = document.getElementById("activity-card");
+  const statusBadge = document.getElementById("ctx-update-status");
   const backdrop = document.getElementById("activity-modal");
   const closeButton = document.getElementById("activity-modal-close");
   const clearButton = document.getElementById("activity-clear-btn");
@@ -599,6 +665,23 @@ function bindActivityInteractions() {
     subtitle
   };
 
+  statusBadge?.addEventListener("mousemove", (event) => {
+    showHoverTooltip(event, statusBadge.dataset.hoverTooltip || "Sem dados de versao no momento");
+  });
+
+  statusBadge?.addEventListener("mouseleave", hideHoverTooltip);
+
+  card?.addEventListener("mousemove", (event) => {
+    if (event.target instanceof Element && event.target.closest("#activity-clear-btn")) {
+      hideHoverTooltip();
+      return;
+    }
+
+    showHoverTooltip(event, getActivityCardTooltipHtml());
+  });
+
+  card?.addEventListener("mouseleave", hideHoverTooltip);
+
   card?.addEventListener("click", openActivityModal);
   card?.addEventListener("keydown", (event) => {
     if (event.key !== "Enter" && event.key !== " ") return;
@@ -607,6 +690,8 @@ function bindActivityInteractions() {
   });
 
   closeButton?.addEventListener("click", closeActivityModal);
+  clearButton?.addEventListener("mouseenter", hideHoverTooltip);
+  clearButton?.addEventListener("mousemove", hideHoverTooltip);
   clearButton?.addEventListener("click", (event) => {
     event.stopPropagation();
     void clearActivityCardNotifications();
@@ -617,6 +702,8 @@ function bindActivityInteractions() {
       closeActivityModal();
     }
   });
+
+  backdrop?.addEventListener("mouseenter", hideHoverTooltip);
 
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && activityModalElements?.backdrop && !activityModalElements.backdrop.classList.contains("is-hidden")) {

@@ -85,6 +85,7 @@ function mapActivityRow(row) {
     module: row.module,
     eventType: row.event_type,
     details: row.details || {},
+    environment: normalizeEnvironment(row.environment),
     at: occurredAt,
     day: toDateKey(occurredAt)
   };

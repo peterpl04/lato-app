@@ -692,6 +692,7 @@ function writeLauncherState(state) {
 function normalizeActivityEntry(rawEntry) {
   const entry = rawEntry && typeof rawEntry === "object" ? rawEntry : {};
   const at = entry.at || new Date().toISOString();
+  const environment = getAppEnvironmentKey();
 
   return {
     id: entry.id || `${Date.now()}-${Math.round(Math.random() * 100000)}`,
@@ -702,8 +703,20 @@ function normalizeActivityEntry(rawEntry) {
     user: normalizeUserName(entry.user || loggedUser),
     module: String(entry.module || "launcher"),
     eventType: String(entry.eventType || "generic"),
-    details: entry.details && typeof entry.details === "object" ? entry.details : {}
+    details: entry.details && typeof entry.details === "object" ? entry.details : {},
+    environment: normalizeEnvironment(entry.environment || entry.env || environment)
   };
+}
+
+function filterActivitiesByEnvironment(list, env) {
+  if (!Array.isArray(list)) {
+    return [];
+  }
+
+  const normalizedEnv = normalizeEnvironment(env);
+  return list
+    .map(normalizeActivityEntry)
+    .filter((entry) => normalizeEnvironment(entry.environment) === normalizedEnv);
 }
 
 function isActivityWithinRetention(entry) {
@@ -899,9 +912,11 @@ ipcMain.handle("open-project-manager", () => {
 ipcMain.handle("get-launcher-state", () => {
   const state = readLauncherState();
   const env = getAppEnvironmentKey();
+  const activity = filterActivitiesByEnvironment(state.activity, env).slice(0, ACTIVITY_PREVIEW_LIMIT);
+  const activityLog = filterActivitiesByEnvironment(state.activityLog, env).slice(0, ACTIVITY_LOG_LIMIT);
 
   const validDismissedKeys = normalizeDismissedKeys(state.dismissedActivityKeys)
-    .filter((key) => collectActivityKeys(state.activityLog).includes(key));
+    .filter((key) => collectActivityKeys(activityLog).includes(key));
 
   if (validDismissedKeys.length !== state.dismissedActivityKeys.length) {
     state.dismissedActivityKeys = validDismissedKeys;
@@ -918,7 +933,7 @@ ipcMain.handle("get-launcher-state", () => {
     moduleMetrics: state.moduleMetrics,
     moduleLastUsedAt: state.moduleLastUsedAt,
     recents: state.recents,
-    activity: state.activity,
+    activity,
     dismissedActivityKeys: state.dismissedActivityKeys
   };
 });
@@ -978,12 +993,12 @@ ipcMain.handle("track-launcher-activity", async (_, payload) => {
 ipcMain.handle("get-launcher-activity-day", (_, options) => {
   const state = readLauncherState();
   const day = normalizeDateKey(options?.day);
+  const env = getAppEnvironmentKey();
   const source = Array.isArray(state.activityLog) && state.activityLog.length
     ? state.activityLog
     : state.activity;
 
-  return source
-    .map(normalizeActivityEntry)
+  return filterActivitiesByEnvironment(source, env)
     .filter(entry => normalizeDateKey(entry.day || toDateKey(entry.at)) === day)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 });

@@ -345,7 +345,7 @@ body {
 
 .activity-list li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   font-size: 10px;
   color: #1e293b;
@@ -364,6 +364,10 @@ body {
 .activity-message {
   min-width: 0;
   flex: 1;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.3;
 }
 
 .activity-time {
@@ -372,6 +376,7 @@ body {
   color: #64748b;
   opacity: 0.9;
   letter-spacing: 0.02em;
+  flex-shrink: 0;
 }
 
 .activity-hint {
@@ -484,51 +489,124 @@ body {
   cursor: pointer;
 }
 
+.activity-modal {
+  position: relative;
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border-soft);
+  width: min(800px, 90vw);
+  max-width: 90vw;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.15);
+  overflow: hidden;
+}
+
+.activity-modal-head {
+  padding: 24px 28px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.activity-modal-head h3 {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.activity-modal-head p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.activity-modal-close {
+  padding: 8px 16px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text-main);
+  transition: background 0.2s ease, border-color 0.2s ease;
+  font-weight: 500;
+}
+
+.activity-modal-close:hover {
+  background: #f0f2f5;
+  border-color: #cbd5e1;
+}
+
 .activity-day-list {
   list-style: none;
   margin: 0;
-  padding: 10px 14px 14px;
+  padding: 14px 16px;
   display: grid;
   gap: 8px;
-  overflow: auto;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .activity-day-item {
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #f8fafc;
-  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff, var(--bg-soft));
+  padding: 14px 16px;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.activity-day-item:hover {
+  border-color: rgba(37, 99, 235, 0.3);
+  background: linear-gradient(180deg, #ffffff, #f5f7fa);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
 
 .activity-day-item-head {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
 }
 
 .activity-day-item-time {
   font-size: 11px;
-  color: #334155;
-  font-weight: 700;
+  color: var(--text-muted);
+  font-weight: 600;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
 }
 
 .activity-day-item-user {
   margin-left: auto;
   font-size: 11px;
-  color: #475569;
+  color: var(--text-muted);
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 .activity-day-item-message {
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 13px;
-  color: #0f172a;
+  color: var(--text-main);
+  font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .activity-day-item-meta {
-  margin-top: 4px;
-  font-size: 11px;
-  color: #64748b;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
 }
 
 .hover-tooltip {

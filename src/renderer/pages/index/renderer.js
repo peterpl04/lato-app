@@ -185,6 +185,23 @@ function normalizeRealtimeEnvironment(value) {
   return "prod";
 }
 
+function getEntryEnvironment(entry) {
+  if (!entry || typeof entry !== "object") {
+    return "";
+  }
+
+  const candidate = entry.environment || entry.env;
+  if (!candidate) {
+    return "";
+  }
+
+  return normalizeRealtimeEnvironment(candidate);
+}
+
+function isCurrentEnvironmentEntry(entry) {
+  return getEntryEnvironment(entry) === activityEnv;
+}
+
 function getActivityEntryKey(entry) {
   if (!entry || typeof entry !== "object") {
     return "";
@@ -200,12 +217,12 @@ function getActivityEntryKey(entry) {
 function getVisibleActivityEntries() {
   return (launcherState.activity || []).filter((entry) => {
     const key = getActivityEntryKey(entry);
-    return key && !dismissedActivityKeys.has(key);
+    return key && isCurrentEnvironmentEntry(entry) && !dismissedActivityKeys.has(key);
   });
 }
 
 function mergeActivityEntry(entry) {
-  if (!entry || typeof entry !== "object") {
+  if (!entry || typeof entry !== "object" || !isCurrentEnvironmentEntry(entry)) {
     return;
   }
 
@@ -272,12 +289,28 @@ async function initActivityRealtime() {
     activityEnv = "prod";
   }
 
+  // Disconnect previous socket if exists
+  if (activitySocket) {
+    activitySocket.disconnect();
+  }
+
   activitySocket = io(activityApiUrl, {
-    query: { env: activityEnv }
+    query: { env: activityEnv },
+    reconnection: true,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    reconnectionAttempts: 5
   });
 
   activitySocket.on("activity:new", (entry) => {
-    mergeActivityEntry(entry);
+    // Only merge if environment matches
+    if (entry && entry.environment === activityEnv) {
+      mergeActivityEntry(entry);
+    }
+  });
+
+  activitySocket.on("error", (error) => {
+    console.error("Socket.IO error:", error);
   });
 }
 
@@ -362,8 +395,6 @@ function renderMetrics() {
   const dwgLast = document.getElementById("dwg-last-use");
   const pmLast = document.getElementById("pm-last-use");
 
-  if (dwgMeta) dwgMeta.textContent = `${launcherState.moduleMetrics.dwgLaunches || 0} execs hoje`;
-  if (pmMeta) pmMeta.textContent = `${launcherState.moduleMetrics.pmLaunches || 0} execs hoje`;
   if (dwgLast) dwgLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.dwg)}`;
   if (pmLast) pmLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.pm)}`;
 }
@@ -512,7 +543,7 @@ async function getDailyActivityEntries() {
     if (response.ok) {
       const list = await response.json();
       if (Array.isArray(list)) {
-        return list;
+        return list.filter(isCurrentEnvironmentEntry);
       }
     }
   } catch {
@@ -522,13 +553,14 @@ async function getDailyActivityEntries() {
   try {
     const list = await window.api.getLauncherActivityDay({ day: dayKey });
     if (Array.isArray(list)) {
-      return list;
+      return list.filter(isCurrentEnvironmentEntry);
     }
   } catch {
     // Fallback to local loaded state when IPC is unavailable.
   }
 
   return (launcherState.activity || [])
+    .filter(isCurrentEnvironmentEntry)
     .filter((entry) => getDateKey(entry.at) === dayKey)
     .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
 }
@@ -549,7 +581,7 @@ async function fetchRecentActivities() {
     }
 
     const list = await response.json();
-    return Array.isArray(list) ? list : [];
+    return Array.isArray(list) ? list.filter(isCurrentEnvironmentEntry) : [];
   } catch {
     return [];
   }

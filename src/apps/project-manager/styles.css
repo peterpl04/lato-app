@@ -600,15 +600,19 @@ button.danger:hover {
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
 }
 
 .summary-grid div {
   background: var(--bg-soft);
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--border-soft);
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .summary-grid span {
@@ -617,13 +621,22 @@ button.danger:hover {
 }
 
 .summary-grid p {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   font-size: 13px;
   font-weight: 500;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .summary-full {
-  grid-column: span 4;
+  grid-column: 1 / -1;
+}
+
+.summary-full p {
+  max-height: 150px;
+  overflow-y: auto;
 }
 
 .summary-section.muted {
@@ -687,6 +700,10 @@ button.danger:hover {
   font-size: 18px;
   font-weight: 600;
   color: #111827;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+  line-height: 1.4;
 }
 
 .summary-tabs {

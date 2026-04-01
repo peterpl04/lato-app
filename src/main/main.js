@@ -105,6 +105,15 @@ function getEnvironmentLabel(key) {
   return key === "prod" ? "Produção" : "Desenvolvimento";
 }
 
+function normalizeEnvironment(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (["dev", "development", "local"].includes(raw)) {
+    return "dev";
+  }
+
+  return "prod";
+}
+
 function toDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   const year = date.getFullYear();

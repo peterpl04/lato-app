@@ -46,6 +46,7 @@ let splashWindow;
 let updateWindow;
 let dwgRenamerWindow;
 let projectManagerWindow;
+let fiscalWindow;
 let loggedUser = null;
 let splashDelayDone = false;
 let updateCheckResolved = false;
@@ -456,7 +457,7 @@ function createMainWindow() {
       type: "warning",
       title: "Feche as instâncias",
       message: "O launcher não pode ser fechado enquanto houver qualquer instância aberta.",
-      detail: "Feche o DWG Renamer e o Project Manager antes de sair do launcher.",
+      detail: "Feche o DWG Renamer, o Project Manager e o Fiscal antes de sair do launcher.",
       buttons: ["OK"]
     });
 
@@ -485,7 +486,8 @@ function createMainWindow() {
 function hasOpenAppWindows() {
   return Boolean(
     (dwgRenamerWindow && !dwgRenamerWindow.isDestroyed()) ||
-      (projectManagerWindow && !projectManagerWindow.isDestroyed())
+      (projectManagerWindow && !projectManagerWindow.isDestroyed()) ||
+      (fiscalWindow && !fiscalWindow.isDestroyed())
   );
 }
 
@@ -497,6 +499,11 @@ function focusFirstOpenAppWindow() {
 
   if (projectManagerWindow && !projectManagerWindow.isDestroyed()) {
     projectManagerWindow.focus();
+    return;
+  }
+
+  if (fiscalWindow && !fiscalWindow.isDestroyed()) {
+    fiscalWindow.focus();
   }
 }
 
@@ -581,6 +588,44 @@ function openProjectManager() {
   win.loadFile(path.join(__dirname, "../apps/project-manager/index.html"));
 }
 
+function openFiscal() {
+  if (fiscalWindow && !fiscalWindow.isDestroyed()) {
+    fiscalWindow.focus();
+    return;
+  }
+
+  const win = new BrowserWindow({
+    width: 760,
+    height: 620,
+    resizable: false,
+    title: "FISCAL",
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "../preload/preload.js")
+    }
+  });
+
+  if (process.platform === "win32") {
+    win.setAppDetails({
+      appId: "com.latoapps.fiscal",
+      appIconPath: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
+      relaunchCommand: process.execPath,
+      relaunchDisplayName: "FISCAL"
+    });
+  }
+
+  fiscalWindow = win;
+  recordLauncherEvent("fiscal");
+
+  win.on("closed", () => {
+    fiscalWindow = null;
+  });
+
+  win.setMenu(null);
+  win.loadFile(path.join(__dirname, "../apps/fiscal/index.html"));
+}
+
 function readProjectData() {
   if (!fs.existsSync(DATA_PATH)) {
     fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
@@ -602,11 +647,13 @@ function defaultLauncherState() {
     lastSyncAt: null,
     moduleMetrics: {
       dwgLaunches: 0,
-      pmLaunches: 0
+      pmLaunches: 0,
+      fiscalLaunches: 0
     },
     moduleLastUsedAt: {
       dwg: null,
-      pm: null
+      pm: null,
+      fiscal: null
     },
     recents: [],
     activity: [],
@@ -846,6 +893,25 @@ function recordLauncherEvent(type) {
     });
   }
 
+  if (type === "fiscal") {
+    state.moduleMetrics.fiscalLaunches += 1;
+    state.moduleLastUsedAt.fiscal = now;
+    state.recents = pushRecent(state.recents, {
+      label: "FISCAL aberto",
+      action: "open-fiscal",
+      keywords: "fiscal nota fiscal busca arquivo",
+      at: now
+    });
+    trackedEntry = registerActivity(state, {
+      module: "fiscal",
+      eventType: "open-module",
+      message: "FISCAL aberto",
+      tone: "ok",
+      user: userName,
+      at: now
+    });
+  }
+
   writeLauncherState(state);
 
   if (trackedEntry) {
@@ -916,6 +982,125 @@ ipcMain.handle("open-dwg-renamer", () => {
 
 ipcMain.handle("open-project-manager", () => {
   openProjectManager();
+});
+
+ipcMain.handle("open-fiscal", () => {
+  openFiscal();
+});
+
+ipcMain.handle("fiscal-search-files", async (_, folderPath, invoiceNumber) => {
+  const baseFolder = String(folderPath || "").trim();
+  const query = String(invoiceNumber || "").trim();
+
+  if (!baseFolder) {
+    throw new Error("Pasta não informada.");
+  }
+
+  if (!query) {
+    throw new Error("Número da nota fiscal não informado.");
+  }
+
+  let folderStats;
+  try {
+    folderStats = await fs.promises.stat(baseFolder);
+  } catch {
+    throw new Error("A pasta selecionada não existe.");
+  }
+
+  if (!folderStats.isDirectory()) {
+    throw new Error("O caminho informado não é uma pasta.");
+  }
+
+  const normalizedQuery = query.replace(/\D/g, "");
+  const matches = [];
+  let scannedFiles = 0;
+  const impressasFolder = path.join(baseFolder, "IMPRESSAS");
+
+  async function ensureUniqueDestination(fileName) {
+    const parsed = path.parse(fileName);
+    let suffix = 0;
+
+    while (true) {
+      const candidateName = suffix === 0
+        ? fileName
+        : `${parsed.name} (${suffix})${parsed.ext}`;
+      const candidatePath = path.join(impressasFolder, candidateName);
+
+      try {
+        await fs.promises.access(candidatePath);
+        suffix += 1;
+      } catch {
+        return {
+          name: candidateName,
+          path: candidatePath
+        };
+      }
+    }
+  }
+
+  async function walkDirectory(currentFolder) {
+    const entries = await fs.promises.readdir(currentFolder, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const absolutePath = path.join(currentFolder, entry.name);
+
+      if (entry.isDirectory()) {
+        if (entry.name.toLowerCase() === "impressas") {
+          continue;
+        }
+
+        await walkDirectory(absolutePath);
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      scannedFiles += 1;
+
+      const baseName = path.parse(entry.name).name;
+      const hasRawMatch = baseName.toLowerCase().includes(query.toLowerCase());
+      const baseNameDigits = baseName.replace(/\D/g, "");
+      const hasDigitMatch = normalizedQuery
+        ? baseNameDigits.includes(normalizedQuery)
+        : false;
+
+      if (!hasRawMatch && !hasDigitMatch) {
+        continue;
+      }
+
+      matches.push({
+        name: entry.name,
+        path: absolutePath,
+        relativePath: path.relative(baseFolder, absolutePath)
+      });
+    }
+  }
+
+  await walkDirectory(baseFolder);
+
+  let movedFiles = 0;
+  if (matches.length > 0) {
+    await fs.promises.mkdir(impressasFolder, { recursive: true });
+
+    for (const match of matches) {
+      const target = await ensureUniqueDestination(match.name);
+      await fs.promises.rename(match.path, target.path);
+      movedFiles += 1;
+
+      match.movedTo = target.path;
+      match.movedToRelativePath = path.relative(baseFolder, target.path);
+    }
+  }
+
+  return {
+    scannedFiles,
+    totalMatches: matches.length,
+    movedFiles,
+    destinationFolder: impressasFolder,
+    matches
+  };
 });
 
 ipcMain.handle("get-launcher-state", () => {

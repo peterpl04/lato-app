@@ -1,0 +1,192 @@
+@import "../../renderer/styles/tokens.css";
+@import "../../renderer/styles/base.css";
+@import "../../renderer/styles/components.css";
+
+body {
+  height: 100vh;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.container {
+  max-width: 760px;
+  margin: 0 auto;
+  display: grid;
+  gap: 10px;
+  height: calc(100vh - 24px);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 24px;
+  letter-spacing: -0.02em;
+}
+
+.header p {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--shadow-soft);
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.folder-row,
+.invoice-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 160px minmax(0, 1fr);
+}
+
+#folderPath,
+#invoiceNumber {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  outline: none;
+  font-size: 13px;
+  color: var(--text-main);
+  background: #ffffff;
+}
+
+#invoiceNumber:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+button {
+  height: 36px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--transition-default), transform var(--transition-fast), box-shadow var(--transition-default);
+}
+
+button:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.22);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+.helper {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.results-card {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.results-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.results-head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.result-counter {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.status {
+  min-height: 16px;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status.success {
+  color: #15803d;
+}
+
+.status.error {
+  color: #b91c1c;
+}
+
+.status.info {
+  color: var(--text-muted);
+}
+
+.result-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.result-list li {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--bg-soft);
+  padding: 8px 10px;
+}
+
+.result-file {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.result-path {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+@media (max-width: 780px) {
+  body {
+    padding: 12px;
+    overflow: auto;
+  }
+
+  .container {
+    height: auto;
+    grid-template-rows: none;
+  }
+
+  .folder-row,
+  .invoice-row {
+    grid-template-columns: 1fr;
+  }
+}

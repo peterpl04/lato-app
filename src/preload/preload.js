@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld("api", {
 
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
+  openFiscal: () => ipcRenderer.invoke("open-fiscal"),
+  searchFiscalFiles: (folderPath, invoiceNumber) =>
+    ipcRenderer.invoke("fiscal-search-files", folderPath, invoiceNumber),
   getGlobalAppUpdateStatus: (options) => ipcRenderer.invoke("get-global-app-update-status", options),
   checkAppUpdate: () => ipcRenderer.invoke("check-app-update"),
   getActivityRealtimeConfig: () => ipcRenderer.invoke("get-activity-realtime-config"),

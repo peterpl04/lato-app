@@ -7,18 +7,20 @@ let launcherState = {
   },
   moduleMetrics: {
     dwgLaunches: 0,
-    pmLaunches: 0
+    pmLaunches: 0,
+    fiscalLaunches: 0
   },
   moduleLastUsedAt: {
     dwg: null,
-    pm: null
+    pm: null,
+    fiscal: null
   },
   recents: [],
   activity: [],
   dismissedActivityKeys: []
 };
 const APP_STATUS_POLL_MS = 60 * 1000;
-const ACTIVITY_PREVIEW_ITEMS = 5;
+const ACTIVITY_PREVIEW_ITEMS = 7;
 const ACTIVITY_STATE_LIMIT = 32;
 const ACTIVITY_FEED_POLL_MS = 12000;
 const DEFAULT_ACTIVITY_API_URL = "https://lato-app-production.up.railway.app";
@@ -30,6 +32,7 @@ let activityApiUrl = DEFAULT_ACTIVITY_API_URL;
 let activityEnv = "prod";
 let hoverTooltipEl = null;
 const dismissedActivityKeys = new Set();
+let activeLauncherFilter = "all";
 
 function ensureHoverTooltip() {
   if (hoverTooltipEl) {
@@ -135,6 +138,47 @@ function openProjectManager() {
   window.api.openProjectManager();
 }
 
+function openFiscal() {
+  window.api.openFiscal();
+}
+
+function getRecentAppSet() {
+  const entries = Array.isArray(launcherState.recents) ? launcherState.recents : [];
+  const result = new Set();
+
+  entries.slice(0, 8).forEach((entry) => {
+    if (entry?.action === "open-dwg") result.add("dwg");
+    if (entry?.action === "open-pm") result.add("pm");
+    if (entry?.action === "open-fiscal") result.add("fiscal");
+  });
+
+  return result;
+}
+
+function applyAppFilter(filter = "all") {
+  activeLauncherFilter = filter;
+  const cards = document.querySelectorAll(".app-card[data-app]");
+  const recentSet = getRecentAppSet();
+
+  cards.forEach((card) => {
+    let visible = true;
+
+    if (filter === "favorites") {
+      visible = card.dataset.favorite === "true";
+    }
+
+    if (filter === "recent") {
+      visible = recentSet.has(card.dataset.app);
+    }
+
+    card.style.display = visible ? "" : "none";
+  });
+
+  document.querySelectorAll(".favorite-chip[data-filter]").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.filter === filter);
+  });
+}
+
 function formatTime(iso) {
   if (!iso) return "nunca";
   return new Date(iso).toLocaleTimeString("pt-BR", {
@@ -173,6 +217,7 @@ function getDateKey(value = new Date()) {
 function mapModuleLabel(moduleName) {
   if (moduleName === "project-manager") return "Project Manager";
   if (moduleName === "dwg-renamer") return "DWG Renamer";
+  if (moduleName === "fiscal") return "FISCAL";
   return "Launcher";
 }
 
@@ -392,11 +437,18 @@ function renderContext() {
 function renderMetrics() {
   const dwgMeta = document.getElementById("dwg-meta");
   const pmMeta = document.getElementById("pm-meta");
+  const fiscalMeta = document.getElementById("fiscal-meta");
   const dwgLast = document.getElementById("dwg-last-use");
   const pmLast = document.getElementById("pm-last-use");
+  const fiscalLast = document.getElementById("fiscal-last-use");
+
+  if (dwgMeta) dwgMeta.textContent = `${launcherState.moduleMetrics.dwgLaunches || 0} execs hoje`;
+  if (pmMeta) pmMeta.textContent = `${launcherState.moduleMetrics.pmLaunches || 0} execs hoje`;
+  if (fiscalMeta) fiscalMeta.textContent = `${launcherState.moduleMetrics.fiscalLaunches || 0} execs hoje`;
 
   if (dwgLast) dwgLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.dwg)}`;
   if (pmLast) pmLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.pm)}`;
+  if (fiscalLast) fiscalLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.fiscal)}`;
 }
 
 function renderGlobalUpdateBadge(status) {
@@ -463,11 +515,32 @@ async function loadGlobalUpdateStatus(force = false) {
 
 function renderActivity() {
   const activityList = document.getElementById("activity-list");
+  const activityCount = document.getElementById("activity-count");
+  const activityTodayCount = document.getElementById("activity-today-count");
+  const activityLastTime = document.getElementById("activity-last-time");
+  const activityLastModule = document.getElementById("activity-last-module");
+  const activityRecentList = document.getElementById("activity-recent-list");
   if (!activityList) return;
 
   activityList.innerHTML = "";
 
   const visibleActivity = getSortedVisibleActivityEntries();
+  if (activityCount) {
+    activityCount.textContent = String(visibleActivity.length);
+  }
+
+  if (activityTodayCount) {
+    activityTodayCount.textContent = `${visibleActivity.length} evento(s)`;
+  }
+
+  const latestEntry = visibleActivity[0] || null;
+  if (activityLastTime) {
+    activityLastTime.textContent = latestEntry?.at ? formatActivityTime(latestEntry.at) : "--:--";
+  }
+
+  if (activityLastModule) {
+    activityLastModule.textContent = latestEntry ? mapModuleLabel(latestEntry.module) : "-";
+  }
 
   const previewItems = visibleActivity.length
     ? visibleActivity.slice(0, ACTIVITY_PREVIEW_ITEMS)
@@ -493,6 +566,35 @@ function renderActivity() {
 
     item.append(dot, message, time);
     activityList.appendChild(item);
+  });
+
+  if (!activityRecentList) {
+    return;
+  }
+
+  activityRecentList.innerHTML = "";
+
+  const recentItems = (Array.isArray(launcherState.recents) ? launcherState.recents : []).slice(0, 4);
+  if (!recentItems.length) {
+    const empty = document.createElement("li");
+    empty.innerHTML = '<span class="activity-recent-name">Sem ações recentes</span><span class="activity-recent-time">--:--</span>';
+    activityRecentList.appendChild(empty);
+    return;
+  }
+
+  recentItems.forEach((entry) => {
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    const time = document.createElement("span");
+
+    name.className = "activity-recent-name";
+    name.textContent = entry?.label || "Ação registrada";
+
+    time.className = "activity-recent-time";
+    time.textContent = formatTime(entry?.at);
+
+    item.append(name, time);
+    activityRecentList.appendChild(item);
   });
 }
 
@@ -748,6 +850,7 @@ function renderLauncher() {
   renderContext();
   renderMetrics();
   renderActivity();
+  applyAppFilter(activeLauncherFilter);
 }
 
 async function persistLauncherPatch(patch) {
@@ -796,6 +899,12 @@ async function handleAction(action) {
 
   if (action === "open-pm") {
     openProjectManager();
+    setTimeout(loadLauncherState, 120);
+    return;
+  }
+
+  if (action === "open-fiscal") {
+    openFiscal();
     setTimeout(loadLauncherState, 120);
     return;
   }
@@ -849,7 +958,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindActivityInteractions();
 
   const cards = document.querySelectorAll(".app-card[data-app]");
-  const favoriteButtons = document.querySelectorAll(".favorite-chip[data-app]");
+  const filterButtons = document.querySelectorAll(".favorite-chip[data-filter]");
 
   cards.forEach((card, index) => {
     card.style.animationDelay = `${index * 70}ms`;
@@ -863,20 +972,19 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (app === "pm") {
         await handleAction("open-pm");
+        return;
+      }
+
+      if (app === "fiscal") {
+        await handleAction("open-fiscal");
       }
     });
   });
 
-  favoriteButtons.forEach((button) => {
+  filterButtons.forEach((button) => {
     button.addEventListener("click", async () => {
-      if (button.dataset.app === "dwg") {
-        await handleAction("open-dwg");
-        return;
-      }
-
-      if (button.dataset.app === "pm") {
-        await handleAction("open-pm");
-      }
+      const filter = button.dataset.filter || "all";
+      applyAppFilter(filter);
     });
   });
 

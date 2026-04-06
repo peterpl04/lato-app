@@ -27,19 +27,22 @@ body {
     radial-gradient(circle at 85% 85%, rgba(2, 132, 199, 0.12), transparent 45%),
     linear-gradient(180deg, var(--bg-gradient) 0%, var(--bg-main) 100%);
   color: var(--text-main);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 28px;
+  display: block;
+  padding: 0;
   overflow: hidden;
 }
 
 .launcher {
   position: relative;
   width: 100%;
-  max-width: 1080px;
-  padding: 26px;
-  border-radius: 24px;
+  max-width: 1240px;
+  max-height: calc(100vh - 28px);
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  max-height: none;
+  padding: 22px;
+  border-radius: 0;
   border: 1px solid var(--border-soft);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.94));
   box-shadow:
@@ -126,8 +129,9 @@ body {
 
 .content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
+  grid-template-columns: minmax(0, 1.7fr) minmax(380px, 1.3fr);
   gap: 12px;
+  align-items: start;
 }
 
 .main-column {
@@ -188,33 +192,52 @@ body {
   color: #1e293b;
   padding: 6px 12px;
   cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+}
+
+.favorite-chip:hover {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.favorite-chip.is-active {
+  border-color: rgba(37, 99, 235, 0.5);
+  background: #eff6ff;
+  color: #1d4ed8;
 }
 
 .apps {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
   margin-bottom: 10px;
 }
 
 .app-card {
   background: linear-gradient(180deg, #ffffff, var(--bg-soft));
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 12px;
+  padding: 8px;
   cursor: pointer;
   transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
   border: 1px solid var(--border-soft);
-  text-align: left;
+  text-align: center;
   appearance: none;
-  min-height: 220px;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  animation: appCardIn 0.34s ease both;
 }
 
 .app-card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px) scale(1.01);
   border-color: rgba(37, 99, 235, 0.38);
-  box-shadow: 0 16px 30px rgba(37, 99, 235, 0.16);
+  box-shadow: 0 12px 18px rgba(37, 99, 235, 0.18);
 }
 
 .app-card:focus-visible {
@@ -224,17 +247,15 @@ body {
 }
 
 .app-icon {
-  width: 100%;
-  height: 96px;
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.3), transparent 40%),
-    linear-gradient(135deg, var(--accent), var(--accent-hover));
+  width: 36px;
+  height: 36px;
+  border-radius: 0;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  margin-bottom: 0;
+  box-shadow: none;
 }
 
 .card-head,
@@ -285,14 +306,14 @@ body {
 }
 
 .app-icon img {
-  width: 92px;
-  height: 52px;
+  width: 26px;
+  height: 26px;
   object-fit: contain;
-  filter: drop-shadow(0 8px 14px rgba(2, 6, 23, 0.35));
+  filter: drop-shadow(0 4px 6px rgba(2, 6, 23, 0.24));
 }
 
 .app-name {
-  font-size: 15px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -300,14 +321,21 @@ body {
 .app-name-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  gap: 6px;
+  min-height: 16px;
 }
 
-.app-desc {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 4px;
-  line-height: 1.3;
+@keyframes appCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .activity {
@@ -318,9 +346,30 @@ body {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.88);
   padding: 8px;
-  max-width: 240px;
+  max-width: none;
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  min-height: 430px;
+}
+
+.section-title h2 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.activity-count {
+  display: inline-flex;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  background: #dbeafe;
+  border: 1px solid #bfdbfe;
 }
 
 .activity:hover {
@@ -341,6 +390,8 @@ body {
   margin: 0;
   display: grid;
   gap: 4px;
+  max-height: 210px;
+  overflow: auto;
 }
 
 .activity-list li {
@@ -380,10 +431,86 @@ body {
 }
 
 .activity-hint {
-  margin: 6px 2px 0;
+  margin: 8px 2px 0;
   font-size: 10px;
   color: #64748b;
 }
+
+.activity-insights {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.insight-chip {
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 8px;
+}
+
+.insight-label {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.insight-value {
+  font-size: 12px;
+  color: #1e293b;
+}
+
+.activity-recent {
+  margin-top: 10px;
+  border: 1px solid #dbe4f0;
+  border-radius: 10px;
+  background: rgba(248, 250, 252, 0.95);
+  padding: 8px;
+}
+
+.activity-recent h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.activity-recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 90px;
+  overflow: auto;
+}
+
+.activity-recent-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 6px 8px;
+}
+
+.activity-recent-name {
+  font-size: 11px;
+  color: #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-recent-time {
+  font-size: 10px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
 
 .dot {
   width: 8px;
@@ -640,12 +767,14 @@ body {
 
 @media (max-width: 760px) {
   body {
-    padding: 14px;
+    padding: 0;
     overflow: auto;
   }
 
   .launcher {
-    padding: 22px;
+    max-height: none;
+    overflow: auto;
+    padding: 16px;
   }
 
   .topbar {
@@ -661,8 +790,12 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .activity-insights {
+    grid-template-columns: 1fr;
+  }
+
   .apps {
-    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   }
 
   .topbar h1 {

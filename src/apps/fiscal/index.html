@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>FISCAL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>FISCAL</h1>
+      <p>Localize arquivos pelo número da nota fiscal</p>
+    </header>
+
+    <section class="card" aria-label="Pasta de busca">
+      <label class="field-label" for="folderPath">Pasta para busca</label>
+      <div class="folder-row">
+        <button id="btnSelectFolder" type="button">Selecionar pasta</button>
+        <input id="folderPath" type="text" readonly placeholder="Nenhuma pasta selecionada" />
+      </div>
+    </section>
+
+    <section class="card" aria-label="Nota fiscal">
+      <label class="field-label" for="invoiceNumber">Número da nota fiscal</label>
+      <div class="invoice-row">
+        <input id="invoiceNumber" type="text" inputmode="numeric" placeholder="Ex: 123456" />
+        <button id="btnSearch" type="button">Buscar arquivos</button>
+      </div>
+      <p class="helper">Se houver coincidência com o número informado, os arquivos serão movidos para a pasta IMPRESSAS.</p>
+    </section>
+
+    <section class="card results-card" aria-live="polite">
+      <div class="results-head">
+        <h2>Resultado</h2>
+        <span id="resultCounter" class="result-counter">Nenhuma busca realizada</span>
+      </div>
+      <p id="status" class="status"></p>
+      <ul id="resultList" class="result-list"></ul>
+    </section>
+  </main>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

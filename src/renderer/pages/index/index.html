@@ -35,55 +35,70 @@
 
     <div class="content-grid">
       <section class="main-column" aria-label="Area principal">
-        <section class="favorites" aria-label="Favoritos">
-          <h2>Favoritos</h2>
+        <section class="favorites" aria-label="Filtros de exibição">
+          <h2>Navegação</h2>
           <div class="favorites-list">
-            <button class="favorite-chip" data-app="pm" type="button">Project Manager</button>
-            <button class="favorite-chip" data-app="dwg" type="button">DWG Renamer</button>
+            <button class="favorite-chip is-active" data-filter="all" type="button">Todos</button>
+            <button class="favorite-chip" data-filter="favorites" type="button">Favoritos</button>
+            <button class="favorite-chip" data-filter="recent" type="button">Recentes</button>
           </div>
         </section>
 
         <section class="apps" aria-label="Aplicativos disponiveis">
-          <button class="app-card" data-app="dwg" type="button" aria-label="Abrir DWG Renamer" data-keywords="dwg renamer arquivo lote renomeacao">
-            <div class="card-head">
-              <span class="card-meta" id="dwg-meta">0 execs hoje</span>
-            </div>
+          <button class="app-card" data-app="dwg" data-favorite="true" type="button" aria-label="Abrir DWG Renamer" data-keywords="dwg renamer arquivo lote renomeacao">
             <div class="app-icon">
               <img src="../../../assets/icons/dwg-renamer.svg" alt="">
             </div>
             <div class="app-name-row">
               <div class="app-name">DWG Renamer</div>
             </div>
-            <div class="app-desc">Renomeação em lote de arquivos DWG</div>
-            <div class="card-foot">
-              <span id="dwg-last-use">Último uso: nunca</span>
-            </div>
           </button>
 
-          <button class="app-card" data-app="pm" type="button" aria-label="Abrir Project Manager" data-keywords="project manager projetos progresso entregas dashboard">
-            <div class="card-head">
-              <span class="card-meta" id="pm-meta">0 execs hoje</span>
-            </div>
+          <button class="app-card" data-app="pm" data-favorite="true" type="button" aria-label="Abrir Project Manager" data-keywords="project manager projetos progresso entregas dashboard">
             <div class="app-icon">
               <img src="../../../assets/icons/project-manager.svg" alt="">
             </div>
             <div class="app-name-row">
               <div class="app-name">Project Manager</div>
             </div>
-            <div class="app-desc">Controle de projetos, progresso e entregas</div>
-            <div class="card-foot">
-              <span id="pm-last-use">Último uso: nunca</span>
+          </button>
+
+          <button class="app-card" data-app="fiscal" data-favorite="false" type="button" aria-label="Abrir Fiscal" data-keywords="fiscal nota fiscal busca arquivo pasta">
+            <div class="app-icon">
+              <img src="../../../assets/icons/fiscal.svg" alt="">
+            </div>
+            <div class="app-name-row">
+              <div class="app-name">FISCAL</div>
             </div>
           </button>
         </section>
+
       </section>
 
       <aside class="activity" id="activity-card" aria-label="Atividade do sistema" role="button" tabindex="0">
         <div class="section-title">
-          <h2>Atividade</h2>
+          <h2>Atividade <span class="activity-count" id="activity-count">0</span></h2>
           <button id="activity-clear-btn" class="activity-clear-btn" type="button" title="Limpar notificações do card" aria-label="Limpar notificações do card">🗑</button>
         </div>
         <ul class="activity-list" id="activity-list"></ul>
+        <div class="activity-insights" aria-label="Resumo da atividade">
+          <div class="insight-chip">
+            <span class="insight-label">Hoje</span>
+            <strong class="insight-value" id="activity-today-count">0 eventos</strong>
+          </div>
+          <div class="insight-chip">
+            <span class="insight-label">Último evento</span>
+            <strong class="insight-value" id="activity-last-time">--:--</strong>
+          </div>
+          <div class="insight-chip">
+            <span class="insight-label">Último módulo</span>
+            <strong class="insight-value" id="activity-last-module">-</strong>
+          </div>
+        </div>
+        <div class="activity-recent" aria-label="Módulos recentes">
+          <h3>Recentes</h3>
+          <ul class="activity-recent-list" id="activity-recent-list"></ul>
+        </div>
         <p class="activity-hint">Clique para ver todas do dia</p>
       </aside>
     </div>

@@ -1,0 +1,20 @@
+{
+  "pneumatica": [
+    {
+      "id": "pneumatica-1777398524203-c14vdxm6f",
+      "name": "issu",
+      "code": "sadasd",
+      "quantity": 12,
+      "movements": [
+        {
+          "type": "entrada",
+          "date": "2026-04-28",
+          "quantity": 12,
+          "address": null
+        }
+      ]
+    }
+  ],
+  "fixadores": [],
+  "eletrica": []
+}

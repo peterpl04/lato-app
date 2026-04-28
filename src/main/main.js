@@ -11,6 +11,7 @@ const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
 const DATA_PATH = path.join(__dirname, "data", "project-manager.json");
+const ESTOQUE_DATA_PATH = path.join(__dirname, "data", "estoque.json");
 const GLOBAL_UPDATE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;  // 5 minutes instead of 1
 const MANUAL_APP_UPDATE_TRIGGER = false;
 const DEFAULT_ACTIVITY_API_URL = "https://lato-app-production.up.railway.app";
@@ -47,6 +48,7 @@ let updateWindow;
 let dwgRenamerWindow;
 let projectManagerWindow;
 let fiscalWindow;
+let estoqueWindow;
 let loggedUser = null;
 let splashDelayDone = false;
 let updateCheckResolved = false;
@@ -626,6 +628,49 @@ function openFiscal() {
   win.loadFile(path.join(__dirname, "../apps/fiscal/index.html"));
 }
 
+function openEstoque() {
+  if (estoqueWindow && !estoqueWindow.isDestroyed()) {
+    estoqueWindow.focus();
+    return;
+  }
+
+  const win = new BrowserWindow({
+    width: 1000,
+    height: 700,
+    resizable: true,
+    show: false,
+    title: "ESTOQUE",
+    icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
+    autoHideMenuBar: true,
+    webPreferences: {
+      preload: path.join(__dirname, "../preload/preload.js")
+    }
+  });
+
+  if (process.platform === "win32") {
+    win.setAppDetails({
+      appId: "com.latoapps.estoque",
+      appIconPath: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
+      relaunchCommand: process.execPath,
+      relaunchDisplayName: "ESTOQUE"
+    });
+  }
+
+  estoqueWindow = win;
+  recordLauncherEvent("estoque");
+
+  win.on("ready-to-show", () => {
+    win.show();
+  });
+
+  win.on("closed", () => {
+    estoqueWindow = null;
+  });
+
+  win.setMenu(null);
+  win.loadFile(path.join(__dirname, "../apps/estoque/index.html"));
+}
+
 function readProjectData() {
   if (!fs.existsSync(DATA_PATH)) {
     fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
@@ -642,18 +687,36 @@ function writeProjectData(data) {
   fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2));
 }
 
+function readEstoqueData() {
+  if (!fs.existsSync(ESTOQUE_DATA_PATH)) {
+    fs.mkdirSync(path.dirname(ESTOQUE_DATA_PATH), { recursive: true });
+    fs.writeFileSync(
+      ESTOQUE_DATA_PATH,
+      JSON.stringify({ items: { pneumatica: [], fixadores: [], eletrica: [] } }, null, 2)
+    );
+  }
+
+  return JSON.parse(fs.readFileSync(ESTOQUE_DATA_PATH, "utf-8"));
+}
+
+function writeEstoqueData(data) {
+  fs.writeFileSync(ESTOQUE_DATA_PATH, JSON.stringify(data, null, 2));
+}
+
 function defaultLauncherState() {
   return {
     lastSyncAt: null,
     moduleMetrics: {
       dwgLaunches: 0,
       pmLaunches: 0,
-      fiscalLaunches: 0
+      fiscalLaunches: 0,
+      estoqueLaunches: 0
     },
     moduleLastUsedAt: {
       dwg: null,
       pm: null,
-      fiscal: null
+      fiscal: null,
+      estoque: null
     },
     recents: [],
     activity: [],
@@ -988,6 +1051,10 @@ ipcMain.handle("open-fiscal", () => {
   openFiscal();
 });
 
+ipcMain.handle("open-estoque", () => {
+  openEstoque();
+});
+
 ipcMain.handle("fiscal-search-files", async (_, folderPath, invoiceNumber) => {
   const baseFolder = String(folderPath || "").trim();
   const query = String(invoiceNumber || "").trim();
@@ -1239,6 +1306,14 @@ ipcMain.handle("save-project-data", (_, data) => {
   return true;
 });
 
+ipcMain.handle("load-estoque-data", () => {
+  return readEstoqueData();
+});
+
+ipcMain.handle("save-estoque-data", (_, data) => {
+  writeEstoqueData(data);
+  return true;
+});
 
 ipcMain.handle("select-folder", async () => {
   const result = await dialog.showOpenDialog({

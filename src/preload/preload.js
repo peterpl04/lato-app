@@ -29,6 +29,7 @@ contextBridge.exposeInMainWorld("api", {
   openDWGRenamer: () => ipcRenderer.invoke("open-dwg-renamer"),
   openProjectManager: () => ipcRenderer.invoke("open-project-manager"),
   openFiscal: () => ipcRenderer.invoke("open-fiscal"),
+  openEstoque: () => ipcRenderer.invoke("open-estoque"),
   searchFiscalFiles: (folderPath, invoiceNumber) =>
     ipcRenderer.invoke("fiscal-search-files", folderPath, invoiceNumber),
   getGlobalAppUpdateStatus: (options) => ipcRenderer.invoke("get-global-app-update-status", options),
@@ -43,6 +44,9 @@ contextBridge.exposeInMainWorld("api", {
   loadProjectData: () => ipcRenderer.invoke("load-project-data"),
   saveProjectData: (data) =>
     ipcRenderer.invoke("save-project-data", data),
+
+  loadEstoqueData: () => ipcRenderer.invoke("load-estoque-data"),
+  saveEstoqueData: (data) => ipcRenderer.invoke("save-estoque-data", data),
 
   selectFolder: () => ipcRenderer.invoke("select-folder"),
   processar: (origem, destino, multiplicador, deleteOrigem) =>

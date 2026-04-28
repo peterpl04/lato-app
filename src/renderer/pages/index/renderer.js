@@ -8,12 +8,14 @@ let launcherState = {
   moduleMetrics: {
     dwgLaunches: 0,
     pmLaunches: 0,
-    fiscalLaunches: 0
+    fiscalLaunches: 0,
+    estoqueLaunches: 0
   },
   moduleLastUsedAt: {
     dwg: null,
     pm: null,
-    fiscal: null
+    fiscal: null,
+    estoque: null
   },
   recents: [],
   activity: [],
@@ -142,6 +144,10 @@ function openFiscal() {
   window.api.openFiscal();
 }
 
+function openEstoque() {
+  window.api.openEstoque();
+}
+
 function getRecentAppSet() {
   const entries = Array.isArray(launcherState.recents) ? launcherState.recents : [];
   const result = new Set();
@@ -150,6 +156,7 @@ function getRecentAppSet() {
     if (entry?.action === "open-dwg") result.add("dwg");
     if (entry?.action === "open-pm") result.add("pm");
     if (entry?.action === "open-fiscal") result.add("fiscal");
+    if (entry?.action === "open-estoque") result.add("estoque");
   });
 
   return result;
@@ -909,6 +916,12 @@ async function handleAction(action) {
     return;
   }
 
+  if (action === "open-estoque") {
+    openEstoque();
+    setTimeout(loadLauncherState, 120);
+    return;
+  }
+
   if (action === "refresh") {
     const syncAt = new Date().toISOString();
 
@@ -977,6 +990,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       if (app === "fiscal") {
         await handleAction("open-fiscal");
+        return;
+      }
+
+      if (app === "estoque") {
+        await handleAction("open-estoque");
       }
     });
   });

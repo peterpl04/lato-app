@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>ESTOQUE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <main class="container">
+    <header class="header">
+      <h1>ESTOQUE</h1>
+      <p>Gerenciamento de inventário</p>
+    </header>
+
+    <!-- View: Category Selection -->
+    <section id="categoryView" class="view view-active">
+      <div class="categories-grid">
+        <button class="category-card" data-category="pneumatica" type="button">
+          <div class="category-icon">🔧</div>
+          <div class="category-name">Pneumática</div>
+          <div class="category-count" data-count="pneumatica">0 itens</div>
+        </button>
+
+        <button class="category-card" data-category="fixadores" type="button">
+          <div class="category-icon">⚙️</div>
+          <div class="category-name">Fixadores</div>
+          <div class="category-count" data-count="fixadores">0 itens</div>
+        </button>
+
+        <button class="category-card" data-category="eletrica" type="button">
+          <div class="category-icon">⚡</div>
+          <div class="category-name">Elétrica</div>
+          <div class="category-count" data-count="eletrica">0 itens</div>
+        </button>
+      </div>
+    </section>
+
+    <!-- View: Items List -->
+    <section id="itemsView" class="view">
+      <div class="items-header">
+        <button id="btnBackToCategories" class="btn-back" type="button" title="Voltar para categorias">
+          ← Voltar
+        </button>
+        <h2 id="categoryTitle">Categoria</h2>
+      </div>
+
+      <div class="items-actions">
+        <button id="btnAddItem" class="btn-primary" type="button">+ Adicionar Item</button>
+      </div>
+
+      <div class="items-list" id="itemsList"></div>
+    </section>
+
+    <!-- View: Item Details -->
+    <section id="itemDetailsView" class="view">
+      <div class="details-header">
+        <button id="btnBackToItems" class="btn-back" type="button" title="Voltar para itens">
+          ← Voltar
+        </button>
+        <h2 id="itemTitle">Item</h2>
+      </div>
+
+      <div class="item-details">
+        <div class="item-info-card">
+          <div class="info-row">
+            <label>Nome:</label>
+            <span id="detailItemName">-</span>
+          </div>
+          <div class="info-row">
+            <label>Código:</label>
+            <span id="detailItemCode">-</span>
+          </div>
+          <div class="info-row">
+            <label>Quantidade Atual:</label>
+            <span id="detailItemQuantity" class="quantity-badge">0</span>
+          </div>
+          <div class="info-row">
+            <label>Última Movimentação:</label>
+            <span id="detailLastMovement">-</span>
+          </div>
+        </div>
+
+        <div class="movement-actions">
+          <button id="btnAddEntry" class="btn-secondary" type="button">+ Entrada</button>
+          <button id="btnAddExit" class="btn-secondary" type="button">+ Saída</button>
+          <button id="btnDeleteItem" class="btn-danger" type="button">🗑 Deletar Item</button>
+        </div>
+
+        <div class="movements-list">
+          <h3>Movimentações</h3>
+          <ul id="movementsList" class="list"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Add/Edit Item -->
+  <div id="itemModal" class="modal is-hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="itemModalTitle">Novo Item</h3>
+        <button id="btnCloseItemModal" class="btn-modal-close" type="button" aria-label="Fechar">✕</button>
+      </div>
+      <form id="itemForm" class="modal-body">
+        <div class="form-group">
+          <label for="itemName">Nome do Item</label>
+          <input id="itemName" type="text" placeholder="Ex: Cilindro Pneumático" required />
+        </div>
+        <div class="form-group">
+          <label for="itemCode">Código/SKU</label>
+          <input id="itemCode" type="text" placeholder="Ex: CIL-001" required />
+        </div>
+        <div class="form-group">
+          <label for="itemInitialQuantity">Quantidade Inicial</label>
+          <input id="itemInitialQuantity" type="number" placeholder="0" min="0" required />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Salvar Item</button>
+          <button type="button" id="btnCancelItemForm" class="btn-secondary">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Add Movement -->
+  <div id="movementModal" class="modal is-hidden" role="dialog" aria-modal="true">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="movementModalTitle">Registrar Movimentação</h3>
+        <button id="btnCloseMovementModal" class="btn-modal-close" type="button" aria-label="Fechar">✕</button>
+      </div>
+      <form id="movementForm" class="modal-body">
+        <div class="form-group">
+          <label for="movementDate">Data</label>
+          <input id="movementDate" type="date" required />
+        </div>
+        <div class="form-group">
+          <label for="movementQuantity">Quantidade</label>
+          <input id="movementQuantity" type="number" placeholder="0" min="1" required />
+        </div>
+        <div id="exitAddressGroup" class="form-group is-hidden">
+          <label for="movementAddress">Endereço de Saída</label>
+          <input id="movementAddress" type="text" placeholder="Ex: A-01-01" />
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary" id="btnSubmitMovement">Registrar</button>
+          <button type="button" id="btnCancelMovementForm" class="btn-secondary">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Confirm Delete -->
+  <div id="confirmDeleteModal" class="modal is-hidden" role="dialog" aria-modal="true">
+    <div class="modal-content modal-sm">
+      <div class="modal-header">
+        <h3>Confirmar Exclusão</h3>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja deletar este item? Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="form-actions">
+        <button id="btnConfirmDelete" type="button" class="btn-danger">Deletar</button>
+        <button id="btnCancelDelete" type="button" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

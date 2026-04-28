@@ -119,12 +119,22 @@ async function loadData() {
         items.map(async (item) => {
           try {
             const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
+
+            // Mapear movimentos para o formato correto
+            const movements = (data.movements || []).map(m => ({
+              id: m.id,
+              type: m.movement_type,
+              date: m.movement_date,
+              quantity: m.quantity,
+              address: m.address
+            }));
+
             return {
               id: item.item_id,
               name: item.name,
               code: item.code,
               quantity: item.quantity,
-              movements: data.movements || []
+              movements
             };
           } catch (err) {
             console.error(`Erro ao carregar movimentos do item ${item.item_id}:`, err);
@@ -323,9 +333,14 @@ function renderItemDetailsView() {
   const movements = item.movements || [];
   if (movements.length > 0) {
     const lastMovement = movements[movements.length - 1];
-    const date = new Date(lastMovement.date).toLocaleDateString('pt-BR');
-    const type = lastMovement.type === 'entrada' ? 'Entrada' : 'Saída';
-    document.getElementById('detailLastMovement').textContent = `${date} (${type})`;
+    try {
+      const dateObj = new Date(lastMovement.date);
+      const date = dateObj.toLocaleDateString('pt-BR');
+      const type = lastMovement.type === 'entrada' ? 'Entrada' : 'Saída';
+      document.getElementById('detailLastMovement').textContent = `${date} (${type})`;
+    } catch (e) {
+      document.getElementById('detailLastMovement').textContent = `${lastMovement.date} (${lastMovement.type === 'entrada' ? 'Entrada' : 'Saída'})`;
+    }
   } else {
     document.getElementById('detailLastMovement').textContent = 'Nenhuma movimentação';
   }
@@ -351,16 +366,27 @@ function renderMovements() {
   }
 
   // Sort by date descending
-  const sorted = [...movements].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...movements].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateB - dateA;
+  });
 
   sorted.forEach(movement => {
     const li = document.createElement('li');
     li.className = 'movement-item';
 
-    const date = new Date(movement.date).toLocaleDateString('pt-BR');
+    let dateStr = 'Data inválida';
+    try {
+      const dateObj = new Date(movement.date);
+      dateStr = dateObj.toLocaleDateString('pt-BR');
+    } catch (e) {
+      dateStr = movement.date || 'Data inválida';
+    }
+
     const type = movement.type === 'entrada' ? 'Entrada' : 'Saída';
     const badge = movement.type === 'entrada' ? '↓' : '↑';
-    const badgeClass = movement.type;
+    const badgeClass = movement.type === 'entrada' ? 'entrada' : 'saida';
 
     let addressInfo = '';
     if (movement.address) {
@@ -371,7 +397,7 @@ function renderMovements() {
       <div class="movement-badge ${badgeClass}">${badge}</div>
       <div class="movement-info">
         <p>${type}</p>
-        <small>${date}</small>
+        <small>${dateStr}</small>
         ${addressInfo}
       </div>
       <div class="movement-qty">+${movement.quantity}</div>
@@ -419,7 +445,7 @@ async function handleAddItem(e) {
   const id = `${category}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
-    // Criar item no banco de dados
+    // Criar item no banco de dados SEM quantidade inicial
     const newItem = await apiCall('/estoque/items', {
       method: 'POST',
       body: JSON.stringify({
@@ -427,7 +453,7 @@ async function handleAddItem(e) {
         category,
         name,
         code,
-        quantity
+        quantity: 0  // Começar com 0
       })
     });
 

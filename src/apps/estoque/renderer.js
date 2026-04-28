@@ -11,6 +11,36 @@ let currentState = {
   movementType: null
 };
 
+// API Configuration
+const API_BASE_URL = "https://lato-app-production.up.railway.app";
+const REQUEST_TIMEOUT = 10000;
+
+// Helper para fazer requisições
+async function apiCall(endpoint, options = {}) {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    'X-App-Env': 'prod'
+  };
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: { ...defaultHeaders, ...options.headers },
+      timeout: REQUEST_TIMEOUT
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Erro na requisição:', error);
+    throw error;
+  }
+}
+
 // DOM Elements
 const estoque = document.querySelector('.estoque-app');
 const categoryView = document.getElementById('categoryView');
@@ -79,25 +109,49 @@ function setDefaultDate() {
 
 async function loadData() {
   try {
-    const data = await window.api.loadEstoqueData();
-    console.log('Dados carregados:', data);
-    if (data && data.items) {
-      currentState.items = data.items;
+    console.log('Carregando dados do estoque...');
+
+    for (const category of Object.keys(categories)) {
+      const items = await apiCall(`/estoque/items/${category}`);
+
+      // Buscar movimentações para cada item
+      const itemsWithMovements = await Promise.all(
+        items.map(async (item) => {
+          try {
+            const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
+            return {
+              id: item.item_id,
+              name: item.name,
+              code: item.code,
+              quantity: item.quantity,
+              movements: data.movements || []
+            };
+          } catch (err) {
+            console.error(`Erro ao carregar movimentos do item ${item.item_id}:`, err);
+            return {
+              id: item.item_id,
+              name: item.name,
+              code: item.code,
+              quantity: item.quantity,
+              movements: []
+            };
+          }
+        })
+      );
+
+      currentState.items[category] = itemsWithMovements;
     }
+
+    console.log('Dados carregados com sucesso:', currentState.items);
   } catch (error) {
     console.error('Erro ao carregar dados:', error);
-    showToast('Erro ao carregar dados do estoque', 'error');
+    showToast('⚠️ Erro ao carregar dados do estoque', 'error');
   }
 }
 
 async function saveData() {
-  try {
-    await window.api.saveEstoqueData(currentState.items);
-    console.log('Dados salvos com sucesso');
-  } catch (error) {
-    console.error('Erro ao salvar dados:', error);
-    showToast('Erro ao salvar dados do estoque', 'error');
-  }
+  // Dados são salvos automaticamente na API via endpoints individuais
+  console.log('Dados sincronizados com banco de dados');
 }
 
 // Event Listeners
@@ -364,29 +418,43 @@ async function handleAddItem(e) {
   const category = currentState.currentCategory;
   const id = `${category}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  const newItem = {
-    id,
-    name,
-    code,
-    quantity,
-    movements: quantity > 0 ? [{
-      type: 'entrada',
-      date: new Date().toISOString().split('T')[0],
-      quantity,
-      address: null
-    }] : []
-  };
+  try {
+    // Criar item no banco de dados
+    const newItem = await apiCall('/estoque/items', {
+      method: 'POST',
+      body: JSON.stringify({
+        itemId: id,
+        category,
+        name,
+        code,
+        quantity
+      })
+    });
 
-  if (!currentState.items[category]) {
-    currentState.items[category] = [];
+    // Se houver quantidade inicial, registrar movimento de entrada
+    if (quantity > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      await apiCall(`/estoque/items/${id}/movements`, {
+        method: 'POST',
+        body: JSON.stringify({
+          movementType: 'entrada',
+          quantity,
+          movementDate: today,
+          address: null
+        })
+      });
+    }
+
+    // Recarregar dados
+    await loadData();
+    renderItemsView();
+    renderCategoryView();
+    closeItemModal();
+    showToast('✓ Item adicionado com sucesso', 'success');
+  } catch (error) {
+    console.error('Erro ao adicionar item:', error);
+    showToast('Erro ao adicionar item', 'error');
   }
-
-  currentState.items[category].push(newItem);
-  await saveData();
-  renderItemsView();
-  renderCategoryView();
-  closeItemModal();
-  showToast('✓ Item adicionado com sucesso', 'success');
 }
 
 // Movement Management
@@ -429,38 +497,37 @@ async function handleAddMovement(e) {
   const type = currentState.movementType;
   const item = currentState.currentItem;
 
-  const movement = {
-    type,
-    date,
-    quantity,
-    address: type === 'saida' ? address : null
-  };
+  try {
+    // Registrar movimento na API
+    await apiCall(`/estoque/items/${item.id}/movements`, {
+      method: 'POST',
+      body: JSON.stringify({
+        movementType: type,
+        quantity,
+        movementDate: date,
+        address: type === 'saida' ? address : null
+      })
+    });
 
-  if (!item.movements) {
-    item.movements = [];
+    // Recarregar dados
+    await loadData();
+
+    // Atualizar item atual
+    const category = currentState.currentCategory;
+    const updatedItem = (currentState.items[category] || []).find(i => i.id === item.id);
+    if (updatedItem) {
+      currentState.currentItem = updatedItem;
+    }
+
+    renderItemDetailsView();
+    renderItemsView();
+    renderCategoryView();
+    closeMovementModal();
+    showToast('✓ Movimentação registrada com sucesso', 'success');
+  } catch (error) {
+    console.error('Erro ao registrar movimento:', error);
+    showToast('Erro ao registrar movimento', 'error');
   }
-
-  item.movements.push(movement);
-
-  // Update quantity
-  if (type === 'entrada') {
-    item.quantity = (item.quantity || 0) + quantity;
-  } else {
-    item.quantity = Math.max(0, (item.quantity || 0) - quantity);
-  }
-
-  const category = currentState.currentCategory;
-  const itemIndex = (currentState.items[category] || []).findIndex(i => i.id === item.id);
-  if (itemIndex >= 0) {
-    currentState.items[category][itemIndex] = item;
-  }
-
-  await saveData();
-  renderItemDetailsView();
-  renderItemsView();
-  renderCategoryView();
-  closeMovementModal();
-  showToast('✓ Movimentação registrada com sucesso', 'success');
 }
 
 // Delete Management
@@ -475,19 +542,24 @@ function closeDeleteModal() {
 async function handleDeleteItem() {
   const item = currentState.currentItem;
   const category = currentState.currentCategory;
+  const itemName = item.name;
 
-  const items = currentState.items[category] || [];
-  const index = items.findIndex(i => i.id === item.id);
+  try {
+    // Deletar item da API
+    await apiCall(`/estoque/items/${item.id}`, {
+      method: 'DELETE'
+    });
 
-  if (index >= 0) {
-    const itemName = items[index].name;
-    items.splice(index, 1);
-    await saveData();
+    // Recarregar dados
+    await loadData();
     renderItemsView();
     renderCategoryView();
     closeDeleteModal();
     goToItems();
     showToast(`✓ Item "${itemName}" deletado com sucesso`, 'success');
+  } catch (error) {
+    console.error('Erro ao deletar item:', error);
+    showToast('Erro ao deletar item', 'error');
   }
 }
 

@@ -156,7 +156,38 @@ async function initDB() {
   await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS ux_launcher_activities_activity_id ON launcher_activities(activity_id)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_launcher_activities_env_occurred ON launcher_activities(environment, occurred_at DESC)`);
 
-  console.log("🟢 Tabela projects pronta");
+  /* ESTOQUE TABLES */
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS estoque_items (
+      id SERIAL PRIMARY KEY,
+      item_id TEXT NOT NULL UNIQUE,
+      category TEXT NOT NULL,
+      name TEXT NOT NULL,
+      code TEXT NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 0,
+      environment TEXT NOT NULL DEFAULT 'prod',
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS estoque_movements (
+      id SERIAL PRIMARY KEY,
+      item_id INTEGER NOT NULL REFERENCES estoque_items(id) ON DELETE CASCADE,
+      movement_type TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      movement_date DATE NOT NULL,
+      address TEXT,
+      environment TEXT NOT NULL DEFAULT 'prod',
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`CREATE INDEX IF NOT EXISTS ix_estoque_items_category ON estoque_items(category, environment)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ix_estoque_movements_item ON estoque_movements(item_id)`);
+
+  console.log("🟢 Tabelas projects e estoque prontas");
 }
 
 initDB().catch(err => {
@@ -459,6 +490,190 @@ app.post("/activities", async (req, res) => {
   } catch (err) {
     console.error("❌ ERRO AO INSERIR ACTIVITY:", err);
     res.status(500).json({ error: "Erro ao registrar atividade" });
+  }
+});
+
+/* =========================
+   ESTOQUE ENDPOINTS
+========================= */
+
+// GET ALL ITEMS BY CATEGORY
+app.get("/estoque/items/:category", async (req, res) => {
+  const { category } = req.params;
+  const env = getRequestEnvironment(req);
+
+  try {
+    const result = await pool.query(
+      `SELECT * FROM estoque_items WHERE category = $1 AND environment = $2 ORDER BY created_at DESC`,
+      [category, env]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ ERRO AO BUSCAR ITEMS:", err);
+    res.status(500).json({ error: "Erro ao buscar itens" });
+  }
+});
+
+// GET SINGLE ITEM WITH MOVEMENTS
+app.get("/estoque/items/:itemId/movements", async (req, res) => {
+  const { itemId } = req.params;
+  const env = getRequestEnvironment(req);
+
+  try {
+    const itemResult = await pool.query(
+      `SELECT * FROM estoque_items WHERE item_id = $1 AND environment = $2`,
+      [itemId, env]
+    );
+
+    if (itemResult.rows.length === 0) {
+      return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    const movementsResult = await pool.query(
+      `SELECT * FROM estoque_movements WHERE item_id = $1 ORDER BY movement_date DESC`,
+      [itemResult.rows[0].id]
+    );
+
+    res.json({
+      item: itemResult.rows[0],
+      movements: movementsResult.rows
+    });
+  } catch (err) {
+    console.error("❌ ERRO AO BUSCAR ITEM:", err);
+    res.status(500).json({ error: "Erro ao buscar item" });
+  }
+});
+
+// CREATE ITEM
+app.post("/estoque/items", async (req, res) => {
+  const { itemId, category, name, code, quantity } = req.body;
+  const env = getRequestEnvironment(req);
+
+  if (!itemId || !category || !name || !code) {
+    return res.status(400).json({ error: "Dados inválidos" });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      INSERT INTO estoque_items (item_id, category, name, code, quantity, environment)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+      `,
+      [itemId, category, name, code, quantity || 0, env]
+    );
+
+    io.to(`estoque:${env}`).emit("estoque:update");
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("❌ ERRO AO INSERIR ITEM:", err);
+    res.status(500).json({ error: "Erro ao criar item" });
+  }
+});
+
+// UPDATE ITEM QUANTITY
+app.patch("/estoque/items/:itemId", async (req, res) => {
+  const { itemId } = req.params;
+  const { quantity } = req.body;
+  const env = getRequestEnvironment(req);
+
+  try {
+    const result = await pool.query(
+      `
+      UPDATE estoque_items
+      SET quantity = $1, updated_at = NOW()
+      WHERE item_id = $2 AND environment = $3
+      RETURNING *
+      `,
+      [quantity, itemId, env]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    io.to(`estoque:${env}`).emit("estoque:update");
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("❌ ERRO AO ATUALIZAR ITEM:", err);
+    res.status(500).json({ error: "Erro ao atualizar item" });
+  }
+});
+
+// ADD MOVEMENT
+app.post("/estoque/items/:itemId/movements", async (req, res) => {
+  const { itemId } = req.params;
+  const { movementType, quantity, movementDate, address } = req.body;
+  const env = getRequestEnvironment(req);
+
+  if (!movementType || !quantity || !movementDate) {
+    return res.status(400).json({ error: "Dados inválidos" });
+  }
+
+  try {
+    const itemResult = await pool.query(
+      `SELECT id FROM estoque_items WHERE item_id = $1 AND environment = $2`,
+      [itemId, env]
+    );
+
+    if (itemResult.rows.length === 0) {
+      return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    const dbItemId = itemResult.rows[0].id;
+
+    const movementResult = await pool.query(
+      `
+      INSERT INTO estoque_movements (item_id, movement_type, quantity, movement_date, address, environment)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+      `,
+      [dbItemId, movementType, quantity, movementDate, address || null, env]
+    );
+
+    // Update item quantity
+    let quantityUpdate = quantity;
+    if (movementType === 'saida') {
+      quantityUpdate = -quantity;
+    }
+
+    await pool.query(
+      `
+      UPDATE estoque_items
+      SET quantity = quantity + $1, updated_at = NOW()
+      WHERE id = $2
+      `,
+      [quantityUpdate, dbItemId]
+    );
+
+    io.to(`estoque:${env}`).emit("estoque:update");
+    res.json(movementResult.rows[0]);
+  } catch (err) {
+    console.error("❌ ERRO AO ADICIONAR MOVIMENTO:", err);
+    res.status(500).json({ error: "Erro ao registrar movimento" });
+  }
+});
+
+// DELETE ITEM
+app.delete("/estoque/items/:itemId", async (req, res) => {
+  const { itemId } = req.params;
+  const env = getRequestEnvironment(req);
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM estoque_items WHERE item_id = $1 AND environment = $2 RETURNING *`,
+      [itemId, env]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Item não encontrado" });
+    }
+
+    io.to(`estoque:${env}`).emit("estoque:update");
+    res.json({ success: true, deleted: result.rows[0] });
+  } catch (err) {
+    console.error("❌ ERRO AO DELETAR ITEM:", err);
+    res.status(500).json({ error: "Erro ao deletar item" });
   }
 });
 

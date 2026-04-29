@@ -1,6 +1,6 @@
 {
   "name": "latoapps",
-  "version": "2.2.27",
+  "version": "2.2.28",
   "description": "Centro de aplicações Lato",
   "main": "src/main/main.js",
   "scripts": {

@@ -84,6 +84,10 @@
             <span class="icon">🔍</span>
             <span>Filtro</span>
           </button>
+          <button id="btnBatchExit" class="btn-batch-exit" type="button">
+            <span class="icon">📦</span>
+            <span>Saída Múltipla</span>
+          </button>
           <button id="btnAddItem" class="btn-primary-sm" type="button">+ Novo Item</button>
         </div>
       </div>
@@ -97,7 +101,7 @@
           </div>
           <div id="filterTags" class="filter-tags"></div>
         </div>
-        
+
         <div class="items-list" id="itemsList"></div>
       </div>
     </div>
@@ -219,8 +223,8 @@
           <input id="movementQuantity" type="number" placeholder="0" min="1" required />
         </div>
         <div id="exitAddressGroup" class="form-field is-hidden">
-          <label for="movementAddress">Endereço/Local de Saída</label>
-          <input id="movementAddress" type="text" placeholder="Ex: A-01-03" />
+          <label for="movementAddress">Endereço/Local de Saída <span class="required">*</span></label>
+          <input id="movementAddress" type="text" placeholder="Ex: A-01-03 (obrigatório para saídas)" />
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn-primary" id="btnSubmitMovement">Registrar Movimentação</button>
@@ -247,6 +251,97 @@
     </div>
   </div>
 
+  <!-- MODAL: Batch Exit Selection -->
+  <div id="batchExitModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>Saída Múltipla - Selecionar Itens</h3>
+        <button type="button" class="modal-close" data-close="batchExitModal">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Quick Category Filters -->
+        <div class="batch-category-filters">
+          <h4>Filtros Rápidos</h4>
+          <div class="category-filter-buttons">
+            <button type="button" class="category-filter-btn active" data-filter="all">
+              <span class="icon">📦</span>
+              <span>Todos os Itens</span>
+            </button>
+            <button type="button" class="category-filter-btn" data-filter="parafusos">
+              <span class="icon">🔧</span>
+              <span>Parafusos</span>
+            </button>
+            <button type="button" class="category-filter-btn" data-filter="porcas">
+              <span class="icon">🔩</span>
+              <span>Porcas</span>
+            </button>
+            <button type="button" class="category-filter-btn" data-filter="arruelas">
+              <span class="icon">⭕</span>
+              <span>Arruelas</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Search Section -->
+        <div class="batch-search-section">
+          <div class="form-field">
+            <label for="batchSearchInput">Busca Específica (Opcional)</label>
+            <input 
+              id="batchSearchInput" 
+              type="text" 
+              placeholder="Digite para busca específica..." 
+              class="search-input"
+            />
+            <small class="field-hint">Use os botões acima para filtros rápidos ou digite aqui para busca específica</small>
+          </div>
+        </div>
+        
+        <!-- Available Items -->
+        <div class="batch-available-section">
+          <div class="available-header">
+            <h4 id="availableItemsTitle">Itens Disponíveis</h4>
+            <div class="bulk-actions">
+              <button type="button" id="btnSelectAllVisible" class="btn-bulk-action">
+                ✓ Selecionar Todos Visíveis
+              </button>
+              <button type="button" id="btnClearSelection" class="btn-bulk-action" style="display: none;">
+                ✗ Limpar Seleção
+              </button>
+            </div>
+          </div>
+          <div class="batch-available-list" id="batchAvailableList">
+            <!-- Available items will be populated here -->
+          </div>
+        </div>
+        
+        <!-- Selected Items -->
+        <div class="batch-selected-section">
+          <h4>Itens Selecionados (<span id="batchSelectedCount">0</span>)</h4>
+          <div class="batch-selected-list" id="batchSelectedList">
+            <div class="empty-selection">
+              <p>Nenhum item selecionado</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Address Field -->
+        <div class="form-field">
+          <label for="batchExitAddress">Endereço/Local de Saída <span class="required">*</span></label>
+          <input id="batchExitAddress" type="text" placeholder="Ex: A-01-03 (obrigatório para saídas)" />
+          <small class="field-hint">Este endereço será aplicado a todos os itens</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnConfirmBatchExit" type="button" class="btn-primary" disabled>
+          <span class="icon">📦</span>
+          <span>Confirmar Saídas</span>
+        </button>
+        <button id="btnCancelBatchExit" type="button" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Fixador Type Selection -->
   <div id="fixadorTypeModal" class="modal is-hidden">
     <div class="modal-overlay"></div>
@@ -256,35 +351,57 @@
         <button id="btnCloseFixadorTypeModal" class="btn-modal-close" type="button">✕</button>
       </div>
       <div class="modal-body">
-        <div class="fixador-types-grid">
-          <button class="fixador-type-btn" data-type="Porca Lisa" type="button">
-            <div class="fixador-icon">🔩</div>
-            <span>Porca Lisa</span>
-          </button>
-          <button class="fixador-type-btn" data-type="Porca Parlock" type="button">
-            <div class="fixador-icon">🔒</div>
-            <span>Porca Parlock</span>
-          </button>
-          <button class="fixador-type-btn" data-type="Arruela" type="button">
-            <div class="fixador-icon">⭕</div>
-            <span>Arruela</span>
-          </button>
-          <button class="fixador-type-btn" data-type="Parafuso Sextavado" type="button">
-            <div class="fixador-icon">🔧</div>
-            <span>Parafuso Sextavado</span>
-          </button>
-          <button class="fixador-type-btn" data-type="Parafuso Rosca Soberba" type="button">
-            <div class="fixador-icon">📐</div>
-            <span>Parafuso Rosca Soberba</span>
-          </button>
-          <button class="fixador-type-btn" data-type="Parafuso Allen" type="button">
-            <div class="fixador-icon">🔑</div>
-            <span>Parafuso Allen</span>
-          </button>
-          <button class="fixador-type-btn" data-type="Parafuso Allen Cabeça Chata" type="button">
-            <div class="fixador-icon">⚪</div>
-            <span>Parafuso Allen Cabeça Chata</span>
-          </button>
+        <div class="fixador-categories">
+
+          <!-- Seção Parafusos -->
+          <div class="fixador-category-section">
+            <h4 class="category-title">Parafusos</h4>
+            <div class="fixador-types-grid">
+              <button class="fixador-type-btn" data-type="Parafuso Sextavado" type="button">
+                <div class="fixador-icon">🔧</div>
+                <span>Parafuso Sextavado</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Parafuso Rosca Soberba" type="button">
+                <div class="fixador-icon">📐</div>
+                <span>Parafuso Rosca Soberba</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Parafuso Allen" type="button">
+                <div class="fixador-icon">🔑</div>
+                <span>Parafuso Allen</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Parafuso Allen Cabeça Chata" type="button">
+                <div class="fixador-icon">⚪</div>
+                <span>Parafuso Allen Cabeça Chata</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Seção Porcas -->
+          <div class="fixador-category-section">
+            <h4 class="category-title">Porcas</h4>
+            <div class="fixador-types-grid">
+              <button class="fixador-type-btn" data-type="Porca Lisa" type="button">
+                <div class="fixador-icon">🔩</div>
+                <span>Porca Lisa</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Porca Parlock" type="button">
+                <div class="fixador-icon">🔒</div>
+                <span>Porca Parlock</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Seção Arruelas -->
+          <div class="fixador-category-section">
+            <h4 class="category-title">Arruelas</h4>
+            <div class="fixador-types-grid">
+              <button class="fixador-type-btn" data-type="Arruela" type="button">
+                <div class="fixador-icon">⭕</div>
+                <span>Arruela</span>
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
@@ -309,7 +426,7 @@
           <button class="fixador-size-btn" data-size="M16" type="button">M16</button>
           <button class="fixador-size-btn" data-size="M20" type="button">M20</button>
         </div>
-        
+
         <!-- Filter specific fields (hidden by default) -->
         <div id="filterExtraFields" class="filter-extra-fields" style="display: none;">
           <div class="form-field">

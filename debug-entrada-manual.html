@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug - Entrada Manual</title>
+    <meta charset="utf-8">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+        }
+        .section { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+        }
+        .debug { background: #fff3cd; color: #856404; border-color: #ffeaa7; }
+        .steps { background: #f8f9fa; color: #495057; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug - Entrada Manual</h1>
+    
+    <div class="section debug">
+        <h2>🐛 Problema Reportado</h2>
+        <p><strong>Sintoma:</strong> Não consegue adicionar entrada manualmente quando clica no item e vai para tela específica.</p>
+        
+        <h3>Possíveis Causas:</h3>
+        <ul>
+            <li>Modal de movimento não está abrindo</li>
+            <li>Campos não estão sendo preenchidos corretamente</li>
+            <li>Validação está bloqueando entradas</li>
+            <li>Erro no processamento da API</li>
+            <li>Event listener não está funcionando</li>
+        </ul>
+    </div>
+    
+    <div class="section steps">
+        <h2>🔬 Passos para Debug</h2>
+        
+        <h3>1. Teste Básico do Botão</h3>
+        <ol>
+            <li>Abra o sistema de estoque</li>
+            <li>Clique em qualquer item para ir aos detalhes</li>
+            <li>Procure o botão "↓ Entrada" na seção de ações</li>
+            <li>Clique no botão</li>
+            <li><strong>Resultado esperado:</strong> Modal deve abrir com título "↓ Registrar Entrada"</li>
+        </ol>
+        
+        <h3>2. Teste dos Campos</h3>
+        <ol>
+            <li>No modal de entrada aberto:</li>
+            <li>Verifique se data está preenchida automaticamente (hoje)</li>
+            <li>Verifique se campo "Endereço/Local de Saída" está OCULTO (só para saídas)</li>
+            <li>Digite uma quantidade (ex: 10)</li>
+            <li>Clique em "Registrar Movimentação"</li>
+        </ol>
+        
+        <h3>3. Verificar Console</h3>
+        <ol>
+            <li>Abra DevTools (F12)</li>
+            <li>Vá para aba Console</li>
+            <li>Tente adicionar uma entrada</li>
+            <li>Procure por erros em vermelho</li>
+            <li>Verifique se há logs de "Erro ao registrar movimento"</li>
+        </ol>
+        
+        <h3>4. Verificar Network</h3>
+        <ol>
+            <li>Na aba Network do DevTools</li>
+            <li>Tente adicionar entrada</li>
+            <li>Procure por requisições para /movements</li>
+            <li>Verifique status da resposta (200 = OK, 4xx/5xx = erro)</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h2>🎯 Validação Específica</h2>
+        
+        <p><strong>Código atual para validação:</strong></p>
+        <pre>
+// Só valida endereço para SAÍDAS, não para entradas
+if (type === 'saida' && !address) {
+    // Bloqueia apenas saídas sem endereço
+    return;
+}
+        </pre>
+        
+        <p>✅ <strong>Para ENTRADAS:</strong> Não deve haver validação de endereço</p>
+        <p>❌ <strong>Para SAÍDAS:</strong> Endereço é obrigatório</p>
+    </div>
+    
+    <div class="section">
+        <h2>🛠️ Possível Solução</h2>
+        <p>Se identificar onde está o problema, aplicar uma das correções:</p>
+        
+        <ul>
+            <li><strong>Modal não abre:</strong> Verificar event listeners</li>
+            <li><strong>Campos vazios:</strong> Verificar setDefaultDate()</li>
+            <li><strong>Validação bloqueia:</strong> Verificar lógica de entrada vs saída</li>
+            <li><strong>API error:</strong> Verificar backend/conexão</li>
+        </ul>
+    </div>
+    
+    <script>
+        console.log('🔍 Debug page carregada. Teste o sistema principal e volte aqui para análise.');
+        
+        // Helper para testar elementos
+        window.debugEstoque = function() {
+            console.log('=== DEBUG ESTOQUE ===');
+            
+            const btnAddEntry = document.getElementById('btnAddEntry');
+            const movementModal = document.getElementById('movementModal');
+            const movementDate = document.getElementById('movementDate');
+            
+            console.log('btnAddEntry:', btnAddEntry ? '✅ Encontrado' : '❌ Não encontrado');
+            console.log('movementModal:', movementModal ? '✅ Encontrado' : '❌ Não encontrado');
+            console.log('movementDate:', movementDate ? '✅ Encontrado' : '❌ Não encontrado');
+            
+            if (btnAddEntry) {
+                console.log('Event listeners no btnAddEntry:', getEventListeners ? getEventListeners(btnAddEntry) : 'DevTools necessário');
+            }
+        };
+        
+        console.log('Execute debugEstoque() no console para verificar elementos.');
+    </script>
+</body>
+</html>

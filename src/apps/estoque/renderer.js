@@ -129,6 +129,7 @@ async function init() {
   setDefaultDate();
   await loadData();
   attachEventListeners();
+  initBatchExitSystem();
   renderCategoryView();
 }
 
@@ -231,6 +232,15 @@ function attachEventListeners() {
   movementForm.addEventListener('submit', handleAddMovement);
   btnCloseMovementModal.addEventListener('click', closeMovementModal);
   btnCancelMovementForm.addEventListener('click', closeMovementModal);
+  
+  // Clear validation errors on input
+  movementAddress.addEventListener('input', () => {
+    movementAddress.classList.remove('required-error');
+  });
+  
+  batchExitAddress.addEventListener('input', () => {
+    batchExitAddress.classList.remove('required-error');
+  });
 
   // Delete confirmation
   btnConfirmDelete.addEventListener('click', handleDeleteItem);
@@ -239,7 +249,7 @@ function attachEventListeners() {
   // Fixador modals
   btnCloseFixadorTypeModal.addEventListener('click', closeFixadorTypeModal);
   btnCloseFixadorSizeModal.addEventListener('click', closeFixadorSizeModal);
-  
+
   // Filter actions
   btnApplyFilter.addEventListener('click', applyFilter);
   btnClearFilter.addEventListener('click', clearCurrentFilter);
@@ -323,10 +333,11 @@ function renderItemsView() {
   }
 
   categoryTitle.textContent = categoryData.name;
-  
-  // Show/hide filter button for fixadores category
+
+  // Show/hide fixadores-specific buttons
   if (category === 'fixadores') {
     btnFilterItems.style.display = 'flex';
+    btnBatchExit.style.display = 'flex';
     
     // Show clear filters button only when there are active filters
     if (hasActiveFilters()) {
@@ -337,13 +348,14 @@ function renderItemsView() {
   } else {
     btnFilterItems.style.display = 'none';
     btnClearActiveFilters.style.display = 'none';
+    btnBatchExit.style.display = 'none';
   }
 
   let items = currentState.items[category] || [];
-  
+
   // Apply filters if active
   items = applyActiveFilters(items);
-  
+
   categorySubtitle.textContent = `${items.length} itens`;
 
   itemsList.innerHTML = '';
@@ -379,7 +391,7 @@ function renderItemsView() {
     card.addEventListener('click', () => viewItem(item.id));
     itemsList.appendChild(card);
   });
-  
+
   // Update active filters display
   updateActiveFiltersDisplay();
 }
@@ -530,20 +542,20 @@ async function handleAddItem(e) {
   }
 
   const category = currentState.currentCategory;
-  
+
   // Validar se o código já existe na categoria
   const existingItems = currentState.items[category] || [];
-  const codeExists = existingItems.some(item => 
+  const codeExists = existingItems.some(item =>
     item.code.toLowerCase() === code.toLowerCase()
   );
-  
+
   if (codeExists) {
     showToast(`⚠️ Já existe um item com o código "${code}" nesta categoria`, 'error');
     itemCode.focus();
     itemCode.select();
     return;
   }
-  
+
   const id = `${category}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
@@ -598,10 +610,15 @@ function openMovementModal(type) {
   if (type === 'entrada') {
     movementModalTitle.textContent = '↓ Registrar Entrada';
     exitAddressGroup.classList.add('is-hidden');
+    movementAddress.removeAttribute('required');
   } else {
     movementModalTitle.textContent = '↑ Registrar Saída';
     exitAddressGroup.classList.remove('is-hidden');
+    movementAddress.setAttribute('required', 'required');
   }
+  
+  // Remove error classes
+  movementAddress.classList.remove('required-error');
 
   btnSubmitMovement.textContent = 'Registrar Movimentação';
   movementModal.classList.remove('is-hidden');
@@ -627,6 +644,18 @@ async function handleAddMovement(e) {
   }
 
   const type = currentState.movementType;
+  
+  // Validação obrigatória para saídas
+  if (type === 'saida' && !address) {
+    showToast('⚠️ Endereço/Local de Saída é obrigatório para operações de saída', 'error');
+    movementAddress.classList.add('required-error');
+    movementAddress.focus();
+    return;
+  }
+  
+  // Remove error class if validation passes
+  movementAddress.classList.remove('required-error');
+
   const item = currentState.currentItem;
 
   try {
@@ -743,7 +772,7 @@ function selectFixadorType(type) {
 function openFixadorSizeModal(type) {
   fixadorSizeTitle.textContent = `Selecionar Tamanho para ${type}`;
   fixadorSizeModal.classList.remove('is-hidden');
-  
+
   // Show/hide filter fields based on mode
   if (currentState.modalMode === 'filter') {
     filterExtraFields.style.display = 'block';
@@ -763,11 +792,11 @@ function openFixadorSizeModal(type) {
   document.querySelectorAll('.fixador-size-btn').forEach(btn => {
     btn.addEventListener('click', function() {
       const size = this.dataset.size;
-      
+
       if (currentState.modalMode === 'filter') {
         // For filter mode, just store the selection and don't close yet
         currentState.fixadorSelection.size = size;
-        
+
         // Highlight selected size
         document.querySelectorAll('.fixador-size-btn').forEach(b => b.classList.remove('selected'));
         this.classList.add('selected');
@@ -781,7 +810,7 @@ function openFixadorSizeModal(type) {
 
 function closeFixadorSizeModal() {
   fixadorSizeModal.classList.add('is-hidden');
-  
+
   // Clear visual state when closing
   clearFixadorModalState();
 }
@@ -791,11 +820,11 @@ function clearFixadorModalState() {
   document.querySelectorAll('.fixador-type-btn').forEach(btn => {
     btn.classList.remove('selected');
   });
-  
+
   document.querySelectorAll('.fixador-size-btn').forEach(btn => {
     btn.classList.remove('selected');
   });
-  
+
   // Clear filter fields
   if (filterMedida) {
     filterMedida.value = '';
@@ -827,16 +856,16 @@ function applyFilter() {
     showToast('Selecione um tamanho para aplicar o filtro', 'error');
     return;
   }
-  
+
   const medida = filterMedida.value.trim();
-  
+
   // Set active filters
   currentState.activeFilters = {
     type: currentState.fixadorSelection.type,
     size: currentState.fixadorSelection.size,
     medida: medida || null
   };
-  
+
   closeFixadorSizeModal();
   renderItemsView();
   showToast('✓ Filtro aplicado com sucesso', 'success');
@@ -848,7 +877,7 @@ function clearCurrentFilter() {
     size: null,
     medida: null
   };
-  
+
   closeFixadorSizeModal();
   renderItemsView();
   showToast('✓ Filtros removidos', 'success');
@@ -860,7 +889,7 @@ function clearAllFilters() {
     size: null,
     medida: null
   };
-  
+
   renderItemsView();
   showToast('✓ Todos os filtros removidos', 'success');
 }
@@ -872,31 +901,31 @@ function hasActiveFilters() {
 
 function applyActiveFilters(items) {
   if (!hasActiveFilters()) return items;
-  
+
   const filters = currentState.activeFilters;
-  
+
   return items.filter(item => {
     const name = item.name.toLowerCase();
-    
+
     // Check type filter
     if (filters.type) {
       const typeWords = filters.type.toLowerCase().split(' ');
       const hasAllTypeWords = typeWords.every(word => name.includes(word));
       if (!hasAllTypeWords) return false;
     }
-    
+
     // Check size filter
     if (filters.size) {
       if (!name.includes(filters.size.toLowerCase())) return false;
     }
-    
+
     // Check medida filter
     if (filters.medida) {
       const medidaWords = filters.medida.toLowerCase().split(' ');
       const hasAnyMedidaWord = medidaWords.some(word => word && name.includes(word));
       if (!hasAnyMedidaWord) return false;
     }
-    
+
     return true;
   });
 }
@@ -906,12 +935,12 @@ function updateActiveFiltersDisplay() {
     activeFilters.style.display = 'none';
     return;
   }
-  
+
   activeFilters.style.display = 'block';
   filterTags.innerHTML = '';
-  
+
   const filters = currentState.activeFilters;
-  
+
   if (filters.type) {
     const tag = createFilterTag('Tipo', filters.type, () => {
       currentState.activeFilters.type = null;
@@ -919,7 +948,7 @@ function updateActiveFiltersDisplay() {
     });
     filterTags.appendChild(tag);
   }
-  
+
   if (filters.size) {
     const tag = createFilterTag('Tamanho', filters.size, () => {
       currentState.activeFilters.size = null;
@@ -927,7 +956,7 @@ function updateActiveFiltersDisplay() {
     });
     filterTags.appendChild(tag);
   }
-  
+
   if (filters.medida) {
     const tag = createFilterTag('Medida', filters.medida, () => {
       currentState.activeFilters.medida = null;
@@ -940,14 +969,14 @@ function updateActiveFiltersDisplay() {
 function createFilterTag(label, value, onRemove) {
   const tag = document.createElement('div');
   tag.className = 'filter-tag';
-  
+
   tag.innerHTML = `
     <span>${label}: ${escapeHtml(value)}</span>
     <span class="remove">×</span>
   `;
-  
+
   tag.querySelector('.remove').addEventListener('click', onRemove);
-  
+
   return tag;
 }
 
@@ -994,6 +1023,410 @@ function showDetailsLoading() {
 function hideDetailsLoading() {
   detailsLoading.classList.remove('active');
   detailsLoading.setAttribute('aria-hidden', 'true');
+}
+
+// =====================================
+// BATCH EXIT SYSTEM
+// =====================================
+
+// State for selected items
+let batchSelectedItems = new Map(); // Map<itemId, {item, quantity}>
+let currentCategoryFilter = 'all';
+
+// Elements
+const btnBatchExit = document.getElementById('btnBatchExit');
+const batchExitModal = document.getElementById('batchExitModal');
+const batchSearchInput = document.getElementById('batchSearchInput');
+const batchAvailableList = document.getElementById('batchAvailableList');
+const batchSelectedList = document.getElementById('batchSelectedList');
+const batchSelectedCount = document.getElementById('batchSelectedCount');
+const btnConfirmBatchExit = document.getElementById('btnConfirmBatchExit');
+const btnCancelBatchExit = document.getElementById('btnCancelBatchExit');
+const batchExitAddress = document.getElementById('batchExitAddress');
+const availableItemsTitle = document.getElementById('availableItemsTitle');
+const btnSelectAllVisible = document.getElementById('btnSelectAllVisible');
+const btnClearSelection = document.getElementById('btnClearSelection');
+
+// Initialize batch exit system
+function initBatchExitSystem() {
+  btnBatchExit?.addEventListener('click', openBatchExitModal);
+  btnConfirmBatchExit?.addEventListener('click', handleBatchExit);
+  btnCancelBatchExit?.addEventListener('click', closeBatchExitModal);
+  
+  // Search input
+  batchSearchInput?.addEventListener('input', filterAvailableItems);
+  
+  // Bulk actions
+  btnSelectAllVisible?.addEventListener('click', selectAllVisibleItems);
+  btnClearSelection?.addEventListener('click', clearAllSelections);
+  
+  // Category filter buttons
+  setTimeout(() => {
+    const categoryBtns = document.querySelectorAll('.category-filter-btn');
+    categoryBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        setCategoryFilter(e.target.closest('.category-filter-btn').dataset.filter);
+      });
+    });
+  }, 100);
+  
+  // Close modal on overlay click
+  const overlay = batchExitModal?.querySelector('.modal-overlay');
+  overlay?.addEventListener('click', closeBatchExitModal);
+  
+  // Close on modal close button
+  const closeBtn = batchExitModal?.querySelector('[data-close="batchExitModal"]');
+  closeBtn?.addEventListener('click', closeBatchExitModal);
+}
+
+function openBatchExitModal() {
+  // Clear previous state
+  batchSelectedItems.clear();
+  batchSearchInput.value = '';
+  batchExitAddress.value = '';
+  currentCategoryFilter = 'all';
+  
+  // Reset category filter buttons
+  setTimeout(() => {
+    document.querySelectorAll('.category-filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === 'all');
+    });
+  }, 50);
+  
+  // Populate available items
+  populateAvailableItems();
+  updateSelectedItemsList();
+  
+  // Show modal
+  batchExitModal.classList.remove('is-hidden');
+}
+
+function closeBatchExitModal() {
+  batchExitModal.classList.add('is-hidden');
+}
+
+function setCategoryFilter(filter) {
+  currentCategoryFilter = filter;
+  
+  // Update button states
+  document.querySelectorAll('.category-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  
+  // Update title
+  const titles = {
+    'all': 'Todos os Itens',
+    'parafusos': 'Parafusos',
+    'porcas': 'Porcas',
+    'arruelas': 'Arruelas'
+  };
+  availableItemsTitle.textContent = titles[filter] || 'Itens Disponíveis';
+  
+  // Re-filter items
+  filterAvailableItems();
+}
+
+function populateAvailableItems() {
+  filterAvailableItems();
+}
+
+function getItemCategory(item) {
+  const name = item.name.toLowerCase();
+  
+  if (name.includes('parafuso')) return 'parafusos';
+  if (name.includes('porca')) return 'porcas';
+  if (name.includes('arruela')) return 'arruelas';
+  
+  return 'outros';
+}
+
+function filterAvailableItems() {
+  const searchTerm = batchSearchInput.value.toLowerCase().trim();
+  const category = currentState.currentCategory;
+  const categoryItems = currentState.items[category] || [];
+  
+  // Filter items by category filter, search term and stock
+  let filteredItems = categoryItems.filter(item => {
+    if ((item.quantity || 0) <= 0) return false;
+    
+    // Category filter
+    if (currentCategoryFilter !== 'all') {
+      const itemCategory = getItemCategory(item);
+      if (itemCategory !== currentCategoryFilter) return false;
+    }
+    
+    // Search term
+    if (searchTerm) {
+      return (
+        item.name.toLowerCase().includes(searchTerm) ||
+        item.code.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    return true;
+  });
+  
+  renderAvailableItems(filteredItems);
+}
+
+function renderAvailableItems(items) {
+  batchAvailableList.innerHTML = '';
+  
+  if (items.length === 0) {
+    batchAvailableList.innerHTML = `
+      <div class="empty-selection">
+        <p>Nenhum item disponível com os filtros aplicados</p>
+      </div>
+    `;
+    return;
+  }
+  
+  items.forEach(item => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'batch-item-available';
+    
+    const isSelected = batchSelectedItems.has(item.id);
+    if (isSelected) {
+      itemDiv.classList.add('selected');
+    }
+    
+    itemDiv.innerHTML = `
+      <input 
+        type="checkbox" 
+        class="batch-item-checkbox" 
+        data-item-id="${item.id}"
+        ${isSelected ? 'checked' : ''}
+      />
+      <div class="batch-item-info">
+        <h4 class="batch-item-name">${escapeHtml(item.name)}</h4>
+        <p class="batch-item-code">Código: ${escapeHtml(item.code)}</p>
+        <p class="batch-item-stock">Estoque: ${item.quantity || 0}</p>
+      </div>
+    `;
+    
+    // Add checkbox handler
+    const checkbox = itemDiv.querySelector('.batch-item-checkbox');
+    checkbox.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        addItemToBatch(item);
+      } else {
+        removeItemFromBatch(item.id);
+      }
+    });
+    
+    batchAvailableList.appendChild(itemDiv);
+  });
+  
+  updateBulkActionButtons();
+}
+
+function addItemToBatch(item) {
+  // Add to selected items
+  batchSelectedItems.set(item.id, {
+    item: item,
+    quantity: 1
+  });
+  
+  // Update UI
+  updateSelectedItemsList();
+  updateItemCheckboxState(item.id, true);
+  updateBulkActionButtons();
+}
+
+function removeItemFromBatch(itemId) {
+  batchSelectedItems.delete(itemId);
+  updateSelectedItemsList();
+  updateItemCheckboxState(itemId, false);
+  updateBulkActionButtons();
+}
+
+function updateItemCheckboxState(itemId, isSelected) {
+  const checkbox = document.querySelector(`.batch-item-checkbox[data-item-id="${itemId}"]`);
+  const itemDiv = checkbox?.closest('.batch-item-available');
+  
+  if (checkbox) {
+    checkbox.checked = isSelected;
+  }
+  
+  if (itemDiv) {
+    itemDiv.classList.toggle('selected', isSelected);
+  }
+}
+
+function selectAllVisibleItems() {
+  const visibleCheckboxes = document.querySelectorAll('.batch-item-checkbox');
+  
+  visibleCheckboxes.forEach(checkbox => {
+    if (!checkbox.checked) {
+      checkbox.checked = true;
+      checkbox.dispatchEvent(new Event('change'));
+    }
+  });
+}
+
+function clearAllSelections() {
+  // Clear all selected items
+  batchSelectedItems.clear();
+  
+  // Update checkboxes
+  const checkboxes = document.querySelectorAll('.batch-item-checkbox');
+  checkboxes.forEach(checkbox => {
+    checkbox.checked = false;
+    const itemDiv = checkbox.closest('.batch-item-available');
+    itemDiv?.classList.remove('selected');
+  });
+  
+  updateSelectedItemsList();
+  updateBulkActionButtons();
+}
+
+function updateBulkActionButtons() {
+  const hasSelections = batchSelectedItems.size > 0;
+  btnClearSelection.style.display = hasSelections ? 'block' : 'none';
+}
+
+function updateSelectedItemsList() {
+  const count = batchSelectedItems.size;
+  batchSelectedCount.textContent = count;
+  
+  // Enable/disable confirm button
+  btnConfirmBatchExit.disabled = count === 0;
+  
+  if (count === 0) {
+    batchSelectedList.innerHTML = `
+      <div class="empty-selection">
+        <p>Nenhum item selecionado</p>
+      </div>
+    `;
+    return;
+  }
+  
+  batchSelectedList.innerHTML = '';
+  
+  batchSelectedItems.forEach(({ item, quantity }, itemId) => {
+    const selectedDiv = document.createElement('div');
+    selectedDiv.className = 'batch-item-selected';
+    
+    selectedDiv.innerHTML = `
+      <div class="batch-item-info">
+        <h4 class="batch-item-name">${escapeHtml(item.name)}</h4>
+        <p class="batch-item-code">Código: ${escapeHtml(item.code)}</p>
+        <p class="batch-item-stock">Estoque: ${item.quantity || 0}</p>
+      </div>
+      <div class="batch-quantity-controls">
+        <input 
+          type="number" 
+          class="batch-quantity-input" 
+          data-item-id="${itemId}"
+          min="1" 
+          max="${item.quantity || 0}" 
+          value="${quantity}"
+          placeholder="Qtd"
+        />
+        <button type="button" class="batch-remove-btn" data-item-id="${itemId}">×</button>
+      </div>
+    `;
+    
+    // Add event listeners
+    const removeBtn = selectedDiv.querySelector('.batch-remove-btn');
+    removeBtn.addEventListener('click', () => removeItemFromBatch(itemId));
+    
+    const quantityInput = selectedDiv.querySelector('.batch-quantity-input');
+    quantityInput.addEventListener('input', (e) => {
+      validateAndUpdateQuantity(itemId, e.target);
+    });
+    
+    batchSelectedList.appendChild(selectedDiv);
+  });
+}
+
+function validateAndUpdateQuantity(itemId, input) {
+  const max = parseInt(input.getAttribute('max'));
+  const value = parseInt(input.value);
+  
+  if (value > max) {
+    input.value = max;
+    showToast(`Quantidade máxima disponível: ${max}`, 'warning');
+  }
+  
+  if (value < 1) {
+    input.value = 1;
+  }
+  
+  // Update quantity in state
+  const selectedItem = batchSelectedItems.get(itemId);
+  if (selectedItem) {
+    selectedItem.quantity = parseInt(input.value);
+  }
+}
+
+async function handleBatchExit() {
+  if (batchSelectedItems.size === 0) {
+    showToast('Selecione pelo menos um item', 'error');
+    return;
+  }
+  
+  // Validate quantities
+  for (const [itemId, { item, quantity }] of batchSelectedItems) {
+    if (!quantity || quantity < 1) {
+      showToast('Todas as quantidades devem ser maior que 0', 'error');
+      return;
+    }
+    
+    if (quantity > item.quantity) {
+      showToast(`Quantidade excede estoque disponível para ${item.name}`, 'error');
+      return;
+    }
+  }
+  
+  // Validate required address for exits
+  const address = batchExitAddress.value.trim();
+  if (!address) {
+    showToast('⚠️ Endereço/Local de Saída é obrigatório para operações de saída', 'error');
+    batchExitAddress.classList.add('required-error');
+    batchExitAddress.focus();
+    return;
+  }
+  
+  // Remove error class if validation passes
+  batchExitAddress.classList.remove('required-error');
+  
+  // Show loading state
+  btnConfirmBatchExit.disabled = true;
+  btnConfirmBatchExit.innerHTML = '<span class="icon">⏳</span><span>Processando...</span>';
+  
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Process each exit
+    for (const [itemId, { item, quantity }] of batchSelectedItems) {
+      await apiCall(`/estoque/items/${itemId}/movements`, {
+        method: 'POST',
+        body: JSON.stringify({
+          movementType: 'saida',
+          quantity,
+          movementDate: today,
+          address: address
+        })
+      });
+    }
+    
+    // Success
+    showToast(`✅ ${batchSelectedItems.size} saída(s) registrada(s) com sucesso!`, 'success');
+    
+    // Reload data and close modal
+    await loadData();
+    renderItemsView();
+    closeBatchExitModal();
+    
+  } catch (error) {
+    console.error('Erro no batch exit:', error);
+    showToast('Erro ao processar saídas múltiplas', 'error');
+  } finally {
+    // Reset button state
+    btnConfirmBatchExit.disabled = false;
+    btnConfirmBatchExit.innerHTML = '<span class="icon">📦</span><span>Confirmar Saídas</span>';
+  }
 }
 
 // Start

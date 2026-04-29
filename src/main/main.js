@@ -635,7 +635,7 @@ function openEstoque() {
   }
 
   const win = new BrowserWindow({
-    width: 1000,
+    width: 1100,
     height: 700,
     resizable: true,
     show: false,
@@ -658,8 +658,8 @@ function openEstoque() {
 
   estoqueWindow = win;
   recordLauncherEvent("estoque");
-
-  win.on("ready-to-show", () => {
+  win.maximize();
+  win.once("ready-to-show", () => {
     win.show();
   });
 

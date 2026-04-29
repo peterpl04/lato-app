@@ -75,10 +75,29 @@
           <h2 id="categoryTitle" class="view-title">Categoria</h2>
           <p class="view-subtitle" id="categorySubtitle">Itens em estoque</p>
         </div>
-        <button id="btnAddItem" class="btn-primary-sm" type="button">+ Novo Item</button>
+        <div class="header-actions">
+          <button id="btnClearActiveFilters" class="btn-clear-active" type="button" style="display: none;">
+            <span class="icon">🗑</span>
+            <span>Limpar Filtros</span>
+          </button>
+          <button id="btnFilterItems" class="btn-secondary-sm" type="button" style="display: none;">
+            <span class="icon">🔍</span>
+            <span>Filtro</span>
+          </button>
+          <button id="btnAddItem" class="btn-primary-sm" type="button">+ Novo Item</button>
+        </div>
       </div>
 
       <div class="items-container">
+        <!-- Active filters display -->
+        <div id="activeFilters" class="active-filters" style="display: none;">
+          <div class="filters-header">
+            <span>Filtros Ativos:</span>
+            <button id="btnClearAllFilters" class="btn-clear-filters" type="button">✕ Limpar Todos</button>
+          </div>
+          <div id="filterTags" class="filter-tags"></div>
+        </div>
+        
         <div class="items-list" id="itemsList"></div>
       </div>
     </div>
@@ -224,6 +243,84 @@
       <div class="modal-footer">
         <button id="btnConfirmDelete" type="button" class="btn-danger">Deletar</button>
         <button id="btnCancelDelete" type="button" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Type Selection -->
+  <div id="fixadorTypeModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Selecionar Tipo de Fixador</h3>
+        <button id="btnCloseFixadorTypeModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-types-grid">
+          <button class="fixador-type-btn" data-type="Porca Lisa" type="button">
+            <div class="fixador-icon">🔩</div>
+            <span>Porca Lisa</span>
+          </button>
+          <button class="fixador-type-btn" data-type="Porca Parlock" type="button">
+            <div class="fixador-icon">🔒</div>
+            <span>Porca Parlock</span>
+          </button>
+          <button class="fixador-type-btn" data-type="Arruela" type="button">
+            <div class="fixador-icon">⭕</div>
+            <span>Arruela</span>
+          </button>
+          <button class="fixador-type-btn" data-type="Parafuso Sextavado" type="button">
+            <div class="fixador-icon">🔧</div>
+            <span>Parafuso Sextavado</span>
+          </button>
+          <button class="fixador-type-btn" data-type="Parafuso Rosca Soberba" type="button">
+            <div class="fixador-icon">📐</div>
+            <span>Parafuso Rosca Soberba</span>
+          </button>
+          <button class="fixador-type-btn" data-type="Parafuso Allen" type="button">
+            <div class="fixador-icon">🔑</div>
+            <span>Parafuso Allen</span>
+          </button>
+          <button class="fixador-type-btn" data-type="Parafuso Allen Cabeça Chata" type="button">
+            <div class="fixador-icon">⚪</div>
+            <span>Parafuso Allen Cabeça Chata</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Size Selection -->
+  <div id="fixadorSizeModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="fixadorSizeTitle">Selecionar Tamanho</h3>
+        <button id="btnCloseFixadorSizeModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-sizes-grid">
+          <button class="fixador-size-btn" data-size="M4" type="button">M4</button>
+          <button class="fixador-size-btn" data-size="M5" type="button">M5</button>
+          <button class="fixador-size-btn" data-size="M6" type="button">M6</button>
+          <button class="fixador-size-btn" data-size="M8" type="button">M8</button>
+          <button class="fixador-size-btn" data-size="M10" type="button">M10</button>
+          <button class="fixador-size-btn" data-size="M12" type="button">M12</button>
+          <button class="fixador-size-btn" data-size="M16" type="button">M16</button>
+          <button class="fixador-size-btn" data-size="M20" type="button">M20</button>
+        </div>
+        
+        <!-- Filter specific fields (hidden by default) -->
+        <div id="filterExtraFields" class="filter-extra-fields" style="display: none;">
+          <div class="form-field">
+            <label for="filterMedida">Medida/Complemento</label>
+            <input id="filterMedida" type="text" placeholder="Ex: x50mm, Inox, etc." />
+          </div>
+          <div class="filter-actions">
+            <button id="btnApplyFilter" class="btn-primary" type="button">Aplicar Filtro</button>
+            <button id="btnClearFilter" class="btn-secondary" type="button">Limpar Filtro</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>

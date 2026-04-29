@@ -8,7 +8,17 @@ let currentState = {
     fixadores: [],
     eletrica: []
   },
-  movementType: null
+  movementType: null,
+  fixadorSelection: {
+    type: null,
+    size: null
+  },
+  activeFilters: {
+    type: null,
+    size: null,
+    medida: null
+  },
+  modalMode: 'add' // 'add' or 'filter'
 };
 
 // API Configuration
@@ -60,6 +70,8 @@ const toastContainer = document.getElementById('toastContainer');
 const btnBackToCategories = document.getElementById('btnBackToCategories');
 const btnBackToItems = document.getElementById('btnBackToItems');
 const btnAddItem = document.getElementById('btnAddItem');
+const btnFilterItems = document.getElementById('btnFilterItems');
+const btnClearActiveFilters = document.getElementById('btnClearActiveFilters');
 const btnAddEntry = document.getElementById('btnAddEntry');
 const btnAddExit = document.getElementById('btnAddExit');
 const btnDeleteItem = document.getElementById('btnDeleteItem');
@@ -87,6 +99,22 @@ const btnSubmitMovement = document.getElementById('btnSubmitMovement');
 const confirmDeleteModal = document.getElementById('confirmDeleteModal');
 const btnConfirmDelete = document.getElementById('btnConfirmDelete');
 const btnCancelDelete = document.getElementById('btnCancelDelete');
+
+// Fixador Modals
+const fixadorTypeModal = document.getElementById('fixadorTypeModal');
+const fixadorSizeModal = document.getElementById('fixadorSizeModal');
+const btnCloseFixadorTypeModal = document.getElementById('btnCloseFixadorTypeModal');
+const btnCloseFixadorSizeModal = document.getElementById('btnCloseFixadorSizeModal');
+const fixadorSizeTitle = document.getElementById('fixadorSizeTitle');
+
+// Filter elements
+const filterExtraFields = document.getElementById('filterExtraFields');
+const filterMedida = document.getElementById('filterMedida');
+const btnApplyFilter = document.getElementById('btnApplyFilter');
+const btnClearFilter = document.getElementById('btnClearFilter');
+const activeFilters = document.getElementById('activeFilters');
+const filterTags = document.getElementById('filterTags');
+const btnClearAllFilters = document.getElementById('btnClearAllFilters');
 
 // Category data
 const categories = {
@@ -188,6 +216,8 @@ function attachEventListeners() {
 
   // Item actions
   btnAddItem.addEventListener('click', openItemModal);
+  btnFilterItems.addEventListener('click', openFilterModal);
+  btnClearActiveFilters.addEventListener('click', clearAllFilters);
   btnAddEntry.addEventListener('click', () => openMovementModal('entrada'));
   btnAddExit.addEventListener('click', () => openMovementModal('saida'));
   btnDeleteItem.addEventListener('click', openDeleteModal);
@@ -206,11 +236,22 @@ function attachEventListeners() {
   btnConfirmDelete.addEventListener('click', handleDeleteItem);
   btnCancelDelete.addEventListener('click', closeDeleteModal);
 
+  // Fixador modals
+  btnCloseFixadorTypeModal.addEventListener('click', closeFixadorTypeModal);
+  btnCloseFixadorSizeModal.addEventListener('click', closeFixadorSizeModal);
+  
+  // Filter actions
+  btnApplyFilter.addEventListener('click', applyFilter);
+  btnClearFilter.addEventListener('click', clearCurrentFilter);
+  btnClearAllFilters.addEventListener('click', clearAllFilters);
+
   // Click outside modals to close
   document.addEventListener('click', (e) => {
     if (e.target === itemModal) closeItemModal();
     if (e.target === movementModal) closeMovementModal();
     if (e.target === confirmDeleteModal) closeDeleteModal();
+    if (e.target === fixadorTypeModal) closeFixadorTypeModal();
+    if (e.target === fixadorSizeModal) closeFixadorSizeModal();
   });
 
   console.log('Event listeners anexados com sucesso');
@@ -282,17 +323,38 @@ function renderItemsView() {
   }
 
   categoryTitle.textContent = categoryData.name;
-  categorySubtitle.textContent = `${(currentState.items[category] || []).length} itens`;
+  
+  // Show/hide filter button for fixadores category
+  if (category === 'fixadores') {
+    btnFilterItems.style.display = 'flex';
+    
+    // Show clear filters button only when there are active filters
+    if (hasActiveFilters()) {
+      btnClearActiveFilters.style.display = 'flex';
+    } else {
+      btnClearActiveFilters.style.display = 'none';
+    }
+  } else {
+    btnFilterItems.style.display = 'none';
+    btnClearActiveFilters.style.display = 'none';
+  }
 
-  const items = currentState.items[category] || [];
+  let items = currentState.items[category] || [];
+  
+  // Apply filters if active
+  items = applyActiveFilters(items);
+  
+  categorySubtitle.textContent = `${items.length} itens`;
+
   itemsList.innerHTML = '';
 
   if (items.length === 0) {
+    const hasFilters = hasActiveFilters();
     itemsList.innerHTML = `
       <div class="empty-state">
         <div class="empty-state-icon">${categoryData.icon}</div>
-        <p>Nenhum item nesta categoria</p>
-        <p style="font-size: 11px; margin-top: 4px;">Use o botão "+ Novo Item" para adicionar</p>
+        <p>${hasFilters ? 'Nenhum item encontrado com os filtros aplicados' : 'Nenhum item nesta categoria'}</p>
+        <p style="font-size: 11px; margin-top: 4px;">${hasFilters ? 'Tente ajustar ou limpar os filtros' : 'Use o botão "+ Novo Item" para adicionar'}</p>
       </div>
     `;
     return;
@@ -317,6 +379,9 @@ function renderItemsView() {
     card.addEventListener('click', () => viewItem(item.id));
     itemsList.appendChild(card);
   });
+  
+  // Update active filters display
+  updateActiveFiltersDisplay();
 }
 
 function renderItemDetailsView() {
@@ -391,6 +456,8 @@ function renderMovements() {
     const type = movement.type === 'entrada' ? 'Entrada' : 'Saída';
     const badge = movement.type === 'entrada' ? '↓' : '↑';
     const badgeClass = movement.type === 'entrada' ? 'entrada' : 'saida';
+    const quantityDisplay = movement.type === 'entrada' ? `+${movement.quantity}` : `-${movement.quantity}`;
+    const quantityClass = movement.type === 'entrada' ? 'positive' : 'negative';
 
     let addressInfo = '';
     if (movement.address) {
@@ -404,7 +471,7 @@ function renderMovements() {
         <small>${dateStr}</small>
         ${addressInfo}
       </div>
-      <div class="movement-qty">+${movement.quantity}</div>
+      <div class="movement-qty ${quantityClass}">${quantityDisplay}</div>
     `;
 
     movementsList.appendChild(li);
@@ -425,9 +492,24 @@ function viewItem(itemId) {
 
 // Item Management
 function openItemModal() {
+  // Se a categoria atual for fixadores, abrir o fluxo especializado
+  if (currentState.currentCategory === 'fixadores') {
+    currentState.modalMode = 'add';
+    openFixadorTypeModal();
+    return;
+  }
+
+  // Fluxo normal para outras categorias
   itemForm.reset();
   itemName.focus();
   itemModal.classList.remove('is-hidden');
+}
+
+function openFilterModal() {
+  if (currentState.currentCategory === 'fixadores') {
+    currentState.modalMode = 'filter';
+    openFixadorTypeModal();
+  }
 }
 
 function closeItemModal() {
@@ -448,6 +530,20 @@ async function handleAddItem(e) {
   }
 
   const category = currentState.currentCategory;
+  
+  // Validar se o código já existe na categoria
+  const existingItems = currentState.items[category] || [];
+  const codeExists = existingItems.some(item => 
+    item.code.toLowerCase() === code.toLowerCase()
+  );
+  
+  if (codeExists) {
+    showToast(`⚠️ Já existe um item com o código "${code}" nesta categoria`, 'error');
+    itemCode.focus();
+    itemCode.select();
+    return;
+  }
+  
   const id = `${category}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
@@ -605,6 +701,254 @@ async function handleDeleteItem() {
   } finally {
     hideDetailsLoading();
   }
+}
+
+// Fixador Management
+function openFixadorTypeModal() {
+  // Reset selection state completely
+  currentState.fixadorSelection = {
+    type: null,
+    size: null
+  };
+
+  fixadorTypeModal.classList.remove('is-hidden');
+
+  // Remove existing listeners and clean visual state
+  const typeButtons = document.querySelectorAll('.fixador-type-btn');
+  typeButtons.forEach(btn => {
+    btn.classList.remove('selected');
+    btn.replaceWith(btn.cloneNode(true));
+  });
+
+  // Add fresh event listeners for type selection buttons
+  document.querySelectorAll('.fixador-type-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const type = this.dataset.type;
+      selectFixadorType(type);
+    });
+  });
+}
+
+function closeFixadorTypeModal() {
+  fixadorTypeModal.classList.add('is-hidden');
+  clearFixadorModalState();
+}
+
+function selectFixadorType(type) {
+  currentState.fixadorSelection.type = type;
+  closeFixadorTypeModal();
+  openFixadorSizeModal(type);
+}
+
+function openFixadorSizeModal(type) {
+  fixadorSizeTitle.textContent = `Selecionar Tamanho para ${type}`;
+  fixadorSizeModal.classList.remove('is-hidden');
+  
+  // Show/hide filter fields based on mode
+  if (currentState.modalMode === 'filter') {
+    filterExtraFields.style.display = 'block';
+    filterMedida.value = '';
+  } else {
+    filterExtraFields.style.display = 'none';
+  }
+
+  // Remove existing listeners and clean visual state
+  const sizeButtons = document.querySelectorAll('.fixador-size-btn');
+  sizeButtons.forEach(btn => {
+    btn.classList.remove('selected');
+    btn.replaceWith(btn.cloneNode(true));
+  });
+
+  // Add fresh event listeners for size selection buttons
+  document.querySelectorAll('.fixador-size-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const size = this.dataset.size;
+      
+      if (currentState.modalMode === 'filter') {
+        // For filter mode, just store the selection and don't close yet
+        currentState.fixadorSelection.size = size;
+        
+        // Highlight selected size
+        document.querySelectorAll('.fixador-size-btn').forEach(b => b.classList.remove('selected'));
+        this.classList.add('selected');
+      } else {
+        // For add mode, proceed as before
+        selectFixadorSize(size);
+      }
+    });
+  });
+}
+
+function closeFixadorSizeModal() {
+  fixadorSizeModal.classList.add('is-hidden');
+  
+  // Clear visual state when closing
+  clearFixadorModalState();
+}
+
+function clearFixadorModalState() {
+  // Clear all visual selections
+  document.querySelectorAll('.fixador-type-btn').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+  
+  document.querySelectorAll('.fixador-size-btn').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+  
+  // Clear filter fields
+  if (filterMedida) {
+    filterMedida.value = '';
+  }
+}
+
+function selectFixadorSize(size) {
+  currentState.fixadorSelection.size = size;
+  closeFixadorSizeModal();
+
+  // Generate item name and open main form
+  const itemName = `${currentState.fixadorSelection.type} ${size}`;
+  openMainItemModalWithName(itemName);
+}
+
+function openMainItemModalWithName(name) {
+  itemForm.reset();
+  document.getElementById('itemName').value = name;
+
+  // Focus on code field since name is pre-filled
+  document.getElementById('itemCode').focus();
+
+  itemModal.classList.remove('is-hidden');
+}
+
+// Filter System
+function applyFilter() {
+  if (!currentState.fixadorSelection.size) {
+    showToast('Selecione um tamanho para aplicar o filtro', 'error');
+    return;
+  }
+  
+  const medida = filterMedida.value.trim();
+  
+  // Set active filters
+  currentState.activeFilters = {
+    type: currentState.fixadorSelection.type,
+    size: currentState.fixadorSelection.size,
+    medida: medida || null
+  };
+  
+  closeFixadorSizeModal();
+  renderItemsView();
+  showToast('✓ Filtro aplicado com sucesso', 'success');
+}
+
+function clearCurrentFilter() {
+  currentState.activeFilters = {
+    type: null,
+    size: null,
+    medida: null
+  };
+  
+  closeFixadorSizeModal();
+  renderItemsView();
+  showToast('✓ Filtros removidos', 'success');
+}
+
+function clearAllFilters() {
+  currentState.activeFilters = {
+    type: null,
+    size: null,
+    medida: null
+  };
+  
+  renderItemsView();
+  showToast('✓ Todos os filtros removidos', 'success');
+}
+
+function hasActiveFilters() {
+  const filters = currentState.activeFilters;
+  return filters.type || filters.size || filters.medida;
+}
+
+function applyActiveFilters(items) {
+  if (!hasActiveFilters()) return items;
+  
+  const filters = currentState.activeFilters;
+  
+  return items.filter(item => {
+    const name = item.name.toLowerCase();
+    
+    // Check type filter
+    if (filters.type) {
+      const typeWords = filters.type.toLowerCase().split(' ');
+      const hasAllTypeWords = typeWords.every(word => name.includes(word));
+      if (!hasAllTypeWords) return false;
+    }
+    
+    // Check size filter
+    if (filters.size) {
+      if (!name.includes(filters.size.toLowerCase())) return false;
+    }
+    
+    // Check medida filter
+    if (filters.medida) {
+      const medidaWords = filters.medida.toLowerCase().split(' ');
+      const hasAnyMedidaWord = medidaWords.some(word => word && name.includes(word));
+      if (!hasAnyMedidaWord) return false;
+    }
+    
+    return true;
+  });
+}
+
+function updateActiveFiltersDisplay() {
+  if (!hasActiveFilters()) {
+    activeFilters.style.display = 'none';
+    return;
+  }
+  
+  activeFilters.style.display = 'block';
+  filterTags.innerHTML = '';
+  
+  const filters = currentState.activeFilters;
+  
+  if (filters.type) {
+    const tag = createFilterTag('Tipo', filters.type, () => {
+      currentState.activeFilters.type = null;
+      renderItemsView();
+    });
+    filterTags.appendChild(tag);
+  }
+  
+  if (filters.size) {
+    const tag = createFilterTag('Tamanho', filters.size, () => {
+      currentState.activeFilters.size = null;
+      renderItemsView();
+    });
+    filterTags.appendChild(tag);
+  }
+  
+  if (filters.medida) {
+    const tag = createFilterTag('Medida', filters.medida, () => {
+      currentState.activeFilters.medida = null;
+      renderItemsView();
+    });
+    filterTags.appendChild(tag);
+  }
+}
+
+function createFilterTag(label, value, onRemove) {
+  const tag = document.createElement('div');
+  tag.className = 'filter-tag';
+  
+  tag.innerHTML = `
+    <span>${label}: ${escapeHtml(value)}</span>
+    <span class="remove">×</span>
+  `;
+  
+  tag.querySelector('.remove').addEventListener('click', onRemove);
+  
+  return tag;
 }
 
 // Toast Notifications

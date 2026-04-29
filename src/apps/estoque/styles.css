@@ -153,6 +153,48 @@ body {
 }
 
 /* =====================================
+   LOADING OVERLAY
+===================================== */
+
+.view-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(2px);
+  color: var(--text-main);
+  font-size: 13px;
+  font-weight: 600;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease;
+}
+
+.view-loading.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.view-loading i {
+  font-size: 18px;
+  color: var(--accent);
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =====================================
    CATEGORY VIEW
 ===================================== */
 

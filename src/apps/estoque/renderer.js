@@ -46,6 +46,8 @@ const estoque = document.querySelector('.estoque-app');
 const categoryView = document.getElementById('categoryView');
 const itemsView = document.getElementById('itemsView');
 const itemDetailsView = document.getElementById('itemDetailsView');
+const itemsLoading = document.getElementById('itemsLoading');
+const detailsLoading = document.getElementById('detailsLoading');
 const categoryTitle = document.getElementById('categoryTitle');
 const categorySubtitle = document.getElementById('categorySubtitle');
 const itemTitle = document.getElementById('itemTitle');
@@ -239,8 +241,10 @@ function switchView(viewName) {
 function selectCategory(categoryKey) {
   console.log('Selecionando categoria:', categoryKey);
   currentState.currentCategory = categoryKey;
+  showItemsLoading();
   renderItemsView();
   switchView('items');
+  setTimeout(() => hideItemsLoading(), 300);
 }
 
 function goToCategories() {
@@ -412,8 +416,10 @@ function viewItem(itemId) {
   const item = (currentState.items[category] || []).find(i => i.id === itemId);
   if (item) {
     currentState.currentItem = item;
+    showDetailsLoading();
     renderItemDetailsView();
     switchView('details');
+    setTimeout(() => hideDetailsLoading(), 300);
   }
 }
 
@@ -445,6 +451,8 @@ async function handleAddItem(e) {
   const id = `${category}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   try {
+    showItemsLoading();
+
     // Criar item no banco de dados SEM quantidade inicial
     const newItem = await apiCall('/estoque/items', {
       method: 'POST',
@@ -480,6 +488,8 @@ async function handleAddItem(e) {
   } catch (error) {
     console.error('Erro ao adicionar item:', error);
     showToast('Erro ao adicionar item', 'error');
+  } finally {
+    hideItemsLoading();
   }
 }
 
@@ -524,6 +534,8 @@ async function handleAddMovement(e) {
   const item = currentState.currentItem;
 
   try {
+    showDetailsLoading();
+
     // Registrar movimento na API
     await apiCall(`/estoque/items/${item.id}/movements`, {
       method: 'POST',
@@ -553,6 +565,8 @@ async function handleAddMovement(e) {
   } catch (error) {
     console.error('Erro ao registrar movimento:', error);
     showToast('Erro ao registrar movimento', 'error');
+  } finally {
+    hideDetailsLoading();
   }
 }
 
@@ -571,6 +585,8 @@ async function handleDeleteItem() {
   const itemName = item.name;
 
   try {
+    showDetailsLoading();
+
     // Deletar item da API
     await apiCall(`/estoque/items/${item.id}`, {
       method: 'DELETE'
@@ -586,6 +602,8 @@ async function handleDeleteItem() {
   } catch (error) {
     console.error('Erro ao deletar item:', error);
     showToast('Erro ao deletar item', 'error');
+  } finally {
+    hideDetailsLoading();
   }
 }
 
@@ -612,6 +630,26 @@ function escapeHtml(text) {
     "'": '&#039;'
   };
   return String(text).replace(/[&<>"']/g, m => map[m]);
+}
+
+function showItemsLoading() {
+  itemsLoading.classList.add('active');
+  itemsLoading.setAttribute('aria-hidden', 'false');
+}
+
+function hideItemsLoading() {
+  itemsLoading.classList.remove('active');
+  itemsLoading.setAttribute('aria-hidden', 'true');
+}
+
+function showDetailsLoading() {
+  detailsLoading.classList.add('active');
+  detailsLoading.setAttribute('aria-hidden', 'false');
+}
+
+function hideDetailsLoading() {
+  detailsLoading.classList.remove('active');
+  detailsLoading.setAttribute('aria-hidden', 'true');
 }
 
 // Start

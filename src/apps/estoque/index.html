@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css" />
 </head>
 
@@ -61,6 +62,11 @@
 
     <!-- ITEMS VIEW -->
     <div id="itemsView" class="view">
+      <div id="itemsLoading" class="view-loading" aria-live="polite" aria-hidden="true">
+        <i class="fa-solid fa-spinner"></i>
+        <span>Carregando itens...</span>
+      </div>
+
       <div class="view-header">
         <button id="btnBackToCategories" class="btn-icon-back" type="button" title="Voltar para categorias">
           <span>←</span>
@@ -79,6 +85,11 @@
 
     <!-- ITEM DETAILS VIEW -->
     <div id="itemDetailsView" class="view">
+      <div id="detailsLoading" class="view-loading" aria-live="polite" aria-hidden="true">
+        <i class="fa-solid fa-spinner"></i>
+        <span>Carregando detalhes...</span>
+      </div>
+
       <div class="view-header">
         <button id="btnBackToItems" class="btn-icon-back" type="button" title="Voltar para itens">
           <span>←</span>

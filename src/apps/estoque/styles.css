@@ -193,23 +193,11 @@ body {
   position: absolute;
   inset: 0;
   border-radius: var(--radius-lg);
-  background: var(--bg-card);
+  background: linear-gradient(135deg, #ecf3ff 0%, #dbe7fb 100%);
   border: 1.5px solid var(--border-soft);
   box-shadow: var(--shadow-soft);
   transition: all var(--transition-default);
   z-index: 0;
-}
-
-.category-btn[data-category="pneumatica"] .category-bg {
-  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-}
-
-.category-btn[data-category="fixadores"] .category-bg {
-  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
-}
-
-.category-btn[data-category="eletrica"] .category-bg {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
 }
 
 .category-content {
@@ -229,18 +217,6 @@ body {
   align-items: center;
   justify-content: center;
   animation: float 3s ease-in-out infinite;
-}
-
-.category-btn[data-category="pneumatica"] .category-icon {
-  animation-delay: 0s;
-}
-
-.category-btn[data-category="fixadores"] .category-icon {
-  animation-delay: 0.3s;
-}
-
-.category-btn[data-category="eletrica"] .category-icon {
-  animation-delay: 0.6s;
 }
 
 @keyframes float {

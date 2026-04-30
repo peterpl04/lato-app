@@ -10,12 +10,18 @@ let currentState = {
   },
   movementType: null,
   fixadorSelection: {
-    type: null,
-    size: null
+    classe: null,
+    diameter: null,
+    length: null,
+    head: null,
+    thread: null
   },
   activeFilters: {
-    type: null,
-    size: null,
+    classe: null,
+    diameter: null,
+    length: null,
+    head: null,
+    thread: null,
     medida: null
   },
   modalMode: 'add' // 'add' or 'filter'
@@ -103,9 +109,19 @@ const btnCancelDelete = document.getElementById('btnCancelDelete');
 // Fixador Modals
 const fixadorTypeModal = document.getElementById('fixadorTypeModal');
 const fixadorSizeModal = document.getElementById('fixadorSizeModal');
+const fixadorLengthModal = document.getElementById('fixadorLengthModal');
+const fixadorHeadModal = document.getElementById('fixadorHeadModal');
+const fixadorThreadModal = document.getElementById('fixadorThreadModal');
+const fixadorPorcaTypeModal = document.getElementById('fixadorPorcaTypeModal');
 const btnCloseFixadorTypeModal = document.getElementById('btnCloseFixadorTypeModal');
 const btnCloseFixadorSizeModal = document.getElementById('btnCloseFixadorSizeModal');
+const btnCloseFixadorLengthModal = document.getElementById('btnCloseFixadorLengthModal');
+const btnCloseFixadorHeadModal = document.getElementById('btnCloseFixadorHeadModal');
+const btnCloseFixadorThreadModal = document.getElementById('btnCloseFixadorThreadModal');
+const btnCloseFixadorPorcaTypeModal = document.getElementById('btnCloseFixadorPorcaTypeModal');
 const fixadorSizeTitle = document.getElementById('fixadorSizeTitle');
+const fixadorLengthInput = document.getElementById('fixadorLengthInput');
+const btnConfirmFixadorLength = document.getElementById('btnConfirmFixadorLength');
 
 // Filter elements
 const filterExtraFields = document.getElementById('filterExtraFields');
@@ -393,6 +409,17 @@ function attachEventListeners() {
   // Fixador modals
   btnCloseFixadorTypeModal.addEventListener('click', closeFixadorTypeModal);
   btnCloseFixadorSizeModal.addEventListener('click', closeFixadorSizeModal);
+  btnCloseFixadorLengthModal.addEventListener('click', closeFixadorLengthModal);
+  btnCloseFixadorHeadModal.addEventListener('click', closeFixadorHeadModal);
+  btnCloseFixadorThreadModal.addEventListener('click', closeFixadorThreadModal);
+  btnCloseFixadorPorcaTypeModal.addEventListener('click', closeFixadorPorcaTypeModal);
+  btnConfirmFixadorLength.addEventListener('click', confirmFixadorLength);
+  fixadorLengthInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      confirmFixadorLength();
+    }
+  });
 
   // Filter actions
   btnApplyFilter.addEventListener('click', applyFilter);
@@ -406,6 +433,10 @@ function attachEventListeners() {
     if (e.target === confirmDeleteModal) closeDeleteModal();
     if (e.target === fixadorTypeModal) closeFixadorTypeModal();
     if (e.target === fixadorSizeModal) closeFixadorSizeModal();
+    if (e.target === fixadorLengthModal) closeFixadorLengthModal();
+    if (e.target === fixadorHeadModal) closeFixadorHeadModal();
+    if (e.target === fixadorThreadModal) closeFixadorThreadModal();
+    if (e.target === fixadorPorcaTypeModal) closeFixadorPorcaTypeModal();
   });
 
   console.log('Event listeners anexados com sucesso');
@@ -900,48 +931,98 @@ async function handleDeleteItem() {
   }
 }
 
-// Fixador Management
-function openFixadorTypeModal() {
-  // Reset selection state completely
-  currentState.fixadorSelection = {
-    type: null,
-    size: null
-  };
+// ============================================================================
+// FIXADOR FLOW
+// ----------------------------------------------------------------------------
+// Sequence per class:
+//   Parafuso       : classe -> diâmetro -> comprimento -> cabeça -> rosca
+//   Porca          : classe -> diâmetro -> tipo de porca (Lisa/Parlock)
+//   Rebite Roscado : classe -> diâmetro -> comprimento
+//   Arruela        : classe -> diâmetro
+// Final name format examples:
+//   "Parafuso M10x35 Francês Soberbo"
+//   "Porca Lisa M10" | "Porca Parlock M10"
+//   "Rebite Roscado M8x30"
+//   "Arruela M10"
+// ============================================================================
 
+function resetFixadorSelection() {
+  currentState.fixadorSelection = {
+    classe: null,
+    diameter: null,
+    length: null,
+    head: null,
+    thread: null,
+    porcaType: null
+  };
+}
+
+function classNeedsLength(classe) {
+  return classe === 'Parafuso' || classe === 'Rebite Roscado';
+}
+
+function classNeedsPorcaType(classe) {
+  return classe === 'Porca';
+}
+
+function classNeedsHead(classe) {
+  return classe === 'Parafuso';
+}
+
+function classNeedsThread(classe) {
+  return classe === 'Parafuso';
+}
+
+function composeFixadorName(sel) {
+  if (sel.classe === 'Porca') {
+    const tipo = sel.porcaType ? ` ${sel.porcaType}` : '';
+    return `Porca${tipo} ${sel.diameter}`;
+  }
+
+  let name = `${sel.classe} ${sel.diameter}`;
+  if (sel.length) name += `x${sel.length}`;
+  if (sel.head) name += ` ${sel.head}`;
+  if (sel.thread && sel.thread !== 'Normal') name += ` ${sel.thread}`;
+  return name;
+}
+
+// --- Class modal --------------------------------------------------------------
+function openFixadorTypeModal() {
+  resetFixadorSelection();
   fixadorTypeModal.classList.remove('is-hidden');
 
-  // Remove existing listeners and clean visual state
-  const typeButtons = document.querySelectorAll('.fixador-type-btn');
-  typeButtons.forEach(btn => {
+  // Re-bind listeners by cloning (clears stale handlers)
+  document.querySelectorAll('#fixadorTypeModal .fixador-type-btn').forEach(btn => {
     btn.classList.remove('selected');
     btn.replaceWith(btn.cloneNode(true));
   });
 
-  // Add fresh event listeners for type selection buttons
-  document.querySelectorAll('.fixador-type-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const type = this.dataset.type;
-      selectFixadorType(type);
+  document.querySelectorAll('#fixadorTypeModal .fixador-type-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      selectFixadorClass(this.dataset.class);
     });
   });
 }
 
 function closeFixadorTypeModal() {
   fixadorTypeModal.classList.add('is-hidden');
-  clearFixadorModalState();
 }
 
-function selectFixadorType(type) {
-  currentState.fixadorSelection.type = type;
+function selectFixadorClass(classe) {
+  currentState.fixadorSelection.classe = classe;
   closeFixadorTypeModal();
-  openFixadorSizeModal(type);
+  openFixadorSizeModal();
 }
 
-function openFixadorSizeModal(type) {
-  fixadorSizeTitle.textContent = `Selecionar Tamanho para ${type}`;
+// --- Diameter modal -----------------------------------------------------------
+function openFixadorSizeModal() {
+  const classe = currentState.fixadorSelection.classe;
+  fixadorSizeTitle.textContent = classe
+    ? `Selecionar Diâmetro — ${classe}`
+    : 'Selecionar Diâmetro';
   fixadorSizeModal.classList.remove('is-hidden');
 
-  // Show/hide filter fields based on mode
+  // Show filter extras only on filter mode
   if (currentState.modalMode === 'filter') {
     filterExtraFields.style.display = 'block';
     filterMedida.value = '';
@@ -949,28 +1030,23 @@ function openFixadorSizeModal(type) {
     filterExtraFields.style.display = 'none';
   }
 
-  // Remove existing listeners and clean visual state
-  const sizeButtons = document.querySelectorAll('.fixador-size-btn');
-  sizeButtons.forEach(btn => {
+  // Re-bind listeners
+  document.querySelectorAll('#fixadorSizeModal .fixador-size-btn').forEach(btn => {
     btn.classList.remove('selected');
     btn.replaceWith(btn.cloneNode(true));
   });
 
-  // Add fresh event listeners for size selection buttons
-  document.querySelectorAll('.fixador-size-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
+  document.querySelectorAll('#fixadorSizeModal .fixador-size-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
       const size = this.dataset.size;
 
       if (currentState.modalMode === 'filter') {
-        // For filter mode, just store the selection and don't close yet
-        currentState.fixadorSelection.size = size;
-
-        // Highlight selected size
-        document.querySelectorAll('.fixador-size-btn').forEach(b => b.classList.remove('selected'));
+        currentState.fixadorSelection.diameter = size;
+        document.querySelectorAll('#fixadorSizeModal .fixador-size-btn')
+          .forEach(b => b.classList.remove('selected'));
         this.classList.add('selected');
       } else {
-        // For add mode, proceed as before
-        selectFixadorSize(size);
+        selectFixadorDiameter(size);
       }
     });
   });
@@ -978,59 +1054,175 @@ function openFixadorSizeModal(type) {
 
 function closeFixadorSizeModal() {
   fixadorSizeModal.classList.add('is-hidden');
-
-  // Clear visual state when closing
-  clearFixadorModalState();
+  if (filterMedida) filterMedida.value = '';
+  document.querySelectorAll('#fixadorSizeModal .fixador-size-btn')
+    .forEach(b => b.classList.remove('selected'));
 }
 
-function clearFixadorModalState() {
-  // Clear all visual selections
-  document.querySelectorAll('.fixador-type-btn').forEach(btn => {
-    btn.classList.remove('selected');
-  });
+function selectFixadorDiameter(diameter) {
+  currentState.fixadorSelection.diameter = diameter;
+  closeFixadorSizeModal();
 
-  document.querySelectorAll('.fixador-size-btn').forEach(btn => {
-    btn.classList.remove('selected');
-  });
-
-  // Clear filter fields
-  if (filterMedida) {
-    filterMedida.value = '';
+  const classe = currentState.fixadorSelection.classe;
+  if (classNeedsLength(classe)) {
+    openFixadorLengthModal();
+  } else if (classNeedsPorcaType(classe)) {
+    openFixadorPorcaTypeModal();
+  } else {
+    finalizeFixadorFlow();
   }
 }
 
-function selectFixadorSize(size) {
-  currentState.fixadorSelection.size = size;
-  closeFixadorSizeModal();
+// --- Length modal -------------------------------------------------------------
+function openFixadorLengthModal() {
+  fixadorLengthInput.value = '';
+  fixadorLengthInput.classList.remove('required-error');
+  fixadorLengthModal.classList.remove('is-hidden');
+  setTimeout(() => fixadorLengthInput.focus(), 50);
+}
 
-  // Generate item name and open main form
-  const itemName = `${currentState.fixadorSelection.type} ${size}`;
-  openMainItemModalWithName(itemName);
+function closeFixadorLengthModal() {
+  fixadorLengthModal.classList.add('is-hidden');
+}
+
+function confirmFixadorLength() {
+  const raw = fixadorLengthInput.value.trim();
+  const value = parseInt(raw, 10);
+
+  if (!raw || isNaN(value) || value <= 0) {
+    fixadorLengthInput.classList.add('required-error');
+    fixadorLengthInput.focus();
+    showToast('Informe um comprimento válido (mm)', 'error');
+    return;
+  }
+
+  currentState.fixadorSelection.length = String(value);
+  closeFixadorLengthModal();
+
+  const classe = currentState.fixadorSelection.classe;
+  if (classNeedsHead(classe)) {
+    openFixadorHeadModal();
+  } else {
+    finalizeFixadorFlow();
+  }
+}
+
+// --- Head modal ---------------------------------------------------------------
+function openFixadorHeadModal() {
+  fixadorHeadModal.classList.remove('is-hidden');
+
+  document.querySelectorAll('.fixador-head-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    btn.replaceWith(btn.cloneNode(true));
+  });
+
+  document.querySelectorAll('.fixador-head-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      selectFixadorHead(this.dataset.head);
+    });
+  });
+}
+
+function closeFixadorHeadModal() {
+  fixadorHeadModal.classList.add('is-hidden');
+}
+
+function selectFixadorHead(head) {
+  currentState.fixadorSelection.head = head;
+  closeFixadorHeadModal();
+
+  if (classNeedsThread(currentState.fixadorSelection.classe)) {
+    openFixadorThreadModal();
+  } else {
+    finalizeFixadorFlow();
+  }
+}
+
+// --- Thread modal -------------------------------------------------------------
+function openFixadorThreadModal() {
+  fixadorThreadModal.classList.remove('is-hidden');
+
+  document.querySelectorAll('.fixador-thread-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    btn.replaceWith(btn.cloneNode(true));
+  });
+
+  document.querySelectorAll('.fixador-thread-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      selectFixadorThread(this.dataset.thread);
+    });
+  });
+}
+
+function closeFixadorThreadModal() {
+  fixadorThreadModal.classList.add('is-hidden');
+}
+
+function selectFixadorThread(thread) {
+  currentState.fixadorSelection.thread = thread;
+  closeFixadorThreadModal();
+  finalizeFixadorFlow();
+}
+
+// --- Porca type modal ---------------------------------------------------------
+function openFixadorPorcaTypeModal() {
+  fixadorPorcaTypeModal.classList.remove('is-hidden');
+
+  document.querySelectorAll('.fixador-porca-type-btn').forEach(btn => {
+    btn.classList.remove('selected');
+    btn.replaceWith(btn.cloneNode(true));
+  });
+
+  document.querySelectorAll('.fixador-porca-type-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+      selectFixadorPorcaType(this.dataset.porcaType);
+    });
+  });
+}
+
+function closeFixadorPorcaTypeModal() {
+  fixadorPorcaTypeModal.classList.add('is-hidden');
+}
+
+function selectFixadorPorcaType(porcaType) {
+  currentState.fixadorSelection.porcaType = porcaType;
+  closeFixadorPorcaTypeModal();
+  finalizeFixadorFlow();
+}
+
+// --- Finalization -------------------------------------------------------------
+function finalizeFixadorFlow() {
+  const name = composeFixadorName(currentState.fixadorSelection);
+  openMainItemModalWithName(name);
 }
 
 function openMainItemModalWithName(name) {
   itemForm.reset();
   document.getElementById('itemName').value = name;
-
-  // Focus on code field since name is pre-filled
   document.getElementById('itemCode').focus();
-
   itemModal.classList.remove('is-hidden');
 }
 
-// Filter System
+// ============================================================================
+// FILTER SYSTEM
+// ============================================================================
+
 function applyFilter() {
-  if (!currentState.fixadorSelection.size) {
-    showToast('Selecione um tamanho para aplicar o filtro', 'error');
+  const sel = currentState.fixadorSelection;
+
+  if (!sel.classe && !sel.diameter) {
+    showToast('Selecione ao menos a classe ou o diâmetro', 'error');
     return;
   }
 
   const medida = filterMedida.value.trim();
 
-  // Set active filters
   currentState.activeFilters = {
-    type: currentState.fixadorSelection.type,
-    size: currentState.fixadorSelection.size,
+    classe: sel.classe || null,
+    diameter: sel.diameter || null,
+    length: null,
+    head: null,
+    thread: null,
     medida: medida || null
   };
 
@@ -1041,8 +1233,11 @@ function applyFilter() {
 
 function clearCurrentFilter() {
   currentState.activeFilters = {
-    type: null,
-    size: null,
+    classe: null,
+    diameter: null,
+    length: null,
+    head: null,
+    thread: null,
     medida: null
   };
 
@@ -1051,10 +1246,14 @@ function clearCurrentFilter() {
   showToast('✓ Filtros removidos', 'success');
 }
 
+
 function clearAllFilters() {
   currentState.activeFilters = {
-    type: null,
-    size: null,
+    classe: null,
+    diameter: null,
+    length: null,
+    head: null,
+    thread: null,
     medida: null
   };
 
@@ -1063,35 +1262,32 @@ function clearAllFilters() {
 }
 
 function hasActiveFilters() {
-  const filters = currentState.activeFilters;
-  return filters.type || filters.size || filters.medida;
+  const f = currentState.activeFilters;
+  return !!(f.classe || f.diameter || f.length || f.head || f.thread || f.medida);
 }
 
 function applyActiveFilters(items) {
   if (!hasActiveFilters()) return items;
 
-  const filters = currentState.activeFilters;
+  const f = currentState.activeFilters;
 
   return items.filter(item => {
     const name = item.name.toLowerCase();
 
-    // Check type filter
-    if (filters.type) {
-      const typeWords = filters.type.toLowerCase().split(' ');
-      const hasAllTypeWords = typeWords.every(word => name.includes(word));
-      if (!hasAllTypeWords) return false;
+    if (f.classe) {
+      const classWords = f.classe.toLowerCase().split(/\s+/);
+      if (!classWords.every(w => name.includes(w))) return false;
     }
 
-    // Check size filter
-    if (filters.size) {
-      if (!name.includes(filters.size.toLowerCase())) return false;
-    }
+    if (f.diameter && !name.includes(f.diameter.toLowerCase())) return false;
+    if (f.length && !name.includes(`x${f.length}`.toLowerCase())) return false;
+    if (f.head && !name.includes(f.head.toLowerCase())) return false;
+    if (f.thread && f.thread !== 'Normal' && !name.includes(f.thread.toLowerCase())) return false;
 
-    // Check medida filter
-    if (filters.medida) {
-      const medidaWords = filters.medida.toLowerCase().split(' ');
-      const hasAnyMedidaWord = medidaWords.some(word => word && name.includes(word));
-      if (!hasAnyMedidaWord) return false;
+    if (f.medida) {
+      const medidaWords = f.medida.toLowerCase().split(/\s+/);
+      const hasAny = medidaWords.some(w => w && name.includes(w));
+      if (!hasAny) return false;
     }
 
     return true;
@@ -1107,30 +1303,27 @@ function updateActiveFiltersDisplay() {
   activeFilters.style.display = 'block';
   filterTags.innerHTML = '';
 
-  const filters = currentState.activeFilters;
+  const f = currentState.activeFilters;
 
-  if (filters.type) {
-    const tag = createFilterTag('Tipo', filters.type, () => {
-      currentState.activeFilters.type = null;
+  if (f.classe) {
+    filterTags.appendChild(createFilterTag('Classe', f.classe, () => {
+      currentState.activeFilters.classe = null;
       renderItemsView();
-    });
-    filterTags.appendChild(tag);
+    }));
   }
 
-  if (filters.size) {
-    const tag = createFilterTag('Tamanho', filters.size, () => {
-      currentState.activeFilters.size = null;
+  if (f.diameter) {
+    filterTags.appendChild(createFilterTag('Diâmetro', f.diameter, () => {
+      currentState.activeFilters.diameter = null;
       renderItemsView();
-    });
-    filterTags.appendChild(tag);
+    }));
   }
 
-  if (filters.medida) {
-    const tag = createFilterTag('Medida', filters.medida, () => {
+  if (f.medida) {
+    filterTags.appendChild(createFilterTag('Medida', f.medida, () => {
       currentState.activeFilters.medida = null;
       renderItemsView();
-    });
-    filterTags.appendChild(tag);
+    }));
   }
 }
 
@@ -1286,7 +1479,8 @@ function setCategoryFilter(filter) {
     'all': 'Todos os Itens',
     'parafusos': 'Parafusos',
     'porcas': 'Porcas',
-    'arruelas': 'Arruelas'
+    'arruelas': 'Arruelas',
+    'rebites': 'Rebites Roscados'
   };
   availableItemsTitle.textContent = titles[filter] || 'Itens Disponíveis';
 
@@ -1301,6 +1495,7 @@ function populateAvailableItems() {
 function getItemCategory(item) {
   const name = item.name.toLowerCase();
 
+  if (name.includes('rebite')) return 'rebites';
   if (name.includes('parafuso')) return 'parafusos';
   if (name.includes('porca')) return 'porcas';
   if (name.includes('arruela')) return 'arruelas';

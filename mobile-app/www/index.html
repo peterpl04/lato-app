@@ -280,6 +280,10 @@
               <span class="icon">⭕</span>
               <span>Arruelas</span>
             </button>
+            <button type="button" class="category-filter-btn" data-filter="rebites">
+              <span class="icon">📌</span>
+              <span>Rebites</span>
+            </button>
           </div>
         </div>
         
@@ -342,81 +346,49 @@
     </div>
   </div>
 
-  <!-- MODAL: Fixador Type Selection -->
+  <!-- MODAL: Fixador Class Selection -->
   <div id="fixadorTypeModal" class="modal is-hidden">
     <div class="modal-overlay"></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3>Selecionar Tipo de Fixador</h3>
+        <h3>Selecionar Classe</h3>
         <button id="btnCloseFixadorTypeModal" class="btn-modal-close" type="button">✕</button>
       </div>
       <div class="modal-body">
-        <div class="fixador-categories">
-
-          <!-- Seção Parafusos -->
-          <div class="fixador-category-section">
-            <h4 class="category-title">Parafusos</h4>
-            <div class="fixador-types-grid">
-              <button class="fixador-type-btn" data-type="Parafuso Sextavado" type="button">
-                <div class="fixador-icon">🔧</div>
-                <span>Parafuso Sextavado</span>
-              </button>
-              <button class="fixador-type-btn" data-type="Parafuso Rosca Soberba" type="button">
-                <div class="fixador-icon">📐</div>
-                <span>Parafuso Rosca Soberba</span>
-              </button>
-              <button class="fixador-type-btn" data-type="Parafuso Allen" type="button">
-                <div class="fixador-icon">🔑</div>
-                <span>Parafuso Allen</span>
-              </button>
-              <button class="fixador-type-btn" data-type="Parafuso Allen Cabeça Chata" type="button">
-                <div class="fixador-icon">⚪</div>
-                <span>Parafuso Allen Cabeça Chata</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Seção Porcas -->
-          <div class="fixador-category-section">
-            <h4 class="category-title">Porcas</h4>
-            <div class="fixador-types-grid">
-              <button class="fixador-type-btn" data-type="Porca Lisa" type="button">
-                <div class="fixador-icon">🔩</div>
-                <span>Porca Lisa</span>
-              </button>
-              <button class="fixador-type-btn" data-type="Porca Parlock" type="button">
-                <div class="fixador-icon">🔒</div>
-                <span>Porca Parlock</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Seção Arruelas -->
-          <div class="fixador-category-section">
-            <h4 class="category-title">Arruelas</h4>
-            <div class="fixador-types-grid">
-              <button class="fixador-type-btn" data-type="Arruela" type="button">
-                <div class="fixador-icon">⭕</div>
-                <span>Arruela</span>
-              </button>
-            </div>
-          </div>
-
+        <div class="fixador-types-grid">
+          <button class="fixador-type-btn" data-class="Parafuso" type="button">
+            <div class="fixador-icon">🔧</div>
+            <span>Parafuso</span>
+          </button>
+          <button class="fixador-type-btn" data-class="Porca" type="button">
+            <div class="fixador-icon">🔩</div>
+            <span>Porca</span>
+          </button>
+          <button class="fixador-type-btn" data-class="Arruela" type="button">
+            <div class="fixador-icon">⭕</div>
+            <span>Arruela</span>
+          </button>
+          <button class="fixador-type-btn" data-class="Rebite Roscado" type="button">
+            <div class="fixador-icon">📌</div>
+            <span>Rebite Roscado</span>
+          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- MODAL: Fixador Size Selection -->
+  <!-- MODAL: Fixador Diameter Selection -->
   <div id="fixadorSizeModal" class="modal is-hidden">
     <div class="modal-overlay"></div>
     <div class="modal-dialog">
       <div class="modal-header">
-        <h3 id="fixadorSizeTitle">Selecionar Tamanho</h3>
+        <h3 id="fixadorSizeTitle">Selecionar Diâmetro</h3>
         <button id="btnCloseFixadorSizeModal" class="btn-modal-close" type="button">✕</button>
       </div>
       <div class="modal-body">
         <div class="fixador-sizes-grid">
+          <button class="fixador-size-btn" data-size="M3" type="button">M3</button>
+          <button class="fixador-size-btn" data-size="M3,5" type="button">M3,5</button>
           <button class="fixador-size-btn" data-size="M4" type="button">M4</button>
           <button class="fixador-size-btn" data-size="M5" type="button">M5</button>
           <button class="fixador-size-btn" data-size="M6" type="button">M6</button>
@@ -431,12 +403,105 @@
         <div id="filterExtraFields" class="filter-extra-fields" style="display: none;">
           <div class="form-field">
             <label for="filterMedida">Medida/Complemento</label>
-            <input id="filterMedida" type="text" placeholder="Ex: x50mm, Inox, etc." />
+            <input id="filterMedida" type="text" placeholder="Ex: x50, Francês, etc." />
           </div>
           <div class="filter-actions">
             <button id="btnApplyFilter" class="btn-primary" type="button">Aplicar Filtro</button>
             <button id="btnClearFilter" class="btn-secondary" type="button">Limpar Filtro</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Length Selection (Parafuso, Rebite Roscado) -->
+  <div id="fixadorLengthModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Comprimento (mm)</h3>
+        <button id="btnCloseFixadorLengthModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label for="fixadorLengthInput">Informe o comprimento em milímetros <span class="required">*</span></label>
+          <input id="fixadorLengthInput" type="number" min="1" step="1" placeholder="Ex: 35" autocomplete="off" />
+        </div>
+        <div class="filter-actions">
+          <button id="btnConfirmFixadorLength" class="btn-primary" type="button">Continuar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Head Selection (Parafuso) -->
+  <div id="fixadorHeadModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Tipo de Cabeça</h3>
+        <button id="btnCloseFixadorHeadModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-types-grid">
+          <button class="fixador-head-btn fixador-type-btn" data-head="Sextavado" type="button">
+            <div class="fixador-icon">⬡</div>
+            <span>Sextavado</span>
+          </button>
+          <button class="fixador-head-btn fixador-type-btn" data-head="Francês" type="button">
+            <div class="fixador-icon">🔩</div>
+            <span>Francês</span>
+          </button>
+          <button class="fixador-head-btn fixador-type-btn" data-head="Abaulado" type="button">
+            <div class="fixador-icon">⬤</div>
+            <span>Abaulado</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Thread Selection (Parafuso) -->
+  <div id="fixadorThreadModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Tipo de Rosca</h3>
+        <button id="btnCloseFixadorThreadModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-types-grid">
+          <button class="fixador-thread-btn fixador-type-btn" data-thread="Normal" type="button">
+            <div class="fixador-icon">📐</div>
+            <span>Normal</span>
+          </button>
+          <button class="fixador-thread-btn fixador-type-btn" data-thread="Soberbo" type="button">
+            <div class="fixador-icon">🌀</div>
+            <span>Soberbo</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Porca Type Selection -->
+  <div id="fixadorPorcaTypeModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Tipo de Porca</h3>
+        <button id="btnCloseFixadorPorcaTypeModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-types-grid">
+          <button class="fixador-porca-type-btn fixador-type-btn" data-porca-type="Lisa" type="button">
+            <div class="fixador-icon">🔩</div>
+            <span>Lisa</span>
+          </button>
+          <button class="fixador-porca-type-btn fixador-type-btn" data-porca-type="Parlock" type="button">
+            <div class="fixador-icon">🔒</div>
+            <span>Parlock</span>
+          </button>
         </div>
       </div>
     </div>

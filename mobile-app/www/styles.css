@@ -406,27 +406,107 @@ body {
 }
 
 .items-list {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   max-width: 100%;
 }
 
-/* â”€â”€ Fixadores section header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* â”€â”€ Items toolbar (stock toggle etc) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.items-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 0 4px;
+}
+
+.btn-stock-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border-soft);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all var(--transition-default);
+}
+
+.btn-stock-toggle:hover {
+  border-color: #10b981;
+  color: #059669;
+}
+
+.btn-stock-toggle.active {
+  background: #ecfdf5;
+  border-color: #10b981;
+  color: #059669;
+}
+
+.stock-toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d1d5db;
+  flex-shrink: 0;
+  transition: background var(--transition-default);
+}
+
+.btn-stock-toggle.active .stock-toggle-dot {
+  background: #10b981;
+}
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
+/* â”€â”€ Fixadores section groups (collapsible) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.items-section-group {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-soft);
+}
+
 .items-section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 4px 4px;
-  margin-top: 8px;
-  border-bottom: 2px solid var(--accent);
+  gap: 8px;
+  padding: 11px 16px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.04), transparent);
+  border-bottom: 1px solid var(--border-soft);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-default);
 }
 
-.items-section-header:first-child {
-  margin-top: 0;
+.items-section-header:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.09), transparent);
+}
+
+.section-chevron {
+  font-size: 10px;
+  color: var(--accent);
+  transition: transform 0.25s ease;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.items-section-header.collapsed .section-chevron {
+  transform: rotate(-90deg);
+}
+
+.items-section-body {
+  /* body visible by default */
+}
+
+.items-section-body.collapsed {
+  display: none;
 }
 
 .items-section-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -443,9 +523,23 @@ body {
 }
 /* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
+/* â”€â”€ Stock dot indicator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.item-stock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.item-stock-dot.ok    { background: #10b981; }
+.item-stock-dot.low   { background: #f59e0b; }
+.item-stock-dot.zero  { background: #e5e7eb; border: 1.5px solid #d1d5db; }
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+
 .item-card {
   display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  grid-template-columns: 8px 1fr auto auto;
   gap: 16px;
   align-items: center;
   padding: 16px 20px;
@@ -511,9 +605,55 @@ body {
   box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
 }
 
+.item-card-qty.zero {
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+}
+
 .item-card:hover .item-card-qty {
   transform: scale(1.05);
 }
+
+/* â”€â”€ Compact cards inside collapsible section groups â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.items-section-body .item-card {
+  padding: 9px 16px;
+  border: none;
+  border-top: 1px solid var(--border-soft);
+  border-radius: 0;
+  box-shadow: none;
+  gap: 12px;
+}
+
+.items-section-body .item-card:first-child {
+  border-top: none;
+}
+
+.items-section-body .item-card:hover {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.04), transparent);
+  transform: none;
+  box-shadow: none;
+  border-color: var(--border-soft);
+}
+
+.items-section-body .item-card:active {
+  transform: none;
+}
+
+.items-section-body .item-card:hover .item-card-qty {
+  transform: scale(1.08);
+}
+
+.items-section-body .item-card-qty {
+  width: 46px;
+  height: 32px;
+  font-size: 14px;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.2);
+}
+
+.items-section-body .item-card-qty.low {
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.2);
+}
+/* â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 
 .item-card-arrow {
   width: 28px;
@@ -1568,7 +1708,7 @@ body {
 
 .item-card {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: 8px 1fr auto auto;
   gap: 16px;
   align-items: center;
   padding: 16px 20px;
@@ -1898,7 +2038,7 @@ body {
   .item-card {
     padding: 12px 16px;
     gap: 12px;
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: 8px 1fr auto auto;
   }
 
   .item-card-qty-section {

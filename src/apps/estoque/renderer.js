@@ -1093,6 +1093,16 @@ function composeFixadorName(sel) {
     return `Porca${tipo} ${sel.diameter}`;
   }
 
+  if (sel.classe === 'Parafuso') {
+    let name = `Parafuso Inox`;
+    if (sel.head) name += ` ${sel.head}`;
+    name += ` ${sel.diameter}`;
+    if (sel.length) name += `x${sel.length}`;
+    if (sel.thread && sel.thread !== 'Normal') name += ` ${sel.thread}`;
+    return name;
+  }
+
+  // Arruela, Rebite Roscado, outros
   let name = `${sel.classe} ${sel.diameter}`;
   if (sel.length) name += `x${sel.length}`;
   if (sel.head) name += ` ${sel.head}`;

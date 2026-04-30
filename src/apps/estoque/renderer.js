@@ -131,7 +131,7 @@ async function init() {
   attachEventListeners();
   initBatchExitSystem();
   renderCategoryView();
-  
+
   // Iniciar sistema de atualizações em tempo real
   startRealTimeUpdates();
 }
@@ -149,7 +149,7 @@ const POLLING_INTERVAL = 5000; // 5 segundos
 
 // Função para gerar hash dos dados para detectar mudanças
 function generateDataHash(data) {
-  return JSON.stringify(data).length + '_' + Object.keys(data).map(category => 
+  return JSON.stringify(data).length + '_' + Object.keys(data).map(category =>
     (data[category] || []).reduce((sum, item) => sum + (item.quantity || 0), 0)
   ).join('_');
 }
@@ -161,12 +161,12 @@ function hasDataChanged(newData) {
     lastDataHash = newHash;
     return false;
   }
-  
+
   if (newHash !== lastDataHash) {
     lastDataHash = newHash;
     return true;
   }
-  
+
   return false;
 }
 
@@ -231,15 +231,15 @@ async function saveData() {
 async function loadDataSilently() {
   try {
     const newData = {};
-    
+
     for (const category of Object.keys(categories)) {
       const items = await apiCall(`/estoque/items/${category}`);
-      
+
       const itemsWithMovements = await Promise.all(
         items.map(async (item) => {
           try {
             const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
-            
+
             const movements = (data.movements || []).map(m => ({
               id: m.id,
               type: m.movement_type,
@@ -247,7 +247,7 @@ async function loadDataSilently() {
               quantity: m.quantity,
               address: m.address
             }));
-            
+
             return {
               id: item.item_id,
               name: item.name,
@@ -267,17 +267,17 @@ async function loadDataSilently() {
           }
         })
       );
-      
+
       newData[category] = itemsWithMovements;
     }
-    
+
     // Verificar se houve mudanças
     if (hasDataChanged(newData)) {
       console.log('🔄 Dados atualizados detectados, sincronizando interface...');
-      
+
       // Atualizar dados locais
       currentState.items = newData;
-      
+
       // Atualizar interface baseado na view atual
       if (currentState.currentView === 'categories') {
         renderCategoryView();
@@ -292,11 +292,11 @@ async function loadDataSilently() {
           renderItemDetailsView();
         }
       }
-      
+
       // Mostrar notificação discreta
       showToast('📊 Dados atualizados automaticamente', 'info', 2000);
     }
-    
+
   } catch (error) {
     console.error('Erro no polling de dados:', error);
     // Não mostrar toast para evitar spam de erros
@@ -305,17 +305,17 @@ async function loadDataSilently() {
 
 function startRealTimeUpdates() {
   if (isPolling) return;
-  
+
   isPolling = true;
   console.log('🔄 Sistema de atualizações em tempo real iniciado');
-  
+
   pollingInterval = setInterval(() => {
     // Só fazer polling se a aba estiver ativa
     if (!document.hidden) {
       loadDataSilently();
     }
   }, POLLING_INTERVAL);
-  
+
   // Pausar polling quando aba não está ativa (economizar recursos)
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -330,7 +330,7 @@ function startRealTimeUpdates() {
 
 function stopRealTimeUpdates() {
   if (!isPolling) return;
-  
+
   isPolling = false;
   if (pollingInterval) {
     clearInterval(pollingInterval);
@@ -376,12 +376,12 @@ function attachEventListeners() {
   movementForm.addEventListener('submit', handleAddMovement);
   btnCloseMovementModal.addEventListener('click', closeMovementModal);
   btnCancelMovementForm.addEventListener('click', closeMovementModal);
-  
+
   // Clear validation errors on input
   movementAddress.addEventListener('input', () => {
     movementAddress.classList.remove('required-error');
   });
-  
+
   batchExitAddress.addEventListener('input', () => {
     batchExitAddress.classList.remove('required-error');
   });
@@ -482,7 +482,7 @@ function renderItemsView() {
   if (category === 'fixadores') {
     btnFilterItems.style.display = 'flex';
     btnBatchExit.style.display = 'flex';
-    
+
     // Show clear filters button only when there are active filters
     if (hasActiveFilters()) {
       btnClearActiveFilters.style.display = 'flex';
@@ -768,7 +768,7 @@ function openMovementModal(type) {
     exitAddressGroup.classList.remove('is-hidden');
     movementAddress.setAttribute('required', 'required');
   }
-  
+
   // Remove error classes
   movementAddress.classList.remove('required-error');
 
@@ -783,12 +783,12 @@ function openInlineMovementModal(type, itemId) {
   const category = currentState.currentCategory;
   const items = currentState.items[category] || [];
   const item = items.find(i => i.id === itemId);
-  
+
   if (!item) {
     showToast('Item não encontrado', 'error');
     return;
   }
-  
+
   currentState.currentItem = item;
   openMovementModal(type);
 }
@@ -812,7 +812,7 @@ async function handleAddMovement(e) {
   }
 
   const type = currentState.movementType;
-  
+
   // Validação obrigatória para saídas
   if (type === 'saida' && !address) {
     showToast('⚠️ Endereço/Local de Saída é obrigatório para operações de saída', 'error');
@@ -820,7 +820,7 @@ async function handleAddMovement(e) {
     movementAddress.focus();
     return;
   }
-  
+
   // Remove error class if validation passes
   movementAddress.classList.remove('required-error');
 
@@ -1220,14 +1220,14 @@ function initBatchExitSystem() {
   btnBatchExit?.addEventListener('click', openBatchExitModal);
   btnConfirmBatchExit?.addEventListener('click', handleBatchExit);
   btnCancelBatchExit?.addEventListener('click', closeBatchExitModal);
-  
+
   // Search input
   batchSearchInput?.addEventListener('input', filterAvailableItems);
-  
+
   // Bulk actions
   btnSelectAllVisible?.addEventListener('click', selectAllVisibleItems);
   btnClearSelection?.addEventListener('click', clearAllSelections);
-  
+
   // Category filter buttons
   setTimeout(() => {
     const categoryBtns = document.querySelectorAll('.category-filter-btn');
@@ -1237,11 +1237,11 @@ function initBatchExitSystem() {
       });
     });
   }, 100);
-  
+
   // Close modal on overlay click
   const overlay = batchExitModal?.querySelector('.modal-overlay');
   overlay?.addEventListener('click', closeBatchExitModal);
-  
+
   // Close on modal close button
   const closeBtn = batchExitModal?.querySelector('[data-close="batchExitModal"]');
   closeBtn?.addEventListener('click', closeBatchExitModal);
@@ -1253,18 +1253,18 @@ function openBatchExitModal() {
   batchSearchInput.value = '';
   batchExitAddress.value = '';
   currentCategoryFilter = 'all';
-  
+
   // Reset category filter buttons
   setTimeout(() => {
     document.querySelectorAll('.category-filter-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.filter === 'all');
     });
   }, 50);
-  
+
   // Populate available items
   populateAvailableItems();
   updateSelectedItemsList();
-  
+
   // Show modal
   batchExitModal.classList.remove('is-hidden');
 }
@@ -1275,12 +1275,12 @@ function closeBatchExitModal() {
 
 function setCategoryFilter(filter) {
   currentCategoryFilter = filter;
-  
+
   // Update button states
   document.querySelectorAll('.category-filter-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);
   });
-  
+
   // Update title
   const titles = {
     'all': 'Todos os Itens',
@@ -1289,7 +1289,7 @@ function setCategoryFilter(filter) {
     'arruelas': 'Arruelas'
   };
   availableItemsTitle.textContent = titles[filter] || 'Itens Disponíveis';
-  
+
   // Re-filter items
   filterAvailableItems();
 }
@@ -1300,11 +1300,11 @@ function populateAvailableItems() {
 
 function getItemCategory(item) {
   const name = item.name.toLowerCase();
-  
+
   if (name.includes('parafuso')) return 'parafusos';
   if (name.includes('porca')) return 'porcas';
   if (name.includes('arruela')) return 'arruelas';
-  
+
   return 'outros';
 }
 
@@ -1312,17 +1312,17 @@ function filterAvailableItems() {
   const searchTerm = batchSearchInput.value.toLowerCase().trim();
   const category = currentState.currentCategory;
   const categoryItems = currentState.items[category] || [];
-  
+
   // Filter items by category filter, search term and stock
   let filteredItems = categoryItems.filter(item => {
     if ((item.quantity || 0) <= 0) return false;
-    
+
     // Category filter
     if (currentCategoryFilter !== 'all') {
       const itemCategory = getItemCategory(item);
       if (itemCategory !== currentCategoryFilter) return false;
     }
-    
+
     // Search term
     if (searchTerm) {
       return (
@@ -1330,16 +1330,16 @@ function filterAvailableItems() {
         item.code.toLowerCase().includes(searchTerm)
       );
     }
-    
+
     return true;
   });
-  
+
   renderAvailableItems(filteredItems);
 }
 
 function renderAvailableItems(items) {
   batchAvailableList.innerHTML = '';
-  
+
   if (items.length === 0) {
     batchAvailableList.innerHTML = `
       <div class="empty-selection">
@@ -1348,20 +1348,20 @@ function renderAvailableItems(items) {
     `;
     return;
   }
-  
+
   items.forEach(item => {
     const itemDiv = document.createElement('div');
     itemDiv.className = 'batch-item-available';
-    
+
     const isSelected = batchSelectedItems.has(item.id);
     if (isSelected) {
       itemDiv.classList.add('selected');
     }
-    
+
     itemDiv.innerHTML = `
-      <input 
-        type="checkbox" 
-        class="batch-item-checkbox" 
+      <input
+        type="checkbox"
+        class="batch-item-checkbox"
         data-item-id="${item.id}"
         ${isSelected ? 'checked' : ''}
       />
@@ -1371,7 +1371,7 @@ function renderAvailableItems(items) {
         <p class="batch-item-stock">Estoque: ${item.quantity || 0}</p>
       </div>
     `;
-    
+
     // Add checkbox handler
     const checkbox = itemDiv.querySelector('.batch-item-checkbox');
     checkbox.addEventListener('change', (e) => {
@@ -1381,10 +1381,10 @@ function renderAvailableItems(items) {
         removeItemFromBatch(item.id);
       }
     });
-    
+
     batchAvailableList.appendChild(itemDiv);
   });
-  
+
   updateBulkActionButtons();
 }
 
@@ -1394,7 +1394,7 @@ function addItemToBatch(item) {
     item: item,
     quantity: 1
   });
-  
+
   // Update UI
   updateSelectedItemsList();
   updateItemCheckboxState(item.id, true);
@@ -1411,11 +1411,11 @@ function removeItemFromBatch(itemId) {
 function updateItemCheckboxState(itemId, isSelected) {
   const checkbox = document.querySelector(`.batch-item-checkbox[data-item-id="${itemId}"]`);
   const itemDiv = checkbox?.closest('.batch-item-available');
-  
+
   if (checkbox) {
     checkbox.checked = isSelected;
   }
-  
+
   if (itemDiv) {
     itemDiv.classList.toggle('selected', isSelected);
   }
@@ -1423,7 +1423,7 @@ function updateItemCheckboxState(itemId, isSelected) {
 
 function selectAllVisibleItems() {
   const visibleCheckboxes = document.querySelectorAll('.batch-item-checkbox');
-  
+
   visibleCheckboxes.forEach(checkbox => {
     if (!checkbox.checked) {
       checkbox.checked = true;
@@ -1435,7 +1435,7 @@ function selectAllVisibleItems() {
 function clearAllSelections() {
   // Clear all selected items
   batchSelectedItems.clear();
-  
+
   // Update checkboxes
   const checkboxes = document.querySelectorAll('.batch-item-checkbox');
   checkboxes.forEach(checkbox => {
@@ -1443,7 +1443,7 @@ function clearAllSelections() {
     const itemDiv = checkbox.closest('.batch-item-available');
     itemDiv?.classList.remove('selected');
   });
-  
+
   updateSelectedItemsList();
   updateBulkActionButtons();
 }
@@ -1456,10 +1456,10 @@ function updateBulkActionButtons() {
 function updateSelectedItemsList() {
   const count = batchSelectedItems.size;
   batchSelectedCount.textContent = count;
-  
+
   // Enable/disable confirm button
   btnConfirmBatchExit.disabled = count === 0;
-  
+
   if (count === 0) {
     batchSelectedList.innerHTML = `
       <div class="empty-selection">
@@ -1468,13 +1468,13 @@ function updateSelectedItemsList() {
     `;
     return;
   }
-  
+
   batchSelectedList.innerHTML = '';
-  
+
   batchSelectedItems.forEach(({ item, quantity }, itemId) => {
     const selectedDiv = document.createElement('div');
     selectedDiv.className = 'batch-item-selected';
-    
+
     selectedDiv.innerHTML = `
       <div class="batch-item-info">
         <h4 class="batch-item-name">${escapeHtml(item.name)}</h4>
@@ -1482,28 +1482,28 @@ function updateSelectedItemsList() {
         <p class="batch-item-stock">Estoque: ${item.quantity || 0}</p>
       </div>
       <div class="batch-quantity-controls">
-        <input 
-          type="number" 
-          class="batch-quantity-input" 
+        <input
+          type="number"
+          class="batch-quantity-input"
           data-item-id="${itemId}"
-          min="1" 
-          max="${item.quantity || 0}" 
+          min="1"
+          max="${item.quantity || 0}"
           value="${quantity}"
           placeholder="Qtd"
         />
         <button type="button" class="batch-remove-btn" data-item-id="${itemId}">×</button>
       </div>
     `;
-    
+
     // Add event listeners
     const removeBtn = selectedDiv.querySelector('.batch-remove-btn');
     removeBtn.addEventListener('click', () => removeItemFromBatch(itemId));
-    
+
     const quantityInput = selectedDiv.querySelector('.batch-quantity-input');
     quantityInput.addEventListener('input', (e) => {
       validateAndUpdateQuantity(itemId, e.target);
     });
-    
+
     batchSelectedList.appendChild(selectedDiv);
   });
 }
@@ -1511,16 +1511,16 @@ function updateSelectedItemsList() {
 function validateAndUpdateQuantity(itemId, input) {
   const max = parseInt(input.getAttribute('max'));
   const value = parseInt(input.value);
-  
+
   if (value > max) {
     input.value = max;
     showToast(`Quantidade máxima disponível: ${max}`, 'warning');
   }
-  
+
   if (value < 1) {
     input.value = 1;
   }
-  
+
   // Update quantity in state
   const selectedItem = batchSelectedItems.get(itemId);
   if (selectedItem) {
@@ -1533,20 +1533,20 @@ async function handleBatchExit() {
     showToast('Selecione pelo menos um item', 'error');
     return;
   }
-  
+
   // Validate quantities
   for (const [itemId, { item, quantity }] of batchSelectedItems) {
     if (!quantity || quantity < 1) {
       showToast('Todas as quantidades devem ser maior que 0', 'error');
       return;
     }
-    
+
     if (quantity > item.quantity) {
       showToast(`Quantidade excede estoque disponível para ${item.name}`, 'error');
       return;
     }
   }
-  
+
   // Validate required address for exits
   const address = batchExitAddress.value.trim();
   if (!address) {
@@ -1555,17 +1555,17 @@ async function handleBatchExit() {
     batchExitAddress.focus();
     return;
   }
-  
+
   // Remove error class if validation passes
   batchExitAddress.classList.remove('required-error');
-  
+
   // Show loading state
   btnConfirmBatchExit.disabled = true;
   btnConfirmBatchExit.innerHTML = '<span class="icon">⏳</span><span>Processando...</span>';
-  
+
   try {
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Process each exit
     for (const [itemId, { item, quantity }] of batchSelectedItems) {
       await apiCall(`/estoque/items/${itemId}/movements`, {
@@ -1578,15 +1578,15 @@ async function handleBatchExit() {
         })
       });
     }
-    
+
     // Success
     showToast(`✅ ${batchSelectedItems.size} saída(s) registrada(s) com sucesso!`, 'success');
-    
+
     // Reload data and close modal
     await loadData();
     renderItemsView();
     closeBatchExitModal();
-    
+
   } catch (error) {
     console.error('Erro no batch exit:', error);
     showToast('Erro ao processar saídas múltiplas', 'error');

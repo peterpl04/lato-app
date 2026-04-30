@@ -1539,26 +1539,26 @@ body {
     width: 98vw;
     max-height: 95vh;
   }
-  
+
   .category-filter-buttons {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .available-header {
     flex-direction: column;
     align-items: stretch;
   }
-  
+
   .bulk-actions {
     justify-content: center;
   }
-  
+
   .batch-item-available {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
-  
+
   .batch-quantity-controls {
     justify-content: space-between;
     min-width: auto;

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>ESTOQUE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <main class="estoque-app">
+    <!-- CATEGORY VIEW -->
+    <div id="categoryView" class="view view-active">
+      <div class="view-header">
+        <div class="header-content">
+          <h1 class="app-title">
+            <span class="icon">📦</span>
+            <span>ESTOQUE</span>
+          </h1>
+          <p class="app-subtitle">Gerenciamento de inventário por categoria</p>
+        </div>
+      </div>
+
+      <div class="categories-container">
+        <div class="categories-grid">
+          <button class="category-btn" data-category="pneumatica" type="button">
+            <div class="category-bg"></div>
+            <div class="category-content">
+              <div class="category-icon">🔧</div>
+              <h3>Pneumática</h3>
+              <p class="category-desc">Componentes pneumáticos</p>
+              <div class="category-badge" data-count="pneumatica">0</div>
+            </div>
+          </button>
+
+          <button class="category-btn" data-category="fixadores" type="button">
+            <div class="category-bg"></div>
+            <div class="category-content">
+              <div class="category-icon">⚙️</div>
+              <h3>Fixadores</h3>
+              <p class="category-desc">Parafusos e fixações</p>
+              <div class="category-badge" data-count="fixadores">0</div>
+            </div>
+          </button>
+
+          <button class="category-btn" data-category="eletrica" type="button">
+            <div class="category-bg"></div>
+            <div class="category-content">
+              <div class="category-icon">⚡</div>
+              <h3>Elétrica</h3>
+              <p class="category-desc">Componentes elétricos</p>
+              <div class="category-badge" data-count="eletrica">0</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEMS VIEW -->
+    <div id="itemsView" class="view">
+      <div id="itemsLoading" class="view-loading" aria-live="polite" aria-hidden="true">
+        <i class="fa-solid fa-spinner"></i>
+        <span>Carregando itens...</span>
+      </div>
+
+      <div class="view-header">
+        <button id="btnBackToCategories" class="btn-icon-back" type="button" title="Voltar para categorias">
+          <span>←</span>
+        </button>
+        <div class="header-content">
+          <h2 id="categoryTitle" class="view-title">Categoria</h2>
+          <p class="view-subtitle" id="categorySubtitle">Itens em estoque</p>
+        </div>
+        <div class="header-actions">
+          <button id="btnClearActiveFilters" class="btn-clear-active" type="button" style="display: none;">
+            <span class="icon">🗑</span>
+            <span>Limpar Filtros</span>
+          </button>
+          <button id="btnFilterItems" class="btn-secondary-sm" type="button" style="display: none;">
+            <span class="icon">🔍</span>
+            <span>Filtro</span>
+          </button>
+          <button id="btnBatchExit" class="btn-batch-exit" type="button">
+            <span class="icon">📦</span>
+            <span>Saída Múltipla</span>
+          </button>
+          <button id="btnAddItem" class="btn-primary-sm" type="button">+ Novo Item</button>
+        </div>
+      </div>
+
+      <div class="items-container">
+        <!-- Active filters display -->
+        <div id="activeFilters" class="active-filters" style="display: none;">
+          <div class="filters-header">
+            <span>Filtros Ativos:</span>
+            <button id="btnClearAllFilters" class="btn-clear-filters" type="button">✕ Limpar Todos</button>
+          </div>
+          <div id="filterTags" class="filter-tags"></div>
+        </div>
+
+        <div class="items-list" id="itemsList"></div>
+      </div>
+    </div>
+
+    <!-- ITEM DETAILS VIEW -->
+    <div id="itemDetailsView" class="view">
+      <div id="detailsLoading" class="view-loading" aria-live="polite" aria-hidden="true">
+        <i class="fa-solid fa-spinner"></i>
+        <span>Carregando detalhes...</span>
+      </div>
+
+      <div class="view-header">
+        <button id="btnBackToItems" class="btn-icon-back" type="button" title="Voltar para itens">
+          <span>←</span>
+        </button>
+        <div class="header-content">
+          <h2 id="itemTitle" class="view-title">Item</h2>
+          <p class="view-subtitle">Detalhes e movimentações</p>
+        </div>
+      </div>
+
+      <div class="details-container">
+        <div class="details-card">
+          <div class="card-section">
+            <div class="detail-row">
+              <label>Nome do Item</label>
+              <p id="detailItemName">-</p>
+            </div>
+            <div class="detail-row">
+              <label>Código / SKU</label>
+              <p id="detailItemCode">-</p>
+            </div>
+            <div class="detail-row">
+              <label>Quantidade em Estoque</label>
+              <div class="qty-display">
+                <span id="detailItemQuantity" class="qty-value">0</span>
+                <span class="qty-unit">unidades</span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <label>Última Movimentação</label>
+              <p id="detailLastMovement">-</p>
+            </div>
+          </div>
+
+          <div class="card-divider"></div>
+
+          <div class="card-actions">
+            <button id="btnAddEntry" class="btn-action btn-entry" type="button">
+              <span class="icon">↓</span>
+              <span>Entrada</span>
+            </button>
+            <button id="btnAddExit" class="btn-action btn-exit" type="button">
+              <span class="icon">↑</span>
+              <span>Saída</span>
+            </button>
+            <button id="btnDeleteItem" class="btn-action btn-danger" type="button">
+              <span class="icon">🗑</span>
+              <span>Deletar</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="movements-card">
+          <div class="card-header">
+            <h3>Histórico de Movimentações</h3>
+            <span id="movementCount" class="count-badge">0</span>
+          </div>
+          <ul id="movementsList" class="movements-list"></ul>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- MODAL: Add/Edit Item -->
+  <div id="itemModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Adicionar Novo Item</h3>
+        <button id="btnCloseItemModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <form id="itemForm" class="modal-body">
+        <div class="form-field">
+          <label for="itemName">Nome do Item *</label>
+          <input id="itemName" type="text" placeholder="Ex: Cilindro Pneumático 32x100" required />
+        </div>
+        <div class="form-field">
+          <label for="itemCode">Código / SKU *</label>
+          <input id="itemCode" type="text" placeholder="Ex: CIL-32-100" required />
+        </div>
+        <div class="form-field">
+          <label for="itemInitialQuantity">Quantidade Inicial *</label>
+          <input id="itemInitialQuantity" type="number" placeholder="0" min="0" required />
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-primary">Adicionar Item</button>
+          <button type="button" id="btnCancelItemForm" class="btn-secondary">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Add Movement -->
+  <div id="movementModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="movementModalTitle">Registrar Movimentação</h3>
+        <button id="btnCloseMovementModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <form id="movementForm" class="modal-body">
+        <div class="form-field">
+          <label for="movementDate">Data da Movimentação *</label>
+          <input id="movementDate" type="date" required />
+        </div>
+        <div class="form-field">
+          <label for="movementQuantity">Quantidade *</label>
+          <input id="movementQuantity" type="number" placeholder="0" min="1" required />
+        </div>
+        <div id="exitAddressGroup" class="form-field is-hidden">
+          <label for="movementAddress">Endereço/Local de Saída <span class="required">*</span></label>
+          <input id="movementAddress" type="text" placeholder="Ex: A-01-03 (obrigatório para saídas)" />
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-primary" id="btnSubmitMovement">Registrar Movimentação</button>
+          <button type="button" id="btnCancelMovementForm" class="btn-secondary">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Confirm Delete -->
+  <div id="confirmDeleteModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h3>Confirmar Exclusão</h3>
+      </div>
+      <div class="modal-body">
+        <p>Tem certeza que deseja deletar este item? Esta ação não pode ser desfeita.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="btnConfirmDelete" type="button" class="btn-danger">Deletar</button>
+        <button id="btnCancelDelete" type="button" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Batch Exit Selection -->
+  <div id="batchExitModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>Saída Múltipla - Selecionar Itens</h3>
+        <button type="button" class="modal-close" data-close="batchExitModal">×</button>
+      </div>
+      <div class="modal-body">
+        <!-- Quick Category Filters -->
+        <div class="batch-category-filters">
+          <h4>Filtros Rápidos</h4>
+          <div class="category-filter-buttons">
+            <button type="button" class="category-filter-btn active" data-filter="all">
+              <span class="icon">📦</span>
+              <span>Todos os Itens</span>
+            </button>
+            <button type="button" class="category-filter-btn" data-filter="parafusos">
+              <span class="icon">🔧</span>
+              <span>Parafusos</span>
+            </button>
+            <button type="button" class="category-filter-btn" data-filter="porcas">
+              <span class="icon">🔩</span>
+              <span>Porcas</span>
+            </button>
+            <button type="button" class="category-filter-btn" data-filter="arruelas">
+              <span class="icon">⭕</span>
+              <span>Arruelas</span>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Search Section -->
+        <div class="batch-search-section">
+          <div class="form-field">
+            <label for="batchSearchInput">Busca Específica (Opcional)</label>
+            <input 
+              id="batchSearchInput" 
+              type="text" 
+              placeholder="Digite para busca específica..." 
+              class="search-input"
+            />
+            <small class="field-hint">Use os botões acima para filtros rápidos ou digite aqui para busca específica</small>
+          </div>
+        </div>
+        
+        <!-- Available Items -->
+        <div class="batch-available-section">
+          <div class="available-header">
+            <h4 id="availableItemsTitle">Itens Disponíveis</h4>
+            <div class="bulk-actions">
+              <button type="button" id="btnSelectAllVisible" class="btn-bulk-action">
+                ✓ Selecionar Todos Visíveis
+              </button>
+              <button type="button" id="btnClearSelection" class="btn-bulk-action" style="display: none;">
+                ✗ Limpar Seleção
+              </button>
+            </div>
+          </div>
+          <div class="batch-available-list" id="batchAvailableList">
+            <!-- Available items will be populated here -->
+          </div>
+        </div>
+        
+        <!-- Selected Items -->
+        <div class="batch-selected-section">
+          <h4>Itens Selecionados (<span id="batchSelectedCount">0</span>)</h4>
+          <div class="batch-selected-list" id="batchSelectedList">
+            <div class="empty-selection">
+              <p>Nenhum item selecionado</p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Address Field -->
+        <div class="form-field">
+          <label for="batchExitAddress">Endereço/Local de Saída <span class="required">*</span></label>
+          <input id="batchExitAddress" type="text" placeholder="Ex: A-01-03 (obrigatório para saídas)" />
+          <small class="field-hint">Este endereço será aplicado a todos os itens</small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnConfirmBatchExit" type="button" class="btn-primary" disabled>
+          <span class="icon">📦</span>
+          <span>Confirmar Saídas</span>
+        </button>
+        <button id="btnCancelBatchExit" type="button" class="btn-secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Type Selection -->
+  <div id="fixadorTypeModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3>Selecionar Tipo de Fixador</h3>
+        <button id="btnCloseFixadorTypeModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-categories">
+
+          <!-- Seção Parafusos -->
+          <div class="fixador-category-section">
+            <h4 class="category-title">Parafusos</h4>
+            <div class="fixador-types-grid">
+              <button class="fixador-type-btn" data-type="Parafuso Sextavado" type="button">
+                <div class="fixador-icon">🔧</div>
+                <span>Parafuso Sextavado</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Parafuso Rosca Soberba" type="button">
+                <div class="fixador-icon">📐</div>
+                <span>Parafuso Rosca Soberba</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Parafuso Allen" type="button">
+                <div class="fixador-icon">🔑</div>
+                <span>Parafuso Allen</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Parafuso Allen Cabeça Chata" type="button">
+                <div class="fixador-icon">⚪</div>
+                <span>Parafuso Allen Cabeça Chata</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Seção Porcas -->
+          <div class="fixador-category-section">
+            <h4 class="category-title">Porcas</h4>
+            <div class="fixador-types-grid">
+              <button class="fixador-type-btn" data-type="Porca Lisa" type="button">
+                <div class="fixador-icon">🔩</div>
+                <span>Porca Lisa</span>
+              </button>
+              <button class="fixador-type-btn" data-type="Porca Parlock" type="button">
+                <div class="fixador-icon">🔒</div>
+                <span>Porca Parlock</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Seção Arruelas -->
+          <div class="fixador-category-section">
+            <h4 class="category-title">Arruelas</h4>
+            <div class="fixador-types-grid">
+              <button class="fixador-type-btn" data-type="Arruela" type="button">
+                <div class="fixador-icon">⭕</div>
+                <span>Arruela</span>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Fixador Size Selection -->
+  <div id="fixadorSizeModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="fixadorSizeTitle">Selecionar Tamanho</h3>
+        <button id="btnCloseFixadorSizeModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="fixador-sizes-grid">
+          <button class="fixador-size-btn" data-size="M4" type="button">M4</button>
+          <button class="fixador-size-btn" data-size="M5" type="button">M5</button>
+          <button class="fixador-size-btn" data-size="M6" type="button">M6</button>
+          <button class="fixador-size-btn" data-size="M8" type="button">M8</button>
+          <button class="fixador-size-btn" data-size="M10" type="button">M10</button>
+          <button class="fixador-size-btn" data-size="M12" type="button">M12</button>
+          <button class="fixador-size-btn" data-size="M16" type="button">M16</button>
+          <button class="fixador-size-btn" data-size="M20" type="button">M20</button>
+        </div>
+
+        <!-- Filter specific fields (hidden by default) -->
+        <div id="filterExtraFields" class="filter-extra-fields" style="display: none;">
+          <div class="form-field">
+            <label for="filterMedida">Medida/Complemento</label>
+            <input id="filterMedida" type="text" placeholder="Ex: x50mm, Inox, etc." />
+          </div>
+          <div class="filter-actions">
+            <button id="btnApplyFilter" class="btn-primary" type="button">Aplicar Filtro</button>
+            <button id="btnClearFilter" class="btn-secondary" type="button">Limpar Filtro</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="renderer.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,6 @@
+{
+  "appId": "br.lato.estoque",
+  "appName": "Lato Estoque",
+  "webDir": "www",
+  "server": { "androidScheme": "https" }
+}

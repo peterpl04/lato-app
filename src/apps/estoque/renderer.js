@@ -24,6 +24,7 @@ let currentState = {
     thread: null,
     medida: null
   },
+  showOnlyWithStock: false,
   modalMode: 'add' // 'add' or 'filter'
 };
 
@@ -475,6 +476,7 @@ function selectCategory(categoryKey) {
 
 function goToCategories() {
   currentState.currentItem = null;
+  currentState.showOnlyWithStock = false;
   renderCategoryView();
   switchView('category');
 }
@@ -510,9 +512,15 @@ function renderItemsView() {
   categoryTitle.textContent = categoryData.name;
 
   // Show/hide fixadores-specific buttons
+  const itemsToolbar = document.getElementById('itemsToolbar');
   if (category === 'fixadores') {
     btnFilterItems.style.display = 'flex';
     btnBatchExit.style.display = 'flex';
+    if (itemsToolbar) itemsToolbar.style.display = 'flex';
+
+    // Sync stock toggle button state
+    const btnStockFilter = document.getElementById('btnStockFilter');
+    if (btnStockFilter) btnStockFilter.classList.toggle('active', currentState.showOnlyWithStock);
 
     // Show clear filters button only when there are active filters
     if (hasActiveFilters()) {
@@ -524,12 +532,18 @@ function renderItemsView() {
     btnFilterItems.style.display = 'none';
     btnClearActiveFilters.style.display = 'none';
     btnBatchExit.style.display = 'none';
+    if (itemsToolbar) itemsToolbar.style.display = 'none';
   }
 
   let items = currentState.items[category] || [];
 
   // Apply filters if active
   items = applyActiveFilters(items);
+
+  // Apply stock-only filter if enabled
+  if (currentState.showOnlyWithStock) {
+    items = items.filter(item => (item.quantity || 0) > 0);
+  }
 
   categorySubtitle.textContent = `${items.length} itens`;
 
@@ -616,25 +630,49 @@ function renderFixadoresGrouped(items) {
   }
 
   for (const [cls, groupItems] of groups) {
-    // Section header
-    const header = document.createElement('div');
-    header.className = 'items-section-header';
     const label = FIXADOR_CLASS_PLURAL[cls] || cls;
-    header.innerHTML = `<span class="items-section-label">${label}</span><span class="items-section-count">${groupItems.length}</span>`;
-    itemsList.appendChild(header);
 
-    groupItems.forEach(item => itemsList.appendChild(createItemCard(item)));
+    const group = document.createElement('div');
+    group.className = 'items-section-group';
+
+    // Collapsible header
+    const header = document.createElement('div');
+    header.className = 'items-section-header collapsible';
+    header.innerHTML = `
+      <span class="section-chevron">▼</span>
+      <span class="items-section-label">${label}</span>
+      <span class="items-section-count">${groupItems.length}</span>
+    `;
+
+    // Section body
+    const body = document.createElement('div');
+    body.className = 'items-section-body';
+    groupItems.forEach(item => body.appendChild(createItemCard(item)));
+
+    header.addEventListener('click', () => {
+      const isCollapsed = header.classList.toggle('collapsed');
+      body.classList.toggle('collapsed', isCollapsed);
+    });
+
+    group.appendChild(header);
+    group.appendChild(body);
+    itemsList.appendChild(group);
   }
 }
 
 function createItemCard(item) {
   const quantity = item.quantity || 0;
-  const isLow = quantity < 5;
+  const isLow = quantity > 0 && quantity < 5;
+  const isZero = quantity === 0;
+  const dotClass = isZero ? 'zero' : (isLow ? 'low' : 'ok');
+  const qtyClass = isZero ? 'zero' : (isLow ? 'low' : '');
+  const dotTitle = isZero ? 'Sem estoque' : (isLow ? 'Estoque baixo' : 'Em estoque');
 
   const card = document.createElement('div');
   card.className = 'item-card';
 
   card.innerHTML = `
+    <div class="item-stock-dot ${dotClass}" title="${dotTitle}"></div>
     <div class="item-card-info" onclick="viewItem('${item.id}')">
       <h3>${escapeHtml(item.name)}</h3>
       <p>${escapeHtml(item.code)}</p>
@@ -648,7 +686,7 @@ function createItemCard(item) {
           <span class="icon">↑</span>
         </button>
       </div>
-      <div class="item-card-qty ${isLow ? 'low' : ''}">${quantity}</div>
+      <div class="item-card-qty ${qtyClass}">${quantity}</div>
     </div>
     <div class="item-card-arrow" onclick="viewItem('${item.id}')">→</div>
   `;
@@ -1335,6 +1373,11 @@ function clearAllFilters() {
 
   renderItemsView();
   showToast('✓ Todos os filtros removidos', 'success');
+}
+
+function toggleStockFilter() {
+  currentState.showOnlyWithStock = !currentState.showOnlyWithStock;
+  renderItemsView();
 }
 
 function hasActiveFilters() {

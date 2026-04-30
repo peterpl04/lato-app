@@ -547,37 +547,113 @@ function renderItemsView() {
     return;
   }
 
-  items.forEach(item => {
-    const quantity = item.quantity || 0;
-    const isLow = quantity < 5;
-
-    const card = document.createElement('div');
-    card.className = 'item-card';
-
-    card.innerHTML = `
-      <div class="item-card-info" onclick="viewItem('${item.id}')">
-        <h3>${escapeHtml(item.name)}</h3>
-        <p>${escapeHtml(item.code)}</p>
-      </div>
-      <div class="item-card-qty-section">
-        <div class="item-card-actions">
-          <button class="btn-inline-entry" onclick="openInlineMovementModal('entrada', '${item.id}')" title="Registrar Entrada">
-            <span class="icon">↓</span>
-          </button>
-          <button class="btn-inline-exit" onclick="openInlineMovementModal('saida', '${item.id}')" title="Registrar Saída">
-            <span class="icon">↑</span>
-          </button>
-        </div>
-        <div class="item-card-qty ${isLow ? 'low' : ''}">${quantity}</div>
-      </div>
-      <div class="item-card-arrow" onclick="viewItem('${item.id}')">→</div>
-    `;
-
-    itemsList.appendChild(card);
-  });
+  if (category === 'fixadores') {
+    renderFixadoresGrouped(items);
+  } else {
+    items.forEach(item => itemsList.appendChild(createItemCard(item)));
+  }
 
   // Update active filters display
   updateActiveFiltersDisplay();
+}
+
+// ── Fixadores: grouped + sorted render ────────────────────────────────────────
+
+const FIXADOR_CLASS_ORDER = ['Parafuso', 'Porca', 'Arruela', 'Rebite Roscado'];
+const FIXADOR_CLASS_PLURAL = {
+  'Parafuso': 'Parafusos',
+  'Porca': 'Porcas',
+  'Arruela': 'Arruelas',
+  'Rebite Roscado': 'Rebites Roscados',
+  'Outros': 'Outros'
+};
+
+function getFixadorClass(name) {
+  const n = name.toLowerCase();
+  if (n.startsWith('parafuso')) return 'Parafuso';
+  if (n.startsWith('porca')) return 'Porca';
+  if (n.startsWith('arruela')) return 'Arruela';
+  if (n.startsWith('rebite')) return 'Rebite Roscado';
+  return 'Outros';
+}
+
+function extractDiameter(name) {
+  // Matches patterns like M3, M3,5, M10, M16 etc. (case-insensitive)
+  const m = name.match(/m([\d]+(?:[,.][\d]+)?)/i);
+  if (!m) return Infinity;
+  return parseFloat(m[1].replace(',', '.'));
+}
+
+function sortFixadores(items) {
+  return [...items].sort((a, b) => {
+    const clsA = getFixadorClass(a.name);
+    const clsB = getFixadorClass(b.name);
+
+    const orderA = FIXADOR_CLASS_ORDER.indexOf(clsA);
+    const orderB = FIXADOR_CLASS_ORDER.indexOf(clsB);
+    const clsOrder = (orderA === -1 ? 99 : orderA) - (orderB === -1 ? 99 : orderB);
+    if (clsOrder !== 0) return clsOrder;
+
+    // Within same class: sort by diameter number
+    const dA = extractDiameter(a.name);
+    const dB = extractDiameter(b.name);
+    if (dA !== dB) return dA - dB;
+
+    // Then alphabetically by full name
+    return a.name.localeCompare(b.name, 'pt-BR');
+  });
+}
+
+function renderFixadoresGrouped(items) {
+  const sorted = sortFixadores(items);
+
+  // Group by class
+  const groups = new Map();
+  for (const item of sorted) {
+    const cls = getFixadorClass(item.name);
+    if (!groups.has(cls)) groups.set(cls, []);
+    groups.get(cls).push(item);
+  }
+
+  for (const [cls, groupItems] of groups) {
+    // Section header
+    const header = document.createElement('div');
+    header.className = 'items-section-header';
+    const label = FIXADOR_CLASS_PLURAL[cls] || cls;
+    header.innerHTML = `<span class="items-section-label">${label}</span><span class="items-section-count">${groupItems.length}</span>`;
+    itemsList.appendChild(header);
+
+    groupItems.forEach(item => itemsList.appendChild(createItemCard(item)));
+  }
+}
+
+function createItemCard(item) {
+  const quantity = item.quantity || 0;
+  const isLow = quantity < 5;
+
+  const card = document.createElement('div');
+  card.className = 'item-card';
+
+  card.innerHTML = `
+    <div class="item-card-info" onclick="viewItem('${item.id}')">
+      <h3>${escapeHtml(item.name)}</h3>
+      <p>${escapeHtml(item.code)}</p>
+    </div>
+    <div class="item-card-qty-section">
+      <div class="item-card-actions">
+        <button class="btn-inline-entry" onclick="openInlineMovementModal('entrada', '${item.id}')" title="Registrar Entrada">
+          <span class="icon">↓</span>
+        </button>
+        <button class="btn-inline-exit" onclick="openInlineMovementModal('saida', '${item.id}')" title="Registrar Saída">
+          <span class="icon">↑</span>
+        </button>
+      </div>
+      <div class="item-card-qty ${isLow ? 'low' : ''}">${quantity}</div>
+    </div>
+    <div class="item-card-arrow" onclick="viewItem('${item.id}')">→</div>
+  `;
+
+  return card;
 }
 
 function renderItemDetailsView() {
@@ -1508,10 +1584,8 @@ function filterAvailableItems() {
   const category = currentState.currentCategory;
   const categoryItems = currentState.items[category] || [];
 
-  // Filter items by category filter, search term and stock
+  // Filter items by category filter and search term (show all, even qty=0)
   let filteredItems = categoryItems.filter(item => {
-    if ((item.quantity || 0) <= 0) return false;
-
     // Category filter
     if (currentCategoryFilter !== 'all') {
       const itemCategory = getItemCategory(item);
@@ -1538,18 +1612,20 @@ function renderAvailableItems(items) {
   if (items.length === 0) {
     batchAvailableList.innerHTML = `
       <div class="empty-selection">
-        <p>Nenhum item disponível com os filtros aplicados</p>
+        <p>Nenhum item encontrado com os filtros aplicados</p>
       </div>
     `;
     return;
   }
 
   items.forEach(item => {
+    const qty = item.quantity || 0;
+    const hasStock = qty > 0;
     const itemDiv = document.createElement('div');
-    itemDiv.className = 'batch-item-available';
+    itemDiv.className = 'batch-item-available' + (hasStock ? '' : ' no-stock');
 
     const isSelected = batchSelectedItems.has(item.id);
-    if (isSelected) {
+    if (isSelected && hasStock) {
       itemDiv.classList.add('selected');
     }
 
@@ -1558,24 +1634,28 @@ function renderAvailableItems(items) {
         type="checkbox"
         class="batch-item-checkbox"
         data-item-id="${item.id}"
-        ${isSelected ? 'checked' : ''}
+        ${isSelected && hasStock ? 'checked' : ''}
+        ${!hasStock ? 'disabled' : ''}
       />
       <div class="batch-item-info">
         <h4 class="batch-item-name">${escapeHtml(item.name)}</h4>
         <p class="batch-item-code">Código: ${escapeHtml(item.code)}</p>
-        <p class="batch-item-stock">Estoque: ${item.quantity || 0}</p>
+        <p class="batch-item-stock ${hasStock ? '' : 'out-of-stock'}">
+          Estoque: ${qty}${!hasStock ? ' — Sem estoque' : ''}
+        </p>
       </div>
     `;
 
-    // Add checkbox handler
-    const checkbox = itemDiv.querySelector('.batch-item-checkbox');
-    checkbox.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        addItemToBatch(item);
-      } else {
-        removeItemFromBatch(item.id);
-      }
-    });
+    if (hasStock) {
+      const checkbox = itemDiv.querySelector('.batch-item-checkbox');
+      checkbox.addEventListener('change', (e) => {
+        if (e.target.checked) {
+          addItemToBatch(item);
+        } else {
+          removeItemFromBatch(item.id);
+        }
+      });
+    }
 
     batchAvailableList.appendChild(itemDiv);
   });
@@ -1617,7 +1697,7 @@ function updateItemCheckboxState(itemId, isSelected) {
 }
 
 function selectAllVisibleItems() {
-  const visibleCheckboxes = document.querySelectorAll('.batch-item-checkbox');
+  const visibleCheckboxes = document.querySelectorAll('.batch-item-checkbox:not([disabled])');
 
   visibleCheckboxes.forEach(checkbox => {
     if (!checkbox.checked) {
@@ -1802,8 +1882,6 @@ window.addEventListener('beforeunload', () => {
 });
 
 // Start
-window.addEventListener('DOMContentLoaded', init);
-// Also call init immediately in case DOM is already loaded
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {

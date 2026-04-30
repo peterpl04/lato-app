@@ -1,6 +1,6 @@
-@import "../../renderer/styles/tokens.css";
-@import "../../renderer/styles/base.css";
-@import "../../renderer/styles/components.css";
+﻿@import "renderer/styles/tokens.css";
+@import "renderer/styles/base.css";
+@import "renderer/styles/components.css";
 
 * {
   box-sizing: border-box;
@@ -1870,3 +1870,4 @@ body {
     font-size: 12px;
   }
 }
+

@@ -26,6 +26,8 @@ echo.
 echo [2/6] Criando estrutura de pastas...
 if not exist "mobile-app" mkdir "mobile-app"
 if not exist "mobile-app\www" mkdir "mobile-app\www"
+if not exist "mobile-app\www\renderer" mkdir "mobile-app\www\renderer"
+if not exist "mobile-app\www\renderer\styles" mkdir "mobile-app\www\renderer\styles"
 echo  ✓ Pastas criadas
 
 REM Copiar arquivos do estoque PC para mobile
@@ -34,7 +36,14 @@ echo [3/6] Copiando arquivos do estoque PC...
 copy /Y "src\apps\estoque\index.html" "mobile-app\www\index.html" >nul
 copy /Y "src\apps\estoque\renderer.js" "mobile-app\www\renderer.js" >nul
 copy /Y "src\apps\estoque\styles.css" "mobile-app\www\styles.css" >nul
-echo  ✓ Arquivos copiados
+REM Copiar tokens, base e components (cores, animacoes, botoes)
+copy /Y "src\renderer\styles\tokens.css" "mobile-app\www\renderer\styles\tokens.css" >nul
+copy /Y "src\renderer\styles\base.css" "mobile-app\www\renderer\styles\base.css" >nul
+copy /Y "src\renderer\styles\components.css" "mobile-app\www\renderer\styles\components.css" >nul
+
+REM Ajustar caminhos dos @import no styles.css (de ../../renderer/ para renderer/)
+powershell -NoProfile -Command "(Get-Content 'mobile-app\www\styles.css' -Raw) -replace '\.\./\.\./renderer/styles/','renderer/styles/' | Set-Content 'mobile-app\www\styles.css' -Encoding UTF8"
+echo  ✓ Arquivos copiados (com tokens, base, components)
 
 REM Instalar dependencias do Capacitor
 echo.

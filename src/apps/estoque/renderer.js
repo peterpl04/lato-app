@@ -131,11 +131,43 @@ async function init() {
   attachEventListeners();
   initBatchExitSystem();
   renderCategoryView();
+  
+  // Iniciar sistema de atualizações em tempo real
+  startRealTimeUpdates();
 }
 
 function setDefaultDate() {
   const today = new Date().toISOString().split('T')[0];
   movementDate.value = today;
+}
+
+// Real-time updates system
+let pollingInterval = null;
+let isPolling = false;
+let lastDataHash = null;
+const POLLING_INTERVAL = 5000; // 5 segundos
+
+// Função para gerar hash dos dados para detectar mudanças
+function generateDataHash(data) {
+  return JSON.stringify(data).length + '_' + Object.keys(data).map(category => 
+    (data[category] || []).reduce((sum, item) => sum + (item.quantity || 0), 0)
+  ).join('_');
+}
+
+// Função para detectar se houve mudanças nos dados
+function hasDataChanged(newData) {
+  const newHash = generateDataHash(newData);
+  if (lastDataHash === null) {
+    lastDataHash = newHash;
+    return false;
+  }
+  
+  if (newHash !== lastDataHash) {
+    lastDataHash = newHash;
+    return true;
+  }
+  
+  return false;
 }
 
 async function loadData() {
@@ -193,6 +225,118 @@ async function loadData() {
 async function saveData() {
   // Dados são salvos automaticamente na API via endpoints individuais
   console.log('Dados sincronizados com banco de dados');
+}
+
+// Real-time updates functions
+async function loadDataSilently() {
+  try {
+    const newData = {};
+    
+    for (const category of Object.keys(categories)) {
+      const items = await apiCall(`/estoque/items/${category}`);
+      
+      const itemsWithMovements = await Promise.all(
+        items.map(async (item) => {
+          try {
+            const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
+            
+            const movements = (data.movements || []).map(m => ({
+              id: m.id,
+              type: m.movement_type,
+              date: m.movement_date,
+              quantity: m.quantity,
+              address: m.address
+            }));
+            
+            return {
+              id: item.item_id,
+              name: item.name,
+              code: item.code,
+              quantity: item.quantity,
+              movements
+            };
+          } catch (err) {
+            console.error(`Erro ao carregar movimentos do item ${item.item_id}:`, err);
+            return {
+              id: item.item_id,
+              name: item.name,
+              code: item.code,
+              quantity: item.quantity,
+              movements: []
+            };
+          }
+        })
+      );
+      
+      newData[category] = itemsWithMovements;
+    }
+    
+    // Verificar se houve mudanças
+    if (hasDataChanged(newData)) {
+      console.log('🔄 Dados atualizados detectados, sincronizando interface...');
+      
+      // Atualizar dados locais
+      currentState.items = newData;
+      
+      // Atualizar interface baseado na view atual
+      if (currentState.currentView === 'categories') {
+        renderCategoryView();
+      } else if (currentState.currentView === 'items') {
+        renderItemsView();
+      } else if (currentState.currentView === 'details' && currentState.currentItem) {
+        // Atualizar item atual com dados frescos
+        const category = currentState.currentCategory;
+        const updatedItem = (currentState.items[category] || []).find(i => i.id === currentState.currentItem.id);
+        if (updatedItem) {
+          currentState.currentItem = updatedItem;
+          renderItemDetailsView();
+        }
+      }
+      
+      // Mostrar notificação discreta
+      showToast('📊 Dados atualizados automaticamente', 'info', 2000);
+    }
+    
+  } catch (error) {
+    console.error('Erro no polling de dados:', error);
+    // Não mostrar toast para evitar spam de erros
+  }
+}
+
+function startRealTimeUpdates() {
+  if (isPolling) return;
+  
+  isPolling = true;
+  console.log('🔄 Sistema de atualizações em tempo real iniciado');
+  
+  pollingInterval = setInterval(() => {
+    // Só fazer polling se a aba estiver ativa
+    if (!document.hidden) {
+      loadDataSilently();
+    }
+  }, POLLING_INTERVAL);
+  
+  // Pausar polling quando aba não está ativa (economizar recursos)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      console.log('⏸️ Aba inativa, pausando atualizações');
+    } else {
+      console.log('▶️ Aba ativa, retomando atualizações');
+      // Fazer uma verificação imediata quando voltar
+      loadDataSilently();
+    }
+  });
+}
+
+function stopRealTimeUpdates() {
+  if (!isPolling) return;
+  
+  isPolling = false;
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+  console.log('⏹️ Sistema de atualizações em tempo real parado');
 }
 
 // Event Listeners
@@ -380,15 +524,24 @@ function renderItemsView() {
     card.className = 'item-card';
 
     card.innerHTML = `
-      <div class="item-card-info">
+      <div class="item-card-info" onclick="viewItem('${item.id}')">
         <h3>${escapeHtml(item.name)}</h3>
         <p>${escapeHtml(item.code)}</p>
       </div>
-      <div class="item-card-qty ${isLow ? 'low' : ''}">${quantity}</div>
-      <div class="item-card-arrow">→</div>
+      <div class="item-card-qty-section">
+        <div class="item-card-actions">
+          <button class="btn-inline-entry" onclick="openInlineMovementModal('entrada', '${item.id}')" title="Registrar Entrada">
+            <span class="icon">↓</span>
+          </button>
+          <button class="btn-inline-exit" onclick="openInlineMovementModal('saida', '${item.id}')" title="Registrar Saída">
+            <span class="icon">↑</span>
+          </button>
+        </div>
+        <div class="item-card-qty ${isLow ? 'low' : ''}">${quantity}</div>
+      </div>
+      <div class="item-card-arrow" onclick="viewItem('${item.id}')">→</div>
     `;
 
-    card.addEventListener('click', () => viewItem(item.id));
     itemsList.appendChild(card);
   });
 
@@ -495,10 +648,9 @@ function viewItem(itemId) {
   const item = (currentState.items[category] || []).find(i => i.id === itemId);
   if (item) {
     currentState.currentItem = item;
-    showDetailsLoading();
     renderItemDetailsView();
     switchView('details');
-    setTimeout(() => hideDetailsLoading(), 300);
+    // Navegação instantânea - sem loading para dados já carregados
   }
 }
 
@@ -623,6 +775,22 @@ function openMovementModal(type) {
   btnSubmitMovement.textContent = 'Registrar Movimentação';
   movementModal.classList.remove('is-hidden');
   movementQuantity.focus();
+}
+
+// Inline Movement Management (from listing)
+function openInlineMovementModal(type, itemId) {
+  // Find and set the current item
+  const category = currentState.currentCategory;
+  const items = currentState.items[category] || [];
+  const item = items.find(i => i.id === itemId);
+  
+  if (!item) {
+    showToast('Item não encontrado', 'error');
+    return;
+  }
+  
+  currentState.currentItem = item;
+  openMovementModal(type);
 }
 
 function closeMovementModal() {
@@ -981,7 +1149,7 @@ function createFilterTag(label, value, onRemove) {
 }
 
 // Toast Notifications
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', duration = 3000) {
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.textContent = message;
@@ -990,7 +1158,7 @@ function showToast(message, type = 'info') {
   setTimeout(() => {
     toast.style.animation = 'toastSlide 0.3s cubic-bezier(0.22, 1, 0.36, 1) reverse';
     setTimeout(() => toast.remove(), 300);
-  }, 3000);
+  }, duration);
 }
 
 // Helpers
@@ -1428,6 +1596,15 @@ async function handleBatchExit() {
     btnConfirmBatchExit.innerHTML = '<span class="icon">📦</span><span>Confirmar Saídas</span>';
   }
 }
+
+// Global functions for inline buttons
+window.openInlineMovementModal = openInlineMovementModal;
+window.viewItem = viewItem;
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+  stopRealTimeUpdates();
+});
 
 // Start
 window.addEventListener('DOMContentLoaded', init);

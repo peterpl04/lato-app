@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste - Layout Corrigido dos Botões Inline</title>
+    <meta charset="utf-8">
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 20px; 
+        }
+        .section { 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 8px; 
+        }
+        .fix { background: #d4edda; color: #155724; }
+        .test { background: #e3f2fd; color: #0d47a1; }
+        .layout-demo { 
+            font-family: monospace; 
+            background: #f8f9fa; 
+            padding: 10px; 
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .button-demo { 
+            display: inline-block; 
+            padding: 2px 6px; 
+            margin: 0 2px; 
+            border-radius: 4px;
+            font-size: 10px;
+        }
+        .entry { background: #059669; color: white; }
+        .exit { background: #dc2626; color: white; }
+        .qty { background: #2563eb; color: white; padding: 2px 8px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Layout Corrigido dos Botões Inline</h1>
+    
+    <div class="section fix">
+        <h2>✅ Problema Corrigido</h2>
+        <p><strong>Antes:</strong> Grid com 5 colunas estava quebrado, seta → ficando em linha separada</p>
+        <p><strong>Agora:</strong> Grid com 4 colunas original, botões agrupados com quantidade</p>
+        
+        <h3>Layout corrigido:</h3>
+        <div class="layout-demo">
+┌──────────────────┬────────────────────────────────┬─────┐<br>
+│ Nome/Código      │ [↓][↑] [Quantidade]           │  →  │<br>
+└──────────────────┴────────────────────────────────┴─────┘
+        </div>
+        
+        <p><strong>Resultado:</strong> Tudo em uma linha só, botões à esquerda da quantidade!</p>
+    </div>
+    
+    <div class="section test">
+        <h2>🧪 Teste Visual</h2>
+        
+        <h3>1. Verificar Estrutura da Linha</h3>
+        <ol>
+            <li>Abra o sistema de estoque</li>
+            <li>Vá para qualquer categoria com itens</li>
+            <li>Verifique o layout de cada item:</li>
+            <ul>
+                <li>✅ <strong>Coluna 1:</strong> Nome e código do item (lado esquerdo)</li>
+                <li>✅ <strong>Coluna 2:</strong> Botões <span class="button-demo entry">↓</span> <span class="button-demo exit">↑</span> + Quantidade <span class="qty">12</span> (meio)</li>
+                <li>✅ <strong>Coluna 3:</strong> Seta → (lado direito)</li>
+            </ul>
+            <li>✅ <strong>Tudo deve estar em UMA linha só</strong></li>
+            <li>✅ Botões devem estar à esquerda da quantidade</li>
+            <li>✅ Seta → deve estar no mesmo nível</li>
+        </ol>
+        
+        <h3>2. Testar Funcionalidade (não deve ter mudado)</h3>
+        <ol>
+            <li>Clique no botão verde <span class="button-demo entry">↓</span></li>
+            <li>✅ Deve abrir modal de entrada</li>
+            <li>Cancele e clique no botão vermelho <span class="button-demo exit">↑</span></li>
+            <li>✅ Deve abrir modal de saída</li>
+            <li>Cancele e clique no nome do item</li>
+            <li>✅ Deve abrir detalhes</li>
+            <li>Volte e clique na seta →</li>
+            <li>✅ Deve abrir detalhes também</li>
+        </ol>
+        
+        <h3>3. Testar Responsividade</h3>
+        <ol>
+            <li>Redimensione a janela para mobile</li>
+            <li>✅ Layout deve permanecer em uma linha</li>
+            <li>✅ Botões devem ficar menores mas funcionais</li>
+            <li>✅ Espaçamento deve se ajustar</li>
+        </ol>
+    </div>
+    
+    <div class="section">
+        <h2>📐 Comparação de Layout</h2>
+        
+        <h3>❌ Layout Anterior (Quebrado):</h3>
+        <div class="layout-demo">
+Nome do Item          Quantidade [12]  [↓][↑]<br>
+Código                                        <br>
+                                           →  
+        </div>
+        <p><em>Problema: 5 colunas, seta em linha separada</em></p>
+        
+        <h3>✅ Layout Atual (Corrigido):</h3>
+        <div class="layout-demo">
+Nome do Item          [↓][↑] [12]        →  <br>
+Código                                      
+        </div>
+        <p><em>Solução: 4 colunas, botões agrupados com quantidade</em></p>
+    </div>
+    
+    <div class="section fix">
+        <h2>🔧 Mudanças Técnicas</h2>
+        
+        <h3>HTML estruturado:</h3>
+        <pre>
+&lt;div class="item-card"&gt;
+  &lt;div class="item-card-info"&gt;...&lt;/div&gt;
+  &lt;div class="item-card-qty-section"&gt;     ← Nova seção
+    &lt;div class="item-card-actions"&gt;       ← Botões
+      [↓][↑]
+    &lt;/div&gt;
+    &lt;div class="item-card-qty"&gt;12&lt;/div&gt;   ← Quantidade
+  &lt;/div&gt;
+  &lt;div class="item-card-arrow"&gt;→&lt;/div&gt;
+&lt;/div&gt;
+        </pre>
+        
+        <h3>CSS otimizado:</h3>
+        <ul>
+            <li>Grid voltou para 4 colunas: <code>auto 1fr auto auto</code></li>
+            <li>Nova classe: <code>.item-card-qty-section</code> com flexbox</li>
+            <li>Botões e quantidade agrupados horizontalmente</li>
+            <li>Espaçamento reduzido para mobile</li>
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>🎯 Resultado Final</h2>
+        <div class="fix">
+            <strong>✅ Layout Limpo e Funcional:</strong>
+            <ul>
+                <li>Todos os elementos em uma linha</li>
+                <li>Botões posicionados à esquerda da quantidade</li>
+                <li>Grid original de 4 colunas preservado</li>
+                <li>Funcionalidade 100% mantida</li>
+                <li>Responsivo em todas as telas</li>
+            </ul>
+        </div>
+    </div>
+    
+    <p><em>Teste criado para validar a correção do layout dos botões inline na listagem.</em></p>
+</body>
+</html>

@@ -17,14 +17,14 @@ let currentState = {
     thread: null
   },
   activeFilters: {
-    classe: null,
-    diameter: null,
-    length: null,
-    head: null,
-    thread: null,
+    classes: [],
+    diameters: [],
+    heads: [],
+    threads: [],
     medida: null
   },
   showOnlyWithStock: false,
+  currentItemsTab: 'all', // 'all' | 'alert'
   modalMode: 'add' // 'add' or 'filter'
 };
 
@@ -427,6 +427,17 @@ function attachEventListeners() {
   btnClearFilter.addEventListener('click', clearCurrentFilter);
   btnClearAllFilters.addEventListener('click', clearAllFilters);
 
+  // Password modal
+  document.getElementById('btnClosePasswordModal').addEventListener('click', closePasswordModal);
+  document.getElementById('btnCancelPassword').addEventListener('click', closePasswordModal);
+  document.getElementById('btnConfirmPassword').addEventListener('click', confirmPassword);
+  document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); confirmPassword(); }
+  });
+
+  // Providenciar modal
+  document.getElementById('btnCloseProvidenciarModal').addEventListener('click', closeProvidenciarModal);
+
   // Click outside modals to close
   document.addEventListener('click', (e) => {
     if (e.target === itemModal) closeItemModal();
@@ -438,7 +449,14 @@ function attachEventListeners() {
     if (e.target === fixadorHeadModal) closeFixadorHeadModal();
     if (e.target === fixadorThreadModal) closeFixadorThreadModal();
     if (e.target === fixadorPorcaTypeModal) closeFixadorPorcaTypeModal();
+    const pwModal = document.getElementById('passwordModal');
+    const pvModal = document.getElementById('providenciarModal');
+    if (e.target === pwModal) closePasswordModal();
+    if (e.target === pvModal) closeProvidenciarModal();
   });
+
+  // Advanced filter modal
+  attachAdvancedFilterListeners();
 
   console.log('Event listeners anexados com sucesso');
 }
@@ -477,6 +495,7 @@ function selectCategory(categoryKey) {
 function goToCategories() {
   currentState.currentItem = null;
   currentState.showOnlyWithStock = false;
+  currentState.currentItemsTab = 'all';
   renderCategoryView();
   switchView('category');
 }
@@ -528,6 +547,8 @@ function renderItemsView() {
     } else {
       btnClearActiveFilters.style.display = 'none';
     }
+
+    updateItemsTabsBar();
   } else {
     btnFilterItems.style.display = 'none';
     btnClearActiveFilters.style.display = 'none';
@@ -535,19 +556,62 @@ function renderItemsView() {
     if (itemsToolbar) itemsToolbar.style.display = 'none';
   }
 
-  let items = currentState.items[category] || [];
+  const isAlertTab = category === 'fixadores' && currentState.currentItemsTab === 'alert';
+  let items;
 
-  // Apply filters if active
-  items = applyActiveFilters(items);
+  if (isAlertTab) {
+    items = getBelowMinItems();
+  } else {
+    items = currentState.items[category] || [];
 
-  // Apply stock-only filter if enabled
-  if (currentState.showOnlyWithStock) {
-    items = items.filter(item => (item.quantity || 0) > 0);
+    // Apply filters if active
+    items = applyActiveFilters(items);
+
+    // Apply stock-only filter if enabled
+    if (currentState.showOnlyWithStock) {
+      items = items.filter(item => (item.quantity || 0) > 0);
+    }
   }
 
   categorySubtitle.textContent = `${items.length} itens`;
 
+  // Capture expanded sections BEFORE clearing the list
+  const expandedSections = new Set();
+  document.querySelectorAll('.items-section-group').forEach(group => {
+    const header = group.querySelector('.items-section-header');
+    const label = group.querySelector('.items-section-label')?.textContent;
+    if (header && label && !header.classList.contains('collapsed')) {
+      expandedSections.add(label);
+    }
+  });
+  currentState._expandedSections = expandedSections;
+
   itemsList.innerHTML = '';
+
+  if (isAlertTab) {
+    if (items.length === 0) {
+      itemsList.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          <p>Todos os itens estão acima da quantidade mínima!</p>
+        </div>
+      `;
+      return;
+    }
+
+    const alertHeader = document.createElement('div');
+    alertHeader.className = 'alert-tab-header';
+    const capturedItems = items;
+    alertHeader.innerHTML = `
+      <span class="alert-tab-desc">⚠️ ${items.length} ${items.length === 1 ? 'item abaixo' : 'itens abaixo'} da quantidade mínima</span>
+      <button class="btn-providenciar-all btn-action btn-providenciar" onclick="promptProvidenciar(window.__alertItems)">🛒 Providenciar</button>
+    `;
+    window.__alertItems = capturedItems;
+    itemsList.appendChild(alertHeader);
+
+    renderFixadoresGrouped(items);
+    return;
+  }
 
   if (items.length === 0) {
     const hasFilters = hasActiveFilters();
@@ -619,9 +683,11 @@ function sortFixadores(items) {
 }
 
 function renderFixadoresGrouped(items) {
+  const expandedClasses = currentState._expandedSections || new Set();
+  const isFiltered = hasActiveFilters();
+
   const sorted = sortFixadores(items);
 
-  // Group by class
   const groups = new Map();
   for (const item of sorted) {
     const cls = getFixadorClass(item.name);
@@ -631,22 +697,21 @@ function renderFixadoresGrouped(items) {
 
   for (const [cls, groupItems] of groups) {
     const label = FIXADOR_CLASS_PLURAL[cls] || cls;
+    const shouldExpand = isFiltered || expandedClasses.has(label);
 
     const group = document.createElement('div');
     group.className = 'items-section-group';
 
-    // Collapsible header
     const header = document.createElement('div');
-    header.className = 'items-section-header collapsible';
+    header.className = 'items-section-header collapsible' + (shouldExpand ? '' : ' collapsed');
     header.innerHTML = `
       <span class="section-chevron">▼</span>
       <span class="items-section-label">${label}</span>
       <span class="items-section-count">${groupItems.length}</span>
     `;
 
-    // Section body
     const body = document.createElement('div');
-    body.className = 'items-section-body';
+    body.className = 'items-section-body' + (shouldExpand ? '' : ' collapsed');
     groupItems.forEach(item => body.appendChild(createItemCard(item)));
 
     header.addEventListener('click', () => {
@@ -708,6 +773,27 @@ function renderItemDetailsView() {
   const quantityBadge = document.getElementById('detailItemQuantity');
   quantityBadge.textContent = quantity;
   quantityBadge.classList.toggle('low', quantity < 5);
+
+  // Min quantity system — only for fixadores
+  const isFixadores = currentState.currentCategory === 'fixadores';
+  const minQtyRow = document.getElementById('minQtyRow');
+  const btnProvidenciar = document.getElementById('btnProvidenciar');
+  if (isFixadores) {
+    const minQty = getMinQty(item.id);
+    const minBadge = document.getElementById('detailMinQty');
+    if (minBadge) {
+      minBadge.textContent = minQty;
+      minBadge.classList.toggle('below-min', quantity < minQty);
+    }
+    // Reset edit UI
+    if (document.getElementById('minQtyEditRow')) document.getElementById('minQtyEditRow').style.display = 'none';
+    if (document.getElementById('btnEditMinQty')) document.getElementById('btnEditMinQty').style.display = 'flex';
+    if (minQtyRow) minQtyRow.style.display = 'block';
+    if (btnProvidenciar) btnProvidenciar.style.display = 'flex';
+  } else {
+    if (minQtyRow) minQtyRow.style.display = 'none';
+    if (btnProvidenciar) btnProvidenciar.style.display = 'none';
+  }
 
   const movements = item.movements || [];
   if (movements.length > 0) {
@@ -816,8 +902,7 @@ function openItemModal() {
 
 function openFilterModal() {
   if (currentState.currentCategory === 'fixadores') {
-    currentState.modalMode = 'filter';
-    openFixadorTypeModal();
+    openAdvancedFilterModal();
   }
 }
 
@@ -1360,34 +1445,152 @@ function applyFilter() {
 }
 
 function clearCurrentFilter() {
-  currentState.activeFilters = {
-    classe: null,
-    diameter: null,
-    length: null,
-    head: null,
-    thread: null,
-    medida: null
-  };
-
+  resetActiveFilters();
   closeFixadorSizeModal();
   renderItemsView();
   showToast('✓ Filtros removidos', 'success');
 }
 
-
 function clearAllFilters() {
-  currentState.activeFilters = {
-    classe: null,
-    diameter: null,
-    length: null,
-    head: null,
-    thread: null,
-    medida: null
-  };
-
+  resetActiveFilters();
   renderItemsView();
   showToast('✓ Todos os filtros removidos', 'success');
 }
+
+function resetActiveFilters() {
+  currentState.activeFilters = { classes: [], diameters: [], heads: [], threads: [], medida: null };
+}
+
+// ======================== ADVANCED FILTER MODAL ========================
+
+const ADV_FILTER_GROUPS = {
+  classes: [],
+  diameters: [],
+  heads: [],
+  threads: [],
+  medida: null
+};
+
+let pendingFilterState = null;
+
+function openAdvancedFilterModal() {
+  const modal = document.getElementById('advancedFilterModal');
+  if (!modal) return;
+
+  // Clone current active filters into pending state
+  const f = currentState.activeFilters;
+  pendingFilterState = {
+    classes:   [...f.classes],
+    diameters: [...f.diameters],
+    heads:     [...f.heads],
+    threads:   [...f.threads],
+    medida:    f.medida || ''
+  };
+
+  // Sync chips UI
+  modal.querySelectorAll('.filter-chip').forEach(chip => {
+    const group = chip.dataset.group;
+    const val   = chip.dataset.value;
+    chip.classList.toggle('selected', pendingFilterState[group] && pendingFilterState[group].includes(val));
+  });
+
+  // Sync medida input
+  const medidaInput = document.getElementById('advFilterMedida');
+  if (medidaInput) medidaInput.value = pendingFilterState.medida || '';
+
+  updateAdvFilterPreview();
+  modal.classList.remove('is-hidden');
+}
+
+function closeAdvancedFilterModal() {
+  const modal = document.getElementById('advancedFilterModal');
+  if (modal) modal.classList.add('is-hidden');
+  pendingFilterState = null;
+}
+
+function toggleAdvFilterChip(chip) {
+  if (!pendingFilterState) return;
+  const group = chip.dataset.group;
+  const val   = chip.dataset.value;
+  const arr   = pendingFilterState[group];
+  const idx   = arr.indexOf(val);
+  if (idx >= 0) {
+    arr.splice(idx, 1);
+    chip.classList.remove('selected');
+  } else {
+    arr.push(val);
+    chip.classList.add('selected');
+  }
+  updateAdvFilterPreview();
+}
+
+function updateAdvFilterPreview() {
+  if (!pendingFilterState) return;
+  const preview = document.getElementById('advFilterPreview');
+  const previewText = document.getElementById('advFilterPreviewText');
+  const applyCount = document.getElementById('advFilterApplyCount');
+
+  const parts = [];
+  if (pendingFilterState.classes.length)   parts.push(pendingFilterState.classes.join(', '));
+  if (pendingFilterState.diameters.length) parts.push(pendingFilterState.diameters.join(', '));
+  if (pendingFilterState.heads.length)     parts.push(pendingFilterState.heads.join(', '));
+  if (pendingFilterState.threads.length)   parts.push(pendingFilterState.threads.join(', '));
+  const medida = document.getElementById('advFilterMedida');
+  if (medida && medida.value.trim()) parts.push(medida.value.trim());
+
+  if (parts.length > 0) {
+    if (preview) preview.style.display = 'block';
+    if (previewText) previewText.textContent = parts.join(' · ');
+    if (applyCount) { applyCount.textContent = `(${parts.length})`; applyCount.style.display = 'inline'; }
+  } else {
+    if (preview) preview.style.display = 'none';
+    if (applyCount) applyCount.style.display = 'none';
+  }
+}
+
+function applyAdvancedFilter() {
+  if (!pendingFilterState) return;
+  const medidaInput = document.getElementById('advFilterMedida');
+  const medidaVal = medidaInput ? medidaInput.value.trim() : '';
+
+  currentState.activeFilters = {
+    classes:   [...pendingFilterState.classes],
+    diameters: [...pendingFilterState.diameters],
+    heads:     [...pendingFilterState.heads],
+    threads:   [...pendingFilterState.threads],
+    medida:    medidaVal || null
+  };
+
+  closeAdvancedFilterModal();
+  renderItemsView();
+  if (hasActiveFilters()) showToast('✓ Filtro aplicado', 'success');
+}
+
+function attachAdvancedFilterListeners() {
+  const modal = document.getElementById('advancedFilterModal');
+  if (!modal) return;
+
+  modal.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', () => toggleAdvFilterChip(chip));
+  });
+
+  const medidaInput = document.getElementById('advFilterMedida');
+  if (medidaInput) medidaInput.addEventListener('input', updateAdvFilterPreview);
+
+  document.getElementById('btnApplyAdvancedFilter')?.addEventListener('click', applyAdvancedFilter);
+  document.getElementById('btnClearAdvancedFilter')?.addEventListener('click', () => {
+    resetActiveFilters();
+    closeAdvancedFilterModal();
+    renderItemsView();
+    showToast('✓ Filtros removidos', 'success');
+  });
+  document.getElementById('btnCancelAdvancedFilter')?.addEventListener('click', closeAdvancedFilterModal);
+  document.getElementById('btnCloseAdvancedFilter')?.addEventListener('click', closeAdvancedFilterModal);
+
+  modal.querySelector('.modal-overlay')?.addEventListener('click', closeAdvancedFilterModal);
+}
+
+// ======================== END ADVANCED FILTER MODAL ========================
 
 function toggleStockFilter() {
   currentState.showOnlyWithStock = !currentState.showOnlyWithStock;
@@ -1396,7 +1599,7 @@ function toggleStockFilter() {
 
 function hasActiveFilters() {
   const f = currentState.activeFilters;
-  return !!(f.classe || f.diameter || f.length || f.head || f.thread || f.medida);
+  return f.classes.length > 0 || f.diameters.length > 0 || f.heads.length > 0 || f.threads.length > 0 || !!f.medida;
 }
 
 function applyActiveFilters(items) {
@@ -1407,20 +1610,32 @@ function applyActiveFilters(items) {
   return items.filter(item => {
     const name = item.name.toLowerCase();
 
-    if (f.classe) {
-      const classWords = f.classe.toLowerCase().split(/\s+/);
-      if (!classWords.every(w => name.includes(w))) return false;
+    if (f.classes.length > 0) {
+      const matchesAnyClass = f.classes.some(cls => name.startsWith(cls.toLowerCase()));
+      if (!matchesAnyClass) return false;
     }
 
-    if (f.diameter && !name.includes(f.diameter.toLowerCase())) return false;
-    if (f.length && !name.includes(`x${f.length}`.toLowerCase())) return false;
-    if (f.head && !name.includes(f.head.toLowerCase())) return false;
-    if (f.thread && f.thread !== 'Normal' && !name.includes(f.thread.toLowerCase())) return false;
+    if (f.diameters.length > 0) {
+      const matchesAnyDiam = f.diameters.some(d => name.includes(d.toLowerCase()));
+      if (!matchesAnyDiam) return false;
+    }
+
+    if (f.heads.length > 0) {
+      const matchesAnyHead = f.heads.some(h => name.includes(h.toLowerCase()));
+      if (!matchesAnyHead) return false;
+    }
+
+    if (f.threads.length > 0) {
+      const matchesAnyThread = f.threads.some(t => {
+        if (t === 'Normal') return !name.includes('soberbo');
+        return name.includes(t.toLowerCase());
+      });
+      if (!matchesAnyThread) return false;
+    }
 
     if (f.medida) {
-      const medidaWords = f.medida.toLowerCase().split(/\s+/);
-      const hasAny = medidaWords.some(w => w && name.includes(w));
-      if (!hasAny) return false;
+      const words = f.medida.toLowerCase().split(/\s+/);
+      if (!words.some(w => w && name.includes(w))) return false;
     }
 
     return true;
@@ -1429,48 +1644,36 @@ function applyActiveFilters(items) {
 
 function updateActiveFiltersDisplay() {
   if (!hasActiveFilters()) {
-    activeFilters.style.display = 'none';
+    if (activeFilters) activeFilters.style.display = 'none';
     return;
   }
 
-  activeFilters.style.display = 'block';
+  if (activeFilters) activeFilters.style.display = 'block';
+  if (!filterTags) return;
   filterTags.innerHTML = '';
 
   const f = currentState.activeFilters;
 
-  if (f.classe) {
-    filterTags.appendChild(createFilterTag('Classe', f.classe, () => {
-      currentState.activeFilters.classe = null;
-      renderItemsView();
-    }));
-  }
+  const addTag = (label, value, removeFn) => {
+    const tag = document.createElement('div');
+    tag.className = 'filter-tag';
+    tag.innerHTML = `<span>${label}: ${escapeHtml(value)}</span><span class="remove">×</span>`;
+    tag.querySelector('.remove').addEventListener('click', () => { removeFn(); renderItemsView(); });
+    filterTags.appendChild(tag);
+  };
 
-  if (f.diameter) {
-    filterTags.appendChild(createFilterTag('Diâmetro', f.diameter, () => {
-      currentState.activeFilters.diameter = null;
-      renderItemsView();
-    }));
-  }
-
-  if (f.medida) {
-    filterTags.appendChild(createFilterTag('Medida', f.medida, () => {
-      currentState.activeFilters.medida = null;
-      renderItemsView();
-    }));
-  }
+  f.classes.forEach((c, i) => addTag('Classe', c, () => { currentState.activeFilters.classes.splice(i, 1); }));
+  f.diameters.forEach((d, i) => addTag('Diâmetro', d, () => { currentState.activeFilters.diameters.splice(i, 1); }));
+  f.heads.forEach((h, i) => addTag('Cabeça', h, () => { currentState.activeFilters.heads.splice(i, 1); }));
+  f.threads.forEach((t, i) => addTag('Rosca', t, () => { currentState.activeFilters.threads.splice(i, 1); }));
+  if (f.medida) addTag('Medida', f.medida, () => { currentState.activeFilters.medida = null; });
 }
 
 function createFilterTag(label, value, onRemove) {
   const tag = document.createElement('div');
   tag.className = 'filter-tag';
-
-  tag.innerHTML = `
-    <span>${label}: ${escapeHtml(value)}</span>
-    <span class="remove">×</span>
-  `;
-
+  tag.innerHTML = `<span>${label}: ${escapeHtml(value)}</span><span class="remove">×</span>`;
   tag.querySelector('.remove').addEventListener('click', onRemove);
-
   return tag;
 }
 
@@ -1485,6 +1688,222 @@ function showToast(message, type = 'info', duration = 3000) {
     toast.style.animation = 'toastSlide 0.3s cubic-bezier(0.22, 1, 0.36, 1) reverse';
     setTimeout(() => toast.remove(), 300);
   }, duration);
+}
+
+// =====================================
+// MIN QUANTITY SYSTEM
+// =====================================
+
+const MIN_QTY_STORAGE_KEY = 'fixadores_min_qty';
+const DEFAULT_MIN_QTY = 100;
+
+function getMinQty(itemId) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MIN_QTY_STORAGE_KEY) || '{}');
+    return stored[itemId] !== undefined ? stored[itemId] : DEFAULT_MIN_QTY;
+  } catch {
+    return DEFAULT_MIN_QTY;
+  }
+}
+
+function setMinQty(itemId, value) {
+  try {
+    const stored = JSON.parse(localStorage.getItem(MIN_QTY_STORAGE_KEY) || '{}');
+    stored[itemId] = value;
+    localStorage.setItem(MIN_QTY_STORAGE_KEY, JSON.stringify(stored));
+  } catch (e) {
+    console.error('Erro ao salvar min qty:', e);
+  }
+}
+
+function getBelowMinItems() {
+  const items = currentState.items['fixadores'] || [];
+  return items.filter(item => (item.quantity || 0) < getMinQty(item.id));
+}
+
+// ── Items tabs bar ────────────────────────────────────────────────────────────
+
+function updateItemsTabsBar() {
+  const tabsBar = document.getElementById('itemsTabsBar');
+  const alertBadge = document.getElementById('alertBadge');
+
+  if (currentState.currentCategory !== 'fixadores') {
+    if (tabsBar) tabsBar.style.display = 'none';
+    return;
+  }
+
+  const belowMin = getBelowMinItems();
+  if (belowMin.length > 0) {
+    if (tabsBar) tabsBar.style.display = 'flex';
+    if (alertBadge) alertBadge.textContent = belowMin.length;
+  } else {
+    if (tabsBar) tabsBar.style.display = 'none';
+    if (currentState.currentItemsTab === 'alert') {
+      currentState.currentItemsTab = 'all';
+    }
+  }
+
+  document.getElementById('tabAll')?.classList.toggle('active', currentState.currentItemsTab === 'all');
+  document.getElementById('tabAlert')?.classList.toggle('active', currentState.currentItemsTab === 'alert');
+}
+
+function switchItemsTab(tab) {
+  currentState.currentItemsTab = tab;
+  renderItemsView();
+}
+
+// ── Password modal ────────────────────────────────────────────────────────────
+
+let pendingPasswordAction = null;
+
+function openPasswordModal(title, action) {
+  pendingPasswordAction = action;
+  document.getElementById('passwordModalTitle').textContent = title;
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('passwordError').style.display = 'none';
+  document.getElementById('passwordModal').classList.remove('is-hidden');
+  setTimeout(() => document.getElementById('passwordInput')?.focus(), 100);
+}
+
+function closePasswordModal() {
+  pendingPasswordAction = null;
+  document.getElementById('passwordModal').classList.add('is-hidden');
+}
+
+function confirmPassword() {
+  const pwd = document.getElementById('passwordInput').value;
+  const expected = pendingPasswordAction?.password;
+  if (pwd !== expected) {
+    document.getElementById('passwordError').style.display = 'block';
+    document.getElementById('passwordInput').value = '';
+    document.getElementById('passwordInput').focus();
+    return;
+  }
+  const cb = pendingPasswordAction?.callback;
+  closePasswordModal();
+  if (cb) cb();
+}
+
+// ── Min qty editing ───────────────────────────────────────────────────────────
+
+function promptEditMinQty() {
+  openPasswordModal('Editar Quantidade Mínima', {
+    password: 'edit',
+    callback: enableMinQtyEdit
+  });
+}
+
+function enableMinQtyEdit() {
+  const item = currentState.currentItem;
+  if (!item) return;
+  const current = getMinQty(item.id);
+  const editRow = document.getElementById('minQtyEditRow');
+  const editInput = document.getElementById('minQtyEditInput');
+  const editBtn = document.getElementById('btnEditMinQty');
+  editInput.value = current;
+  if (editRow) editRow.style.display = 'flex';
+  if (editBtn) editBtn.style.display = 'none';
+  editInput?.focus();
+  editInput?.select();
+}
+
+function saveMinQty() {
+  const item = currentState.currentItem;
+  if (!item) return;
+  const val = parseInt(document.getElementById('minQtyEditInput').value, 10);
+  if (isNaN(val) || val < 0) { showToast('Valor inválido', 'error'); return; }
+  setMinQty(item.id, val);
+  const badge = document.getElementById('detailMinQty');
+  if (badge) {
+    badge.textContent = val;
+    badge.classList.toggle('below-min', (item.quantity || 0) < val);
+  }
+  cancelMinQtyEdit();
+  showToast('Quantidade mínima atualizada ✓');
+  updateItemsTabsBar();
+}
+
+function cancelMinQtyEdit() {
+  document.getElementById('minQtyEditRow').style.display = 'none';
+  document.getElementById('btnEditMinQty').style.display = 'flex';
+}
+
+// ── Providenciar modal ────────────────────────────────────────────────────────
+
+function promptProvidenciarSingle() {
+  const item = currentState.currentItem;
+  if (!item) return;
+  openPasswordModal('Providenciar', {
+    password: 'buy',
+    callback: () => openProvidenciarModal([item])
+  });
+}
+
+function promptProvidenciar(items) {
+  openPasswordModal('Providenciar', {
+    password: 'buy',
+    callback: () => openProvidenciarModal(items)
+  });
+}
+
+function openProvidenciarModal(items) {
+  const list = document.getElementById('providenciarItemsList');
+  const result = document.getElementById('providenciarResult');
+  const footer = document.getElementById('providenciarFooter');
+  const btnGerar = document.getElementById('btnGerarProvidenciar');
+
+  result.style.display = 'none';
+  if (footer) footer.style.display = 'flex';
+  if (btnGerar) btnGerar.style.display = 'flex';
+
+  list.innerHTML = '';
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'providenciar-item-row';
+    row.innerHTML = `
+      <span class="providenciar-item-name">${escapeHtml(item.name)}</span>
+      <div class="providenciar-qty-wrap">
+        <label>Quantidade:</label>
+        <input type="number" min="1" class="providenciar-qty-input" data-id="${item.id}" placeholder="0" />
+      </div>
+    `;
+    list.appendChild(row);
+  });
+
+  document.getElementById('providenciarModal').classList.remove('is-hidden');
+}
+
+function closeProvidenciarModal() {
+  document.getElementById('providenciarModal').classList.add('is-hidden');
+}
+
+function generateProvidenciarText() {
+  const inputs = document.querySelectorAll('.providenciar-qty-input');
+  const lines = [];
+  inputs.forEach(input => {
+    const qty = parseInt(input.value, 10);
+    if (qty > 0) {
+      const name = input.closest('.providenciar-item-row').querySelector('.providenciar-item-name').textContent;
+      lines.push(`${name} Quantidade: ${qty}`);
+    }
+  });
+
+  if (lines.length === 0) {
+    showToast('Informe pelo menos uma quantidade', 'error');
+    return;
+  }
+
+  const text = 'PROVIDENCIAR:\n\n' + lines.join('\n');
+  document.getElementById('providenciarText').value = text;
+  document.getElementById('providenciarResult').style.display = 'block';
+  document.getElementById('btnGerarProvidenciar').style.display = 'none';
+}
+
+function copyProvidenciarText() {
+  const text = document.getElementById('providenciarText').value;
+  navigator.clipboard.writeText(text)
+    .then(() => showToast('Texto copiado! 📋'))
+    .catch(() => showToast('Erro ao copiar', 'error'));
 }
 
 // Helpers

@@ -14,7 +14,7 @@ const items = [
   { code: '3858', name: 'Parafuso Inox Redonda M3x30' },
   { code: '3859', name: 'Parafuso Inox Redonda M3x16' },
   { code: '4121', name: 'Parafuso Inox Sextavado M3x30' },
-  { code: '4122', name: 'Porca Parlock M3' },
+  { code: '4122', name: 'Porca Inox Parlock M3' },
 
   // ── M3,5 ─────────────────────────────────────────────────────────────
   { code: '4056', name: 'Parafuso Inox Panela M3,5x25 Soberbo' },
@@ -42,9 +42,9 @@ const items = [
   { code: '2624', name: 'Parafuso Inox Sextavado M5x40 Soberbo' },
   { code: '2625', name: 'Parafuso Inox Sextavado M5x50 Soberbo' },
   { code: '2626', name: 'Parafuso Inox Cônico M5x35 Soberbo' },
-  { code: '2775', name: 'Arruela M5' },
+  { code: '2775', name: 'Arruela Inox M5' },
   { code: '2793', name: 'Parafuso Inox Redonda M5x16' },
-  { code: '3660', name: 'Porca Parlock M5' },
+  { code: '3660', name: 'Porca Inox Parlock M5' },
   { code: '3850', name: 'Parafuso Inox Redonda M5x50' },
   { code: '3851', name: 'Parafuso Inox Redonda M5x25' },
   { code: '3852', name: 'Parafuso Inox Redonda M5x20' },
@@ -57,7 +57,7 @@ const items = [
   // ── M6 ──────────────────────────────────────────────────────────────
   { code: '304',  name: 'Parafuso Inox Sextavado M6x75' },
   { code: '552',  name: 'Parafuso Inox Redonda M6x25' },
-  { code: '553',  name: 'Porca Parlock M6' },
+  { code: '553',  name: 'Porca Inox Parlock M6' },
   { code: '1296', name: 'Parafuso Inox Sextavado M6x70' },
   { code: '1501', name: 'Parafuso Inox Sextavado M6x35' },
   { code: '1507', name: 'Parafuso Inox Redonda M6x50' },
@@ -68,7 +68,7 @@ const items = [
   { code: '2454', name: 'Parafuso Inox Cônico M6x45' },
   { code: '2456', name: 'Parafuso Inox Redonda M6x10' },
   { code: '2770', name: 'Parafuso Inox Sextavado M6x16' },
-  { code: '2771', name: 'Arruela M6' },
+  { code: '2771', name: 'Arruela Inox M6' },
   { code: '2772', name: 'Parafuso Inox Sextavado M6x20' },
   { code: '2776', name: 'Parafuso Inox Sextavado M6x25' },
   { code: '2808', name: 'Parafuso Inox Redonda M6x16' },
@@ -95,18 +95,18 @@ const items = [
   { code: '5596', name: 'Parafuso Inox Francês M6x25' },
 
   // ── M8 ──────────────────────────────────────────────────────────────
-  { code: '551',  name: 'Porca Parlock M8' },
+  { code: '551',  name: 'Porca Inox Parlock M8' },
   { code: '1267', name: 'Parafuso Inox Francês M8x35' },
   { code: '1295', name: 'Parafuso Inox Sextavado M8x20' },
   { code: '1484', name: 'Parafuso Inox Abaulado M8x25' },
-  { code: '1488', name: 'Porca Lisa M8' },
+  { code: '1488', name: 'Porca Inox Lisa M8' },
   { code: '1497', name: 'Parafuso Inox Redonda M8x40' },
   { code: '1505', name: 'Parafuso Inox Redonda M8x60' },
   { code: '2226', name: 'Parafuso Inox Redonda M8x30' },
   { code: '2227', name: 'Parafuso Inox Sextavado M8x75' },
   { code: '2228', name: 'Parafuso Inox Francês M8x30' },
   { code: '2323', name: 'Parafuso Inox Sextavado M8x50' },
-  { code: '2325', name: 'Arruela M8' },
+  { code: '2325', name: 'Arruela Inox M8' },
   { code: '2332', name: 'Parafuso Inox Redonda M8x25' },
   { code: '2336', name: 'Parafuso Inox Sextavado M8x60' },
   { code: '2338', name: 'Parafuso Inox Sextavado M8x55' },
@@ -143,8 +143,8 @@ const items = [
   { code: '4694', name: 'Parafuso Inox Francês M8x20' },
 
   // ── M10 ─────────────────────────────────────────────────────────────
-  { code: '1080', name: 'Porca Parlock M10' },
-  { code: '2450', name: 'Arruela M10' },
+  { code: '1080', name: 'Porca Inox Parlock M10' },
+  { code: '2450', name: 'Arruela Inox M10' },
   { code: '2581', name: 'Parafuso Inox Francês M10x35' },
   { code: '2592', name: 'Parafuso Inox Francês M10x30' },
   { code: '2595', name: 'Parafuso Inox Sextavado M10x20' },
@@ -162,16 +162,16 @@ const items = [
   { code: '3926', name: 'Parafuso Inox Redonda M10x25' },
 
   // ── M12 ─────────────────────────────────────────────────────────────
-  { code: '2185', name: 'Porca Lisa M12' },
-  { code: '2186', name: 'Porca Lisa M12' },
+  { code: '2185', name: 'Porca Inox Lisa M12' },
+  { code: '2186', name: 'Porca Inox Lisa M12' },
   { code: '2390', name: 'Parafuso Inox Sextavado M12x100' },
 
   // ── M16 ─────────────────────────────────────────────────────────────
-  { code: '187',  name: 'Porca Lisa M16' },
+  { code: '187',  name: 'Porca Inox Lisa M16' },
   { code: '3621', name: 'Parafuso Inox Sextavado M16x25' },
 
   // ── M20 ─────────────────────────────────────────────────────────────
-  { code: '2215', name: 'Porca Lisa M20' },
+  { code: '2215', name: 'Porca Inox Lisa M20' },
 ];
 
 async function importItem(item) {

@@ -1090,7 +1090,7 @@ function classNeedsThread(classe) {
 function composeFixadorName(sel) {
   if (sel.classe === 'Porca') {
     const tipo = sel.porcaType ? ` ${sel.porcaType}` : '';
-    return `Porca${tipo} ${sel.diameter}`;
+    return `Porca Inox${tipo} ${sel.diameter}`;
   }
 
   if (sel.classe === 'Parafuso') {
@@ -1102,7 +1102,11 @@ function composeFixadorName(sel) {
     return name;
   }
 
-  // Arruela, Rebite Roscado, outros
+  if (sel.classe === 'Arruela') {
+    return `Arruela Inox ${sel.diameter}`;
+  }
+
+  // Rebite Roscado, outros
   let name = `${sel.classe} ${sel.diameter}`;
   if (sel.length) name += `x${sel.length}`;
   if (sel.head) name += ` ${sel.head}`;

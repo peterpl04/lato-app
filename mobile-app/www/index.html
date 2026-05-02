@@ -102,6 +102,13 @@
           <div id="filterTags" class="filter-tags"></div>
         </div>
 
+        <div class="items-tabs-bar" id="itemsTabsBar" style="display:none">
+          <button class="items-tab active" id="tabAll" onclick="switchItemsTab('all')">Todos</button>
+          <button class="items-tab" id="tabAlert" onclick="switchItemsTab('alert')">
+            ⚠️ Atenção <span id="alertBadge" class="alert-count-badge">0</span>
+          </button>
+        </div>
+
         <div class="items-toolbar" id="itemsToolbar" style="display: none;">
           <button id="btnStockFilter" class="btn-stock-toggle" type="button" onclick="toggleStockFilter()">
             <span class="stock-toggle-dot"></span>
@@ -141,6 +148,21 @@
               <label>Código / SKU</label>
               <p id="detailItemCode">-</p>
             </div>
+            <!-- Min Qty row — shown only for fixadores -->
+            <div class="detail-row" id="minQtyRow" style="display:none">
+              <label>Quantidade Mínima</label>
+              <div class="qty-display">
+                <span id="detailMinQty" class="qty-value qty-min-badge">100</span>
+                <span class="qty-unit">unidades</span>
+                <button id="btnEditMinQty" class="btn-edit-min-qty" type="button" title="Editar quantidade mínima" onclick="promptEditMinQty()">✏️</button>
+              </div>
+              <div id="minQtyEditRow" class="min-qty-edit-row" style="display:none">
+                <input id="minQtyEditInput" type="number" min="0" class="min-qty-input" placeholder="Nova quantidade..." />
+                <button onclick="saveMinQty()" class="btn-save-min-qty">✓</button>
+                <button onclick="cancelMinQtyEdit()" class="btn-cancel-min-qty">✕</button>
+              </div>
+            </div>
+
             <div class="detail-row">
               <label>Quantidade em Estoque</label>
               <div class="qty-display">
@@ -164,6 +186,10 @@
             <button id="btnAddExit" class="btn-action btn-exit" type="button">
               <span class="icon">↑</span>
               <span>Saída</span>
+            </button>
+            <button id="btnProvidenciar" class="btn-action btn-providenciar" type="button" onclick="promptProvidenciarSingle()" style="display:none">
+              <span class="icon">🛒</span>
+              <span>Providenciar</span>
             </button>
             <button id="btnDeleteItem" class="btn-action btn-danger" type="button">
               <span class="icon">🗑</span>
@@ -421,6 +447,89 @@
     </div>
   </div>
 
+  <!-- MODAL: Advanced Filter -->
+  <div id="advancedFilterModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>🔍 Filtrar Fixadores</h3>
+        <button id="btnCloseAdvancedFilter" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body adv-filter-body">
+
+        <!-- Active preview -->
+        <div id="advFilterPreview" class="adv-filter-preview" style="display:none">
+          <span id="advFilterPreviewText" class="adv-filter-preview-text"></span>
+        </div>
+
+        <!-- Classe -->
+        <div class="adv-filter-section">
+          <h4 class="adv-filter-section-title">Classe</h4>
+          <div class="adv-filter-chips" id="filterChipsClasse">
+            <button class="filter-chip" data-group="classes" data-value="Parafuso" type="button">Parafuso</button>
+            <button class="filter-chip" data-group="classes" data-value="Porca" type="button">Porca</button>
+            <button class="filter-chip" data-group="classes" data-value="Arruela" type="button">Arruela</button>
+            <button class="filter-chip" data-group="classes" data-value="Rebite Roscado" type="button">Rebite Roscado</button>
+          </div>
+        </div>
+
+        <!-- Diâmetro -->
+        <div class="adv-filter-section">
+          <h4 class="adv-filter-section-title">Diâmetro</h4>
+          <div class="adv-filter-chips" id="filterChipsDiameter">
+            <button class="filter-chip" data-group="diameters" data-value="M3" type="button">M3</button>
+            <button class="filter-chip" data-group="diameters" data-value="M3,5" type="button">M3,5</button>
+            <button class="filter-chip" data-group="diameters" data-value="M4" type="button">M4</button>
+            <button class="filter-chip" data-group="diameters" data-value="M5" type="button">M5</button>
+            <button class="filter-chip" data-group="diameters" data-value="M6" type="button">M6</button>
+            <button class="filter-chip" data-group="diameters" data-value="M8" type="button">M8</button>
+            <button class="filter-chip" data-group="diameters" data-value="M10" type="button">M10</button>
+            <button class="filter-chip" data-group="diameters" data-value="M12" type="button">M12</button>
+            <button class="filter-chip" data-group="diameters" data-value="M16" type="button">M16</button>
+            <button class="filter-chip" data-group="diameters" data-value="M20" type="button">M20</button>
+          </div>
+        </div>
+
+        <!-- Cabeça -->
+        <div class="adv-filter-section">
+          <h4 class="adv-filter-section-title">Cabeça <span class="adv-filter-hint">(somente Parafusos)</span></h4>
+          <div class="adv-filter-chips" id="filterChipsHead">
+            <button class="filter-chip" data-group="heads" data-value="Sextavado" type="button">Sextavado</button>
+            <button class="filter-chip" data-group="heads" data-value="Francês" type="button">Francês</button>
+            <button class="filter-chip" data-group="heads" data-value="Redonda" type="button">Redonda</button>
+            <button class="filter-chip" data-group="heads" data-value="Panela" type="button">Panela</button>
+            <button class="filter-chip" data-group="heads" data-value="Cônico" type="button">Cônico</button>
+            <button class="filter-chip" data-group="heads" data-value="Abaulado" type="button">Abaulado</button>
+          </div>
+        </div>
+
+        <!-- Rosca -->
+        <div class="adv-filter-section">
+          <h4 class="adv-filter-section-title">Tipo de Rosca <span class="adv-filter-hint">(somente Parafusos)</span></h4>
+          <div class="adv-filter-chips" id="filterChipsThread">
+            <button class="filter-chip" data-group="threads" data-value="Soberbo" type="button">Soberbo</button>
+            <button class="filter-chip" data-group="threads" data-value="Normal" type="button">Normal</button>
+          </div>
+        </div>
+
+        <!-- Medida/Complemento -->
+        <div class="adv-filter-section">
+          <h4 class="adv-filter-section-title">Medida / Complemento</h4>
+          <input id="advFilterMedida" type="text" class="adv-filter-text-input" placeholder="Ex: x50, x35, etc." autocomplete="off" />
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="btnApplyAdvancedFilter" class="btn-primary" type="button">
+          <span>✓ Aplicar Filtro</span>
+          <span id="advFilterApplyCount" class="adv-filter-apply-count" style="display:none"></span>
+        </button>
+        <button id="btnClearAdvancedFilter" class="btn-secondary" type="button">✕ Limpar Tudo</button>
+        <button id="btnCancelAdvancedFilter" class="btn-secondary" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: Fixador Length Selection (Parafuso, Rebite Roscado) -->
   <div id="fixadorLengthModal" class="modal is-hidden">
     <div class="modal-overlay"></div>
@@ -522,6 +631,51 @@
             <span>Parlock</span>
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Password Auth -->
+  <div id="passwordModal" class="modal is-hidden">
+    <div class="modal-overlay" id="passwordOverlay"></div>
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h3 id="passwordModalTitle">Autenticação</h3>
+        <button id="btnClosePasswordModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-field">
+          <label id="passwordModalLabel" class="form-label">Senha:</label>
+          <input id="passwordInput" type="password" class="input-field" placeholder="Digite a senha..." autocomplete="off" />
+          <p id="passwordError" class="password-error" style="display:none">Senha incorreta. Tente novamente.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnConfirmPassword" class="btn-primary" type="button">Confirmar</button>
+        <button id="btnCancelPassword" class="btn-secondary" type="button">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Providenciar -->
+  <div id="providenciarModal" class="modal is-hidden">
+    <div class="modal-overlay" id="providenciarOverlay"></div>
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>🛒 Providenciar</h3>
+        <button id="btnCloseProvidenciarModal" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="providenciarItemsList" class="providenciar-items"></div>
+        <div id="providenciarResult" style="display:none">
+          <p class="providenciar-result-label">Texto gerado:</p>
+          <textarea id="providenciarText" class="providenciar-textarea" readonly></textarea>
+          <button onclick="copyProvidenciarText()" class="btn-copy-text">📋 Copiar</button>
+        </div>
+      </div>
+      <div class="modal-footer" id="providenciarFooter">
+        <button id="btnGerarProvidenciar" onclick="generateProvidenciarText()" class="btn-primary" type="button">Gerar</button>
+        <button onclick="closeProvidenciarModal()" class="btn-secondary" type="button">Fechar</button>
       </div>
     </div>
   </div>

@@ -554,6 +554,8 @@ function renderItemsView() {
     btnClearActiveFilters.style.display = 'none';
     btnBatchExit.style.display = 'none';
     if (itemsToolbar) itemsToolbar.style.display = 'none';
+    const tabsBar = document.getElementById('itemsTabsBar');
+    if (tabsBar) tabsBar.style.display = 'none';
   }
 
   const isAlertTab = category === 'fixadores' && currentState.currentItemsTab === 'alert';

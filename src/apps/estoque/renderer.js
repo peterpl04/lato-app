@@ -40,6 +40,11 @@ async function apiCall(endpoint, options = {}) {
     'X-App-Env': 'prod'
   };
 
+  // Mark mutation in flight for write methods to suspend polling
+  const method = (options.method || 'GET').toUpperCase();
+  const isWrite = method === 'POST' || method === 'PUT' || method === 'PATCH' || method === 'DELETE';
+  if (isWrite) { mutationCount++; isMutating = true; }
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -55,6 +60,11 @@ async function apiCall(endpoint, options = {}) {
   } catch (error) {
     console.error('Erro na requisição:', error);
     throw error;
+  } finally {
+    if (isWrite) {
+      mutationCount = Math.max(0, mutationCount - 1);
+      isMutating = mutationCount > 0;
+    }
   }
 }
 
@@ -162,6 +172,10 @@ function setDefaultDate() {
 let pollingInterval = null;
 let isPolling = false;
 let lastDataHash = null;
+let isLoadingData = false;        // global in-flight lock
+let loadRequestSeq = 0;            // monotonic sequence to discard stale responses
+let isMutating = false;            // true while a write (POST/PUT/DELETE) is happening
+let mutationCount = 0;             // counter to handle overlapping writes
 const POLLING_INTERVAL = 5000; // 5 segundos
 
 // Função para gerar hash dos dados para detectar mudanças
@@ -188,19 +202,23 @@ function hasDataChanged(newData) {
 }
 
 async function loadData() {
+  if (isLoadingData) {
+    console.log('⏳ loadData() já em andamento, aguardando...');
+    return;
+  }
+  isLoadingData = true;
+  const mySeq = ++loadRequestSeq;
   try {
     console.log('Carregando dados do estoque...');
 
+    const newData = {};
     for (const category of Object.keys(categories)) {
       const items = await apiCall(`/estoque/items/${category}`);
 
-      // Buscar movimentações para cada item
       const itemsWithMovements = await Promise.all(
         items.map(async (item) => {
           try {
             const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
-
-            // Mapear movimentos para o formato correto
             const movements = (data.movements || []).map(m => ({
               id: m.id,
               type: m.movement_type,
@@ -208,7 +226,6 @@ async function loadData() {
               quantity: m.quantity,
               address: m.address
             }));
-
             return {
               id: item.item_id,
               name: item.name,
@@ -229,13 +246,25 @@ async function loadData() {
         })
       );
 
-      currentState.items[category] = itemsWithMovements;
+      newData[category] = itemsWithMovements;
     }
 
-    console.log('Dados carregados com sucesso:', currentState.items);
+    // Discard if a newer load started while we were fetching
+    if (mySeq !== loadRequestSeq) {
+      console.log('🗑️ loadData() descartado (sequência obsoleta)');
+      return;
+    }
+
+    currentState.items = newData;
+    // Sync hash so polling won't immediately flag a "change"
+    lastDataHash = generateDataHash(newData);
+
+    console.log('Dados carregados com sucesso');
   } catch (error) {
     console.error('Erro ao carregar dados:', error);
     showToast('⚠️ Erro ao carregar dados do estoque', 'error');
+  } finally {
+    isLoadingData = false;
   }
 }
 
@@ -246,6 +275,12 @@ async function saveData() {
 
 // Real-time updates functions
 async function loadDataSilently() {
+  // Skip if a load is already in flight or a mutation is happening
+  if (isLoadingData || isMutating) {
+    return;
+  }
+  isLoadingData = true;
+  const mySeq = ++loadRequestSeq;
   try {
     const newData = {};
 
@@ -288,20 +323,22 @@ async function loadDataSilently() {
       newData[category] = itemsWithMovements;
     }
 
-    // Verificar se houve mudanças
+    // Discard stale response (mutation or newer load happened while we were fetching)
+    if (mySeq !== loadRequestSeq || isMutating) {
+      console.log('🗑️ loadDataSilently() descartado (resposta obsoleta)');
+      return;
+    }
+
     if (hasDataChanged(newData)) {
       console.log('🔄 Dados atualizados detectados, sincronizando interface...');
 
-      // Atualizar dados locais
       currentState.items = newData;
 
-      // Atualizar interface baseado na view atual
       if (currentState.currentView === 'categories') {
         renderCategoryView();
       } else if (currentState.currentView === 'items') {
         renderItemsView();
       } else if (currentState.currentView === 'details' && currentState.currentItem) {
-        // Atualizar item atual com dados frescos
         const category = currentState.currentCategory;
         const updatedItem = (currentState.items[category] || []).find(i => i.id === currentState.currentItem.id);
         if (updatedItem) {
@@ -310,13 +347,13 @@ async function loadDataSilently() {
         }
       }
 
-      // Mostrar notificação discreta
       showToast('📊 Dados atualizados automaticamente', 'info', 2000);
     }
 
   } catch (error) {
     console.error('Erro no polling de dados:', error);
-    // Não mostrar toast para evitar spam de erros
+  } finally {
+    isLoadingData = false;
   }
 }
 

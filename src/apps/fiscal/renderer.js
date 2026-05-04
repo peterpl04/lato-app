@@ -36,6 +36,11 @@ function renderResults(matches) {
   });
 }
 
+function selectInvoiceField() {
+  invoiceInput.focus();
+  invoiceInput.select();
+}
+
 async function selectFolder() {
   const folder = await window.api.selectFolder();
   selectedFolder = folder || "";
@@ -83,6 +88,8 @@ async function searchByInvoice() {
   } catch (error) {
     setStatus(error?.message || "Erro ao buscar arquivos.", "error");
     resultCounter.textContent = "Erro na busca";
+  } finally {
+    selectInvoiceField();
   }
 }
 

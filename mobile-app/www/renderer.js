@@ -24,8 +24,7 @@ let currentState = {
     medida: null
   },
   showOnlyWithStock: false,
-  currentItemsTab: 'all', // 'all' | 'alert'
-  modalMode: 'add' // 'add' or 'filter'
+  currentItemsTab: 'all' // 'all' | 'alert'
 };
 
 // API Configuration
@@ -135,10 +134,6 @@ const fixadorLengthInput = document.getElementById('fixadorLengthInput');
 const btnConfirmFixadorLength = document.getElementById('btnConfirmFixadorLength');
 
 // Filter elements
-const filterExtraFields = document.getElementById('filterExtraFields');
-const filterMedida = document.getElementById('filterMedida');
-const btnApplyFilter = document.getElementById('btnApplyFilter');
-const btnClearFilter = document.getElementById('btnClearFilter');
 const activeFilters = document.getElementById('activeFilters');
 const filterTags = document.getElementById('filterTags');
 const btnClearAllFilters = document.getElementById('btnClearAllFilters');
@@ -152,14 +147,11 @@ const categories = {
 
 // Initialize
 async function init() {
-  console.log('Inicializando módulo Estoque...');
   setDefaultDate();
   await loadData();
   attachEventListeners();
   initBatchExitSystem();
   renderCategoryView();
-
-  // Iniciar sistema de atualizações em tempo real
   startRealTimeUpdates();
 }
 
@@ -176,90 +168,80 @@ let isLoadingData = false;        // global in-flight lock
 let loadRequestSeq = 0;            // monotonic sequence to discard stale responses
 let isMutating = false;            // true while a write (POST/PUT/DELETE) is happening
 let mutationCount = 0;             // counter to handle overlapping writes
-const POLLING_INTERVAL = 5000; // 5 segundos
 
-// Função para gerar hash dos dados para detectar mudanças
+// Polling: more frequent on desktop, conservative on mobile (battery + data)
+const IS_MOBILE = !!window.Capacitor || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+const POLLING_INTERVAL = IS_MOBILE ? 15000 : 5000;
+
+// Hash baseado apenas em (id, quantidade, nome) — suficiente para detectar mudanças
+// sem precisar carregar movimentos.
 function generateDataHash(data) {
-  return JSON.stringify(data).length + '_' + Object.keys(data).map(category =>
-    (data[category] || []).reduce((sum, item) => sum + (item.quantity || 0), 0)
-  ).join('_');
+  const parts = [];
+  for (const category of Object.keys(data)) {
+    const items = data[category] || [];
+    parts.push(category + ':' + items.length);
+    for (const item of items) {
+      parts.push(item.id + '#' + (item.quantity || 0));
+    }
+  }
+  return parts.join('|');
 }
 
-// Função para detectar se houve mudanças nos dados
 function hasDataChanged(newData) {
   const newHash = generateDataHash(newData);
   if (lastDataHash === null) {
     lastDataHash = newHash;
     return false;
   }
-
   if (newHash !== lastDataHash) {
     lastDataHash = newHash;
     return true;
   }
-
   return false;
 }
 
-async function loadData() {
-  if (isLoadingData) {
-    console.log('⏳ loadData() já em andamento, aguardando...');
-    return;
+// Cache de movimentos por item (lazy-load on details view)
+const movementsCache = new Map(); // itemId -> [{id,type,date,quantity,address}]
+
+function normalizeMovements(rawList) {
+  return (rawList || []).map(m => ({
+    id: m.id,
+    type: m.movement_type,
+    date: m.movement_date,
+    quantity: m.quantity,
+    address: m.address
+  }));
+}
+
+// Busca apenas itens (sem movimentos). Usado em init, polling e refresh pós-mutação.
+async function fetchAllItems() {
+  const newData = {};
+  for (const category of Object.keys(categories)) {
+    const items = await apiCall(`/estoque/items/${category}`);
+    newData[category] = items.map(item => {
+      const id = item.item_id;
+      return {
+        id,
+        name: item.name,
+        code: item.code,
+        quantity: item.quantity,
+        // Mantém movimentos do cache se já foram carregados
+        movements: movementsCache.get(id) || null
+      };
+    });
   }
+  return newData;
+}
+
+async function loadData() {
+  if (isLoadingData) return;
   isLoadingData = true;
   const mySeq = ++loadRequestSeq;
   try {
-    console.log('Carregando dados do estoque...');
-
-    const newData = {};
-    for (const category of Object.keys(categories)) {
-      const items = await apiCall(`/estoque/items/${category}`);
-
-      const itemsWithMovements = await Promise.all(
-        items.map(async (item) => {
-          try {
-            const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
-            const movements = (data.movements || []).map(m => ({
-              id: m.id,
-              type: m.movement_type,
-              date: m.movement_date,
-              quantity: m.quantity,
-              address: m.address
-            }));
-            return {
-              id: item.item_id,
-              name: item.name,
-              code: item.code,
-              quantity: item.quantity,
-              movements
-            };
-          } catch (err) {
-            console.error(`Erro ao carregar movimentos do item ${item.item_id}:`, err);
-            return {
-              id: item.item_id,
-              name: item.name,
-              code: item.code,
-              quantity: item.quantity,
-              movements: []
-            };
-          }
-        })
-      );
-
-      newData[category] = itemsWithMovements;
-    }
-
-    // Discard if a newer load started while we were fetching
-    if (mySeq !== loadRequestSeq) {
-      console.log('🗑️ loadData() descartado (sequência obsoleta)');
-      return;
-    }
-
+    const newData = await fetchAllItems();
+    if (mySeq !== loadRequestSeq) return; // descartado
     currentState.items = newData;
-    // Sync hash so polling won't immediately flag a "change"
     lastDataHash = generateDataHash(newData);
-
-    console.log('Dados carregados com sucesso');
   } catch (error) {
     console.error('Erro ao carregar dados:', error);
     showToast('⚠️ Erro ao carregar dados do estoque', 'error');
@@ -268,144 +250,100 @@ async function loadData() {
   }
 }
 
-async function saveData() {
-  // Dados são salvos automaticamente na API via endpoints individuais
-  console.log('Dados sincronizados com banco de dados');
-}
-
-// Real-time updates functions
-async function loadDataSilently() {
-  // Skip if a load is already in flight or a mutation is happening
-  if (isLoadingData || isMutating) {
+// Carrega movimentos de um item sob demanda; usa cache.
+async function loadItemMovements(item, { force = false } = {}) {
+  if (!item) return;
+  if (!force && Array.isArray(item.movements)) return;
+  if (!force && movementsCache.has(item.id)) {
+    item.movements = movementsCache.get(item.id);
     return;
   }
+  try {
+    const data = await apiCall(`/estoque/items/${item.id}/movements`);
+    const movements = normalizeMovements(data.movements);
+    item.movements = movements;
+    movementsCache.set(item.id, movements);
+  } catch (err) {
+    console.error('Erro ao carregar movimentos:', err);
+    item.movements = item.movements || [];
+  }
+}
+
+function invalidateMovements(itemId) {
+  movementsCache.delete(itemId);
+}
+
+// Polling silencioso: só re-renderiza se houver mudança e nenhum modal estiver aberto.
+async function loadDataSilently() {
+  if (isLoadingData || isMutating) return;
+  if (isAnyModalOpen()) return; // não interromper interação do usuário
+
   isLoadingData = true;
   const mySeq = ++loadRequestSeq;
   try {
-    const newData = {};
+    const newData = await fetchAllItems();
+    if (mySeq !== loadRequestSeq || isMutating) return;
 
-    for (const category of Object.keys(categories)) {
-      const items = await apiCall(`/estoque/items/${category}`);
+    if (!hasDataChanged(newData)) return;
 
-      const itemsWithMovements = await Promise.all(
-        items.map(async (item) => {
-          try {
-            const data = await apiCall(`/estoque/items/${item.item_id}/movements`);
+    currentState.items = newData;
 
-            const movements = (data.movements || []).map(m => ({
-              id: m.id,
-              type: m.movement_type,
-              date: m.movement_date,
-              quantity: m.quantity,
-              address: m.address
-            }));
-
-            return {
-              id: item.item_id,
-              name: item.name,
-              code: item.code,
-              quantity: item.quantity,
-              movements
-            };
-          } catch (err) {
-            console.error(`Erro ao carregar movimentos do item ${item.item_id}:`, err);
-            return {
-              id: item.item_id,
-              name: item.name,
-              code: item.code,
-              quantity: item.quantity,
-              movements: []
-            };
-          }
-        })
-      );
-
-      newData[category] = itemsWithMovements;
-    }
-
-    // Discard stale response (mutation or newer load happened while we were fetching)
-    if (mySeq !== loadRequestSeq || isMutating) {
-      console.log('🗑️ loadDataSilently() descartado (resposta obsoleta)');
-      return;
-    }
-
-    if (hasDataChanged(newData)) {
-      console.log('🔄 Dados atualizados detectados, sincronizando interface...');
-
-      currentState.items = newData;
-
-      if (currentState.currentView === 'categories') {
-        renderCategoryView();
-      } else if (currentState.currentView === 'items') {
-        renderItemsView();
-      } else if (currentState.currentView === 'details' && currentState.currentItem) {
-        const category = currentState.currentCategory;
-        const updatedItem = (currentState.items[category] || []).find(i => i.id === currentState.currentItem.id);
-        if (updatedItem) {
-          currentState.currentItem = updatedItem;
-          renderItemDetailsView();
+    if (currentState.currentView === 'items') {
+      renderItemsView();
+    } else if (currentState.currentView === 'category') {
+      renderCategoryView();
+    } else if (currentState.currentView === 'details' && currentState.currentItem) {
+      const category = currentState.currentCategory;
+      const updatedItem = (currentState.items[category] || []).find(i => i.id === currentState.currentItem.id);
+      if (updatedItem) {
+        // Preserva movimentos já carregados
+        if (!updatedItem.movements && currentState.currentItem.movements) {
+          updatedItem.movements = currentState.currentItem.movements;
         }
+        currentState.currentItem = updatedItem;
+        renderItemDetailsView();
       }
-
-      showToast('📊 Dados atualizados automaticamente', 'info', 2000);
     }
-
   } catch (error) {
-    console.error('Erro no polling de dados:', error);
+    console.error('Erro no polling:', error);
   } finally {
     isLoadingData = false;
   }
 }
 
+function isAnyModalOpen() {
+  return !!document.querySelector('.modal:not(.is-hidden)');
+}
+
 function startRealTimeUpdates() {
   if (isPolling) return;
-
   isPolling = true;
-  console.log('🔄 Sistema de atualizações em tempo real iniciado');
 
   pollingInterval = setInterval(() => {
-    // Só fazer polling se a aba estiver ativa
-    if (!document.hidden) {
-      loadDataSilently();
-    }
+    if (!document.hidden) loadDataSilently();
   }, POLLING_INTERVAL);
 
-  // Pausar polling quando aba não está ativa (economizar recursos)
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      console.log('⏸️ Aba inativa, pausando atualizações');
-    } else {
-      console.log('▶️ Aba ativa, retomando atualizações');
-      // Fazer uma verificação imediata quando voltar
-      loadDataSilently();
-    }
+    if (!document.hidden) loadDataSilently();
   });
 }
 
 function stopRealTimeUpdates() {
   if (!isPolling) return;
-
   isPolling = false;
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
   }
-  console.log('⏹️ Sistema de atualizações em tempo real parado');
 }
 
 // Event Listeners
 function attachEventListeners() {
-  console.log('Anexando event listeners...');
-
-  // Category buttons - CORRIGIDO PARA .category-btn
+  // Category buttons
   const categoryBtns = document.querySelectorAll('.category-btn');
-  console.log('Botões de categoria encontrados:', categoryBtns.length);
-
   categoryBtns.forEach(btn => {
     btn.addEventListener('click', function() {
-      const category = this.dataset.category;
-      console.log('Categoria clicada:', category);
-      selectCategory(category);
+      selectCategory(this.dataset.category);
     });
   });
 
@@ -460,8 +398,6 @@ function attachEventListeners() {
   });
 
   // Filter actions
-  btnApplyFilter.addEventListener('click', applyFilter);
-  btnClearFilter.addEventListener('click', clearCurrentFilter);
   btnClearAllFilters.addEventListener('click', clearAllFilters);
 
   // Password modal
@@ -494,13 +430,10 @@ function attachEventListeners() {
 
   // Advanced filter modal
   attachAdvancedFilterListeners();
-
-  console.log('Event listeners anexados com sucesso');
 }
 
 // Navigation
 function switchView(viewName) {
-  console.log('Mudando para view:', viewName);
   categoryView.classList.remove('view-active');
   itemsView.classList.remove('view-active');
   itemDetailsView.classList.remove('view-active');
@@ -521,7 +454,6 @@ function switchView(viewName) {
 }
 
 function selectCategory(categoryKey) {
-  console.log('Selecionando categoria:', categoryKey);
   currentState.currentCategory = categoryKey;
   showItemsLoading();
   renderItemsView();
@@ -545,8 +477,6 @@ function goToItems() {
 
 // Rendering
 function renderCategoryView() {
-  console.log('Renderizando category view');
-  // CORRIGIDO PARA .category-badge
   document.querySelectorAll('.category-badge').forEach(el => {
     const cat = el.dataset.count;
     const count = (currentState.items[cat] || []).length;
@@ -557,8 +487,6 @@ function renderCategoryView() {
 function renderItemsView() {
   const category = currentState.currentCategory;
   const categoryData = categories[category];
-
-  console.log('Renderizando items view para:', category);
 
   if (!categoryData) {
     showToast('Categoria inválida', 'error');
@@ -667,7 +595,9 @@ function renderItemsView() {
   if (category === 'fixadores') {
     renderFixadoresGrouped(items);
   } else {
-    items.forEach(item => itemsList.appendChild(createItemCard(item)));
+    const frag = document.createDocumentFragment();
+    items.forEach(item => frag.appendChild(createItemCard(item)));
+    itemsList.appendChild(frag);
   }
 
   // Update active filters display
@@ -734,6 +664,7 @@ function renderFixadoresGrouped(items) {
     groups.get(cls).push(item);
   }
 
+  const frag = document.createDocumentFragment();
   for (const [cls, groupItems] of groups) {
     const label = FIXADOR_CLASS_PLURAL[cls] || cls;
     const shouldExpand = isFiltered || expandedClasses.has(label);
@@ -751,7 +682,9 @@ function renderFixadoresGrouped(items) {
 
     const body = document.createElement('div');
     body.className = 'items-section-body' + (shouldExpand ? '' : ' collapsed');
-    groupItems.forEach(item => body.appendChild(createItemCard(item)));
+    const bodyFrag = document.createDocumentFragment();
+    groupItems.forEach(item => bodyFrag.appendChild(createItemCard(item)));
+    body.appendChild(bodyFrag);
 
     header.addEventListener('click', () => {
       const isCollapsed = header.classList.toggle('collapsed');
@@ -760,8 +693,9 @@ function renderFixadoresGrouped(items) {
 
     group.appendChild(header);
     group.appendChild(body);
-    itemsList.appendChild(group);
+    frag.appendChild(group);
   }
+  itemsList.appendChild(frag);
 }
 
 function createItemCard(item) {
@@ -801,8 +735,6 @@ function createItemCard(item) {
 function renderItemDetailsView() {
   const item = currentState.currentItem;
   if (!item) return;
-
-  console.log('Renderizando details view para:', item.name);
 
   itemTitle.textContent = item.name;
   document.getElementById('detailItemName').textContent = escapeHtml(item.name);
@@ -876,6 +808,7 @@ function renderMovements() {
     return dateB - dateA;
   });
 
+  const frag = document.createDocumentFragment();
   sorted.forEach(movement => {
     const li = document.createElement('li');
     li.className = 'movement-item';
@@ -909,26 +842,35 @@ function renderMovements() {
       <div class="movement-qty ${quantityClass}">${quantityDisplay}</div>
     `;
 
-    movementsList.appendChild(li);
+    frag.appendChild(li);
   });
+  movementsList.appendChild(frag);
 }
 
-function viewItem(itemId) {
+async function viewItem(itemId) {
   const category = currentState.currentCategory;
   const item = (currentState.items[category] || []).find(i => i.id === itemId);
-  if (item) {
-    currentState.currentItem = item;
-    renderItemDetailsView();
-    switchView('details');
-    // Navegação instantânea - sem loading para dados já carregados
+  if (!item) return;
+
+  currentState.currentItem = item;
+  switchView('details');
+
+  // Lazy-load de movimentos só ao entrar nos detalhes
+  if (!Array.isArray(item.movements)) {
+    showDetailsLoading();
+    try {
+      await loadItemMovements(item);
+    } finally {
+      hideDetailsLoading();
+    }
   }
+  renderItemDetailsView();
 }
 
 // Item Management
 function openItemModal() {
   // Se a categoria atual for fixadores, abrir o fluxo especializado
   if (currentState.currentCategory === 'fixadores') {
-    currentState.modalMode = 'add';
     openFixadorTypeModal();
     return;
   }
@@ -1109,13 +1051,15 @@ async function handleAddMovement(e) {
       })
     });
 
-    // Recarregar dados
+    // Invalidar cache do item afetado e recarregar lista (sem N+1)
+    invalidateMovements(item.id);
     await loadData();
+    await loadItemMovements(item, { force: true });
 
-    // Atualizar item atual
     const category = currentState.currentCategory;
     const updatedItem = (currentState.items[category] || []).find(i => i.id === item.id);
     if (updatedItem) {
+      updatedItem.movements = item.movements;
       currentState.currentItem = updatedItem;
     }
 
@@ -1154,7 +1098,7 @@ async function handleDeleteItem() {
       method: 'DELETE'
     });
 
-    // Recarregar dados
+    invalidateMovements(item.id);
     await loadData();
     renderItemsView();
     renderCategoryView();
@@ -1274,14 +1218,6 @@ function openFixadorSizeModal() {
     : 'Selecionar Diâmetro';
   fixadorSizeModal.classList.remove('is-hidden');
 
-  // Show filter extras only on filter mode
-  if (currentState.modalMode === 'filter') {
-    filterExtraFields.style.display = 'block';
-    filterMedida.value = '';
-  } else {
-    filterExtraFields.style.display = 'none';
-  }
-
   // Re-bind listeners
   document.querySelectorAll('#fixadorSizeModal .fixador-size-btn').forEach(btn => {
     btn.classList.remove('selected');
@@ -1290,23 +1226,13 @@ function openFixadorSizeModal() {
 
   document.querySelectorAll('#fixadorSizeModal .fixador-size-btn').forEach(btn => {
     btn.addEventListener('click', function () {
-      const size = this.dataset.size;
-
-      if (currentState.modalMode === 'filter') {
-        currentState.fixadorSelection.diameter = size;
-        document.querySelectorAll('#fixadorSizeModal .fixador-size-btn')
-          .forEach(b => b.classList.remove('selected'));
-        this.classList.add('selected');
-      } else {
-        selectFixadorDiameter(size);
-      }
+      selectFixadorDiameter(this.dataset.size);
     });
   });
 }
 
 function closeFixadorSizeModal() {
   fixadorSizeModal.classList.add('is-hidden');
-  if (filterMedida) filterMedida.value = '';
   document.querySelectorAll('#fixadorSizeModal .fixador-size-btn')
     .forEach(b => b.classList.remove('selected'));
 }
@@ -1458,37 +1384,6 @@ function openMainItemModalWithName(name) {
 // ============================================================================
 // FILTER SYSTEM
 // ============================================================================
-
-function applyFilter() {
-  const sel = currentState.fixadorSelection;
-
-  if (!sel.classe && !sel.diameter) {
-    showToast('Selecione ao menos a classe ou o diâmetro', 'error');
-    return;
-  }
-
-  const medida = filterMedida.value.trim();
-
-  currentState.activeFilters = {
-    classe: sel.classe || null,
-    diameter: sel.diameter || null,
-    length: null,
-    head: null,
-    thread: null,
-    medida: medida || null
-  };
-
-  closeFixadorSizeModal();
-  renderItemsView();
-  showToast('✓ Filtro aplicado com sucesso', 'success');
-}
-
-function clearCurrentFilter() {
-  resetActiveFilters();
-  closeFixadorSizeModal();
-  renderItemsView();
-  showToast('✓ Filtros removidos', 'success');
-}
 
 function clearAllFilters() {
   resetActiveFilters();
@@ -1735,14 +1630,6 @@ function updateActiveFiltersDisplay() {
   f.heads.forEach((h, i) => addTag('Cabeça', h, () => { currentState.activeFilters.heads.splice(i, 1); }));
   f.threads.forEach((t, i) => addTag('Rosca', t, () => { currentState.activeFilters.threads.splice(i, 1); }));
   if (f.medida) addTag('Medida', f.medida, () => { currentState.activeFilters.medida = null; });
-}
-
-function createFilterTag(label, value, onRemove) {
-  const tag = document.createElement('div');
-  tag.className = 'filter-tag';
-  tag.innerHTML = `<span>${label}: ${escapeHtml(value)}</span><span class="remove">×</span>`;
-  tag.querySelector('.remove').addEventListener('click', onRemove);
-  return tag;
 }
 
 // Toast Notifications
@@ -2203,6 +2090,7 @@ function renderAvailableItems(items) {
     return;
   }
 
+  const frag = document.createDocumentFragment();
   items.forEach(item => {
     const qty = item.quantity || 0;
     const hasStock = qty > 0;
@@ -2242,8 +2130,9 @@ function renderAvailableItems(items) {
       });
     }
 
-    batchAvailableList.appendChild(itemDiv);
+    frag.appendChild(itemDiv);
   });
+  batchAvailableList.appendChild(frag);
 
   updateBulkActionButtons();
 }
@@ -2437,6 +2326,7 @@ async function handleBatchExit() {
           address: address
         })
       });
+      invalidateMovements(itemId);
     }
 
     // Success

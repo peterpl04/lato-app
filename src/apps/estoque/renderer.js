@@ -1096,7 +1096,7 @@ async function handleAddMovement(e) {
   const item = currentState.currentItem;
 
   try {
-    showDetailsLoading();
+    showGlobalLoading(type === 'entrada' ? 'Registrando entrada...' : 'Registrando saída...');
 
     // Registrar movimento na API
     await apiCall(`/estoque/items/${item.id}/movements`, {
@@ -1128,7 +1128,7 @@ async function handleAddMovement(e) {
     console.error('Erro ao registrar movimento:', error);
     showToast('Erro ao registrar movimento', 'error');
   } finally {
-    hideDetailsLoading();
+    hideGlobalLoading();
   }
 }
 
@@ -1975,6 +1975,23 @@ function showDetailsLoading() {
 function hideDetailsLoading() {
   detailsLoading.classList.remove('active');
   detailsLoading.setAttribute('aria-hidden', 'true');
+}
+
+// Global loading overlay (works regardless of active view/modal)
+function showGlobalLoading(text) {
+  const el = document.getElementById('globalLoading');
+  if (!el) return;
+  const label = document.getElementById('globalLoadingText');
+  if (label && text) label.textContent = text;
+  el.classList.add('active');
+  el.setAttribute('aria-hidden', 'false');
+}
+
+function hideGlobalLoading() {
+  const el = document.getElementById('globalLoading');
+  if (!el) return;
+  el.classList.remove('active');
+  el.setAttribute('aria-hidden', 'true');
 }
 
 // =====================================

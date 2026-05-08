@@ -1511,13 +1511,19 @@ const ADV_FILTER_GROUPS = {
 };
 
 let pendingFilterState = null;
+let advFilterMode = 'main'; // 'main' | 'batch'
 
-function openAdvancedFilterModal() {
+function openAdvancedFilterModal(mode = 'main') {
   const modal = document.getElementById('advancedFilterModal');
   if (!modal) return;
 
-  // Clone current active filters into pending state
-  const f = currentState.activeFilters;
+  advFilterMode = mode === 'batch' ? 'batch' : 'main';
+
+  // Source filters depend on context
+  const f = advFilterMode === 'batch'
+    ? (batchActiveFilters || { classes: [], diameters: [], heads: [], threads: [], medida: null })
+    : currentState.activeFilters;
+
   pendingFilterState = {
     classes:   [...f.classes],
     diameters: [...f.diameters],
@@ -1592,7 +1598,7 @@ function applyAdvancedFilter() {
   const medidaInput = document.getElementById('advFilterMedida');
   const medidaVal = medidaInput ? medidaInput.value.trim() : '';
 
-  currentState.activeFilters = {
+  const newFilter = {
     classes:   [...pendingFilterState.classes],
     diameters: [...pendingFilterState.diameters],
     heads:     [...pendingFilterState.heads],
@@ -1600,9 +1606,23 @@ function applyAdvancedFilter() {
     medida:    medidaVal || null
   };
 
-  closeAdvancedFilterModal();
-  renderItemsView();
-  if (hasActiveFilters()) showToast('✓ Filtro aplicado', 'success');
+  if (advFilterMode === 'batch') {
+    batchActiveFilters = newFilter;
+    closeAdvancedFilterModal();
+    updateBatchFilterUI();
+    filterAvailableItems();
+    if (hasBatchActiveFilters()) showToast('✓ Filtro aplicado', 'success');
+  } else {
+    currentState.activeFilters = newFilter;
+    closeAdvancedFilterModal();
+    renderItemsView();
+    if (hasActiveFilters()) showToast('✓ Filtro aplicado', 'success');
+  }
+}
+
+function hasBatchActiveFilters() {
+  const f = batchActiveFilters;
+  return f.classes.length > 0 || f.diameters.length > 0 || f.heads.length > 0 || f.threads.length > 0 || !!f.medida;
 }
 
 function attachAdvancedFilterListeners() {
@@ -1618,9 +1638,16 @@ function attachAdvancedFilterListeners() {
 
   document.getElementById('btnApplyAdvancedFilter')?.addEventListener('click', applyAdvancedFilter);
   document.getElementById('btnClearAdvancedFilter')?.addEventListener('click', () => {
-    resetActiveFilters();
-    closeAdvancedFilterModal();
-    renderItemsView();
+    if (advFilterMode === 'batch') {
+      batchActiveFilters = { classes: [], diameters: [], heads: [], threads: [], medida: null };
+      closeAdvancedFilterModal();
+      updateBatchFilterUI();
+      filterAvailableItems();
+    } else {
+      resetActiveFilters();
+      closeAdvancedFilterModal();
+      renderItemsView();
+    }
     showToast('✓ Filtros removidos', 'success');
   });
   document.getElementById('btnCancelAdvancedFilter')?.addEventListener('click', closeAdvancedFilterModal);
@@ -1641,10 +1668,12 @@ function hasActiveFilters() {
   return f.classes.length > 0 || f.diameters.length > 0 || f.heads.length > 0 || f.threads.length > 0 || !!f.medida;
 }
 
-function applyActiveFilters(items) {
-  if (!hasActiveFilters()) return items;
-
-  const f = currentState.activeFilters;
+function applyActiveFilters(items, filtersOverride) {
+  const f = filtersOverride || currentState.activeFilters;
+  const has = filtersOverride
+    ? (f.classes.length > 0 || f.diameters.length > 0 || f.heads.length > 0 || f.threads.length > 0 || !!f.medida)
+    : hasActiveFilters();
+  if (!has) return items;
 
   return items.filter(item => {
     const name = item.name.toLowerCase();
@@ -2001,11 +2030,11 @@ function hideGlobalLoading() {
 // State for selected items
 let batchSelectedItems = new Map(); // Map<itemId, {item, quantity}>
 let currentCategoryFilter = 'all';
+let batchActiveFilters = { classes: [], diameters: [], heads: [], threads: [], medida: null };
 
 // Elements
 const btnBatchExit = document.getElementById('btnBatchExit');
 const batchExitModal = document.getElementById('batchExitModal');
-const batchSearchInput = document.getElementById('batchSearchInput');
 const batchAvailableList = document.getElementById('batchAvailableList');
 const batchSelectedList = document.getElementById('batchSelectedList');
 const batchSelectedCount = document.getElementById('batchSelectedCount');
@@ -2022,8 +2051,13 @@ function initBatchExitSystem() {
   btnConfirmBatchExit?.addEventListener('click', handleBatchExit);
   btnCancelBatchExit?.addEventListener('click', closeBatchExitModal);
 
-  // Search input
-  batchSearchInput?.addEventListener('input', filterAvailableItems);
+  // Filter button (replaces specific search) — opens advanced filter modal in batch context
+  document.getElementById('btnBatchFilter')?.addEventListener('click', () => openAdvancedFilterModal('batch'));
+  document.getElementById('btnBatchClearFilter')?.addEventListener('click', () => {
+    batchActiveFilters = { classes: [], diameters: [], heads: [], threads: [], medida: null };
+    updateBatchFilterUI();
+    filterAvailableItems();
+  });
 
   // Bulk actions
   btnSelectAllVisible?.addEventListener('click', selectAllVisibleItems);
@@ -2051,9 +2085,10 @@ function initBatchExitSystem() {
 function openBatchExitModal() {
   // Clear previous state
   batchSelectedItems.clear();
-  batchSearchInput.value = '';
   batchExitAddress.value = '';
   currentCategoryFilter = 'all';
+  batchActiveFilters = { classes: [], diameters: [], heads: [], threads: [], medida: null };
+  updateBatchFilterUI();
 
   // Reset category filter buttons
   setTimeout(() => {
@@ -2112,30 +2147,48 @@ function getItemCategory(item) {
 }
 
 function filterAvailableItems() {
-  const searchTerm = batchSearchInput.value.toLowerCase().trim();
   const category = currentState.currentCategory;
   const categoryItems = currentState.items[category] || [];
 
-  // Filter items by category filter and search term (show all, even qty=0)
+  // Quick category filter (Parafusos / Porcas / Arruelas / Rebites / Todos)
   let filteredItems = categoryItems.filter(item => {
-    // Category filter
     if (currentCategoryFilter !== 'all') {
       const itemCategory = getItemCategory(item);
       if (itemCategory !== currentCategoryFilter) return false;
     }
-
-    // Search term
-    if (searchTerm) {
-      return (
-        item.name.toLowerCase().includes(searchTerm) ||
-        item.code.toLowerCase().includes(searchTerm)
-      );
-    }
-
     return true;
   });
 
+  // Advanced filter (Classe / Diâmetro / Cabeça / Rosca / Medida)
+  filteredItems = applyActiveFilters(filteredItems, batchActiveFilters);
+
   renderAvailableItems(filteredItems);
+}
+
+function updateBatchFilterUI() {
+  const preview = document.getElementById('batchFilterPreview');
+  const previewText = document.getElementById('batchFilterPreviewText');
+  const badge = document.getElementById('batchFilterBadge');
+  const btnClear = document.getElementById('btnBatchClearFilter');
+  const f = batchActiveFilters;
+
+  const parts = [];
+  if (f.classes.length)   parts.push(f.classes.join(', '));
+  if (f.diameters.length) parts.push(f.diameters.join(', '));
+  if (f.heads.length)     parts.push(f.heads.join(', '));
+  if (f.threads.length)   parts.push(f.threads.join(', '));
+  if (f.medida)           parts.push(f.medida);
+
+  if (parts.length > 0) {
+    if (preview) preview.style.display = 'block';
+    if (previewText) previewText.textContent = parts.join(' · ');
+    if (badge) { badge.textContent = `(${parts.length})`; badge.style.display = 'inline'; }
+    if (btnClear) btnClear.style.display = 'inline-flex';
+  } else {
+    if (preview) preview.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+    if (btnClear) btnClear.style.display = 'none';
+  }
 }
 
 function renderAvailableItems(items) {

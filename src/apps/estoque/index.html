@@ -332,18 +332,22 @@
           </div>
         </div>
 
-        <!-- Search Section -->
-        <div class="batch-search-section">
-          <div class="form-field">
-            <label for="batchSearchInput">Busca Específica (Opcional)</label>
-            <input
-              id="batchSearchInput"
-              type="text"
-              placeholder="Digite para busca específica..."
-              class="search-input"
-            />
-            <small class="field-hint">Use os botões acima para filtros rápidos ou digite aqui para busca específica</small>
+        <!-- Filter Section -->
+        <div class="batch-filter-section">
+          <div class="batch-filter-actions">
+            <button id="btnBatchFilter" type="button" class="btn-secondary btn-batch-filter">
+              <span class="icon">🔍</span>
+              <span>Filtrar Itens</span>
+              <span id="batchFilterBadge" class="adv-filter-apply-count" style="display:none"></span>
+            </button>
+            <button id="btnBatchClearFilter" type="button" class="btn-secondary" style="display:none">
+              ✕ Limpar Filtros
+            </button>
           </div>
+          <div id="batchFilterPreview" class="adv-filter-preview" style="display:none">
+            <span id="batchFilterPreviewText" class="adv-filter-preview-text"></span>
+          </div>
+          <small class="field-hint">Use os botões acima para filtros rápidos ou clique em "Filtrar Itens" para um filtro avançado</small>
         </div>
 
         <!-- Available Items -->

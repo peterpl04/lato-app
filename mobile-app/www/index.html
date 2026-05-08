@@ -3,12 +3,24 @@
 
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ESTOQUE</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    // Marca o documento quando rodando dentro do Capacitor (Android/iOS)
+    // para ativar o layout mobile mesmo em tablets (largura > 768px).
+    (function () {
+      try {
+        var ua = navigator.userAgent || '';
+        var isCap = !!(window.Capacitor) || /Android|iPhone|iPad|iPod/i.test(ua);
+        if (isCap) document.documentElement.classList.add('is-capacitor');
+      } catch (e) { /* noop */ }
+    })();
+  </script>
 </head>
 
 <body>

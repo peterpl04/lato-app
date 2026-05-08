@@ -781,15 +781,15 @@ function createItemCard(item) {
       <h3>${escapeHtml(item.name)}</h3>
       <p>${escapeHtml(item.code)}</p>
     </div>
+    <div class="item-card-actions">
+      <button class="btn-inline-entry" onclick="openInlineMovementModal('entrada', '${item.id}')" title="Registrar Entrada">
+        <span class="icon">↓</span>
+      </button>
+      <button class="btn-inline-exit" onclick="openInlineMovementModal('saida', '${item.id}')" title="Registrar Saída">
+        <span class="icon">↑</span>
+      </button>
+    </div>
     <div class="item-card-qty-section">
-      <div class="item-card-actions">
-        <button class="btn-inline-entry" onclick="openInlineMovementModal('entrada', '${item.id}')" title="Registrar Entrada">
-          <span class="icon">↓</span>
-        </button>
-        <button class="btn-inline-exit" onclick="openInlineMovementModal('saida', '${item.id}')" title="Registrar Saída">
-          <span class="icon">↑</span>
-        </button>
-      </div>
       <div class="item-card-qty ${qtyClass}">${quantity}</div>
     </div>
     <div class="item-card-arrow" onclick="viewItem('${item.id}')">→</div>

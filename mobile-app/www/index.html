@@ -160,6 +160,18 @@
               <label>Código / SKU</label>
               <p id="detailItemCode">-</p>
             </div>
+            <div class="detail-row">
+              <label>Endereçamento</label>
+              <div class="qty-display">
+                <p id="detailItemLocation" style="margin:0;flex:1;">-</p>
+                <button id="btnEditLocation" class="btn-edit-min-qty" type="button" title="Editar endereçamento" onclick="enableLocationEdit()">✏️</button>
+              </div>
+              <div id="locationEditRow" class="min-qty-edit-row" style="display:none">
+                <input id="locationEditInput" type="text" class="min-qty-input" placeholder="Ex: A-01-03" />
+                <button onclick="saveLocation()" class="btn-save-min-qty">✓</button>
+                <button onclick="cancelLocationEdit()" class="btn-cancel-min-qty">✕</button>
+              </div>
+            </div>
             <!-- Min Qty row — shown only for fixadores -->
             <div class="detail-row" id="minQtyRow" style="display:none">
               <label>Quantidade Mínima</label>
@@ -237,6 +249,10 @@
         <div class="form-field">
           <label for="itemCode">Código / SKU *</label>
           <input id="itemCode" type="text" placeholder="Ex: CIL-32-100" required />
+        </div>
+        <div class="form-field">
+          <label for="itemLocation">Endereçamento (Local no estoque)</label>
+          <input id="itemLocation" type="text" placeholder="Ex: A-01-03" autocomplete="off" />
         </div>
         <div class="form-field">
           <label for="itemInitialQuantity">Quantidade Inicial *</label>
@@ -500,7 +516,7 @@
           <div class="adv-filter-chips" id="filterChipsHead">
             <button class="filter-chip" data-group="heads" data-value="Sextavado" type="button">Sextavado</button>
             <button class="filter-chip" data-group="heads" data-value="Francês" type="button">Francês</button>
-            <button class="filter-chip" data-group="heads" data-value="Redonda" type="button">Redonda</button>
+            <button class="filter-chip" data-group="heads" data-value="Allen" type="button">Allen</button>
             <button class="filter-chip" data-group="heads" data-value="Panela" type="button">Panela</button>
             <button class="filter-chip" data-group="heads" data-value="Cônico" type="button">Cônico</button>
             <button class="filter-chip" data-group="heads" data-value="Abaulado" type="button">Abaulado</button>
@@ -572,9 +588,9 @@
             <div class="fixador-icon">🔩</div>
             <span>Francês</span>
           </button>
-          <button class="fixador-head-btn fixador-type-btn" data-head="Redonda" type="button">
+          <button class="fixador-head-btn fixador-type-btn" data-head="Allen" type="button">
             <div class="fixador-icon">🔘</div>
-            <span>Redonda</span>
+            <span>Allen</span>
           </button>
           <button class="fixador-head-btn fixador-type-btn" data-head="Panela" type="button">
             <div class="fixador-icon">🍳</div>

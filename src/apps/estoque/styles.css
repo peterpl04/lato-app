@@ -685,6 +685,12 @@ body {
   color: var(--text-muted);
 }
 
+.item-card-sep {
+  margin: 0 6px;
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
 .item-card-qty {
   display: flex;
   align-items: center;

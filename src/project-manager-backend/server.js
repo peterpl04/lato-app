@@ -187,6 +187,9 @@ async function initDB() {
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_estoque_items_category ON estoque_items(category, environment)`);
   await pool.query(`CREATE INDEX IF NOT EXISTS ix_estoque_movements_item ON estoque_movements(item_id)`);
 
+  // Migration: add location (endereçamento do item no estoque)
+  await pool.query(`ALTER TABLE estoque_items ADD COLUMN IF NOT EXISTS location TEXT`);
+
   console.log("🟢 Tabelas projects e estoque prontas");
 }
 
@@ -546,7 +549,7 @@ app.get("/estoque/items/:itemId/movements", async (req, res) => {
 
 // CREATE ITEM
 app.post("/estoque/items", async (req, res) => {
-  const { itemId, category, name, code, quantity } = req.body;
+  const { itemId, category, name, code, quantity, location } = req.body;
   const env = getRequestEnvironment(req);
 
   if (!itemId || !category || !name || !code) {
@@ -556,11 +559,11 @@ app.post("/estoque/items", async (req, res) => {
   try {
     const result = await pool.query(
       `
-      INSERT INTO estoque_items (item_id, category, name, code, quantity, environment)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO estoque_items (item_id, category, name, code, quantity, location, environment)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING *
       `,
-      [itemId, category, name, code, quantity || 0, env]
+      [itemId, category, name, code, quantity || 0, location || null, env]
     );
 
     io.to(`estoque:${env}`).emit("estoque:update");
@@ -571,21 +574,27 @@ app.post("/estoque/items", async (req, res) => {
   }
 });
 
-// UPDATE ITEM QUANTITY
+// UPDATE ITEM (quantity and/or location)
 app.patch("/estoque/items/:itemId", async (req, res) => {
   const { itemId } = req.params;
-  const { quantity } = req.body;
+  const { quantity, location } = req.body;
   const env = getRequestEnvironment(req);
+
+  const sets = [];
+  const params = [];
+  let i = 1;
+  if (quantity !== undefined) { sets.push(`quantity = $${i++}`); params.push(quantity); }
+  if (location !== undefined) { sets.push(`location = $${i++}`); params.push(location); }
+  if (sets.length === 0) {
+    return res.status(400).json({ error: "Nenhum campo para atualizar" });
+  }
+  sets.push(`updated_at = NOW()`);
+  params.push(itemId, env);
 
   try {
     const result = await pool.query(
-      `
-      UPDATE estoque_items
-      SET quantity = $1, updated_at = NOW()
-      WHERE item_id = $2 AND environment = $3
-      RETURNING *
-      `,
-      [quantity, itemId, env]
+      `UPDATE estoque_items SET ${sets.join(', ')} WHERE item_id = $${i++} AND environment = $${i} RETURNING *`,
+      params
     );
 
     if (result.rows.length === 0) {

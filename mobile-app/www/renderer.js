@@ -224,6 +224,7 @@ async function fetchAllItems() {
         id,
         name: item.name,
         code: item.code,
+        location: item.location || null,
         quantity: item.quantity,
         // Mantém movimentos do cache se já foram carregados
         movements: movementsCache.get(id) || null
@@ -709,11 +710,16 @@ function createItemCard(item) {
   const card = document.createElement('div');
   card.className = 'item-card';
 
+  const displayName = formatFixadorDisplayName(item.name);
+  const codeLine = item.location
+    ? `${escapeHtml(item.code)} <span class="item-card-sep">|</span> ${escapeHtml(item.location)}`
+    : escapeHtml(item.code);
+
   card.innerHTML = `
     <div class="item-stock-dot ${dotClass}" title="${dotTitle}"></div>
     <div class="item-card-info" onclick="viewItem('${item.id}')">
-      <h3>${escapeHtml(item.name)}</h3>
-      <p>${escapeHtml(item.code)}</p>
+      <h3>${escapeHtml(displayName)}</h3>
+      <p>${codeLine}</p>
     </div>
     <div class="item-card-actions">
       <button class="btn-inline-entry" onclick="openInlineMovementModal('entrada', '${item.id}')" title="Registrar Entrada">
@@ -736,9 +742,16 @@ function renderItemDetailsView() {
   const item = currentState.currentItem;
   if (!item) return;
 
-  itemTitle.textContent = item.name;
-  document.getElementById('detailItemName').textContent = escapeHtml(item.name);
-  document.getElementById('detailItemCode').textContent = escapeHtml(item.code);
+  itemTitle.textContent = formatFixadorDisplayName(item.name);
+  document.getElementById('detailItemName').textContent = formatFixadorDisplayName(item.name);
+  document.getElementById('detailItemCode').textContent = item.code;
+  const locEl = document.getElementById('detailItemLocation');
+  if (locEl) locEl.textContent = item.location || '—';
+  // Ensure edit UI is hidden on render
+  const locEditRow = document.getElementById('locationEditRow');
+  const btnEditLoc = document.getElementById('btnEditLocation');
+  if (locEditRow) locEditRow.style.display = 'none';
+  if (btnEditLoc) btnEditLoc.style.display = 'flex';
 
   const quantity = item.quantity || 0;
   const quantityBadge = document.getElementById('detailItemQuantity');
@@ -897,6 +910,8 @@ async function handleAddItem(e) {
 
   const name = itemName.value.trim();
   const code = itemCode.value.trim();
+  const locationInput = document.getElementById('itemLocation');
+  const location = locationInput ? locationInput.value.trim() : '';
   const quantity = parseInt(itemInitialQuantity.value) || 0;
 
   if (!name || !code) {
@@ -932,6 +947,7 @@ async function handleAddItem(e) {
         category,
         name,
         code,
+        location: location || null,
         quantity: 0  // Começar com 0
       })
     });
@@ -1164,9 +1180,9 @@ function composeFixadorName(sel) {
   if (sel.classe === 'Parafuso') {
     let name = `Parafuso Inox`;
     if (sel.head) name += ` ${sel.head}`;
+    if (sel.thread && sel.thread !== 'Normal') name += ` ${sel.thread}`;
     name += ` ${sel.diameter}`;
     if (sel.length) name += `x${sel.length}`;
-    if (sel.thread && sel.thread !== 'Normal') name += ` ${sel.thread}`;
     return name;
   }
 
@@ -1174,12 +1190,25 @@ function composeFixadorName(sel) {
     return `Arruela Inox ${sel.diameter}`;
   }
 
-  // Rebite Roscado, outros
-  let name = `${sel.classe} ${sel.diameter}`;
-  if (sel.length) name += `x${sel.length}`;
+  // Rebite Roscado, outros — diâmetro/medida ao final
+  let name = `${sel.classe}`;
   if (sel.head) name += ` ${sel.head}`;
   if (sel.thread && sel.thread !== 'Normal') name += ` ${sel.thread}`;
+  name += ` ${sel.diameter}`;
+  if (sel.length) name += `x${sel.length}`;
   return name;
+}
+
+// Reordena o nome para exibição: diâmetro/medida (Mx, MxN, M5x35 etc.) vai para o final.
+// Idempotente — se o token já estiver no fim, retorna o mesmo nome.
+function formatFixadorDisplayName(name) {
+  if (!name) return name;
+  const m = name.match(/\bM\d+(?:[,.]\d+)?(?:x\d+)?\b/i);
+  if (!m) return name;
+  const token = m[0];
+  const without = name.replace(token, '').replace(/\s+/g, ' ').trim();
+  if (!without) return token;
+  return `${without} ${token}`;
 }
 
 // --- Class modal --------------------------------------------------------------
@@ -1783,6 +1812,54 @@ function cancelMinQtyEdit() {
   document.getElementById('btnEditMinQty').style.display = 'flex';
 }
 
+// ── Location (endereçamento) editing ─────────────────────────────────────────
+
+function enableLocationEdit() {
+  const item = currentState.currentItem;
+  if (!item) return;
+  const editRow = document.getElementById('locationEditRow');
+  const editInput = document.getElementById('locationEditInput');
+  const editBtn = document.getElementById('btnEditLocation');
+  if (editInput) editInput.value = item.location || '';
+  if (editRow) editRow.style.display = 'flex';
+  if (editBtn) editBtn.style.display = 'none';
+  editInput?.focus();
+  editInput?.select();
+}
+
+function cancelLocationEdit() {
+  const editRow = document.getElementById('locationEditRow');
+  const editBtn = document.getElementById('btnEditLocation');
+  if (editRow) editRow.style.display = 'none';
+  if (editBtn) editBtn.style.display = 'flex';
+}
+
+async function saveLocation() {
+  const item = currentState.currentItem;
+  if (!item) return;
+  const editInput = document.getElementById('locationEditInput');
+  const newLocation = (editInput?.value || '').trim();
+
+  try {
+    await apiCall(`/estoque/items/${item.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ location: newLocation || null })
+    });
+    item.location = newLocation || null;
+    const locEl = document.getElementById('detailItemLocation');
+    if (locEl) locEl.textContent = item.location || '—';
+    // Atualiza listagem em memória
+    const category = currentState.currentCategory;
+    const inList = (currentState.items[category] || []).find(i => i.id === item.id);
+    if (inList) inList.location = item.location;
+    cancelLocationEdit();
+    showToast('✓ Endereçamento atualizado', 'success');
+  } catch (err) {
+    console.error('Erro ao salvar endereçamento:', err);
+    showToast('Erro ao salvar endereçamento', 'error');
+  }
+}
+
 // ── Providenciar modal ────────────────────────────────────────────────────────
 
 function promptProvidenciarSingle() {
@@ -1815,8 +1892,9 @@ function openProvidenciarModal(items) {
   items.forEach(item => {
     const row = document.createElement('div');
     row.className = 'providenciar-item-row';
+    const displayName = formatFixadorDisplayName(item.name);
     row.innerHTML = `
-      <span class="providenciar-item-name">${escapeHtml(item.name)}</span>
+      <span class="providenciar-item-name" data-code="${escapeHtml(item.code || '')}">${escapeHtml(displayName)}</span>
       <div class="providenciar-qty-wrap">
         <label>Quantidade:</label>
         <input type="number" min="1" class="providenciar-qty-input" data-id="${item.id}" placeholder="0" />
@@ -1838,8 +1916,11 @@ function generateProvidenciarText() {
   inputs.forEach(input => {
     const qty = parseInt(input.value, 10);
     if (qty > 0) {
-      const name = input.closest('.providenciar-item-row').querySelector('.providenciar-item-name').textContent;
-      lines.push(`${name} Quantidade: ${qty}`);
+      const nameEl = input.closest('.providenciar-item-row').querySelector('.providenciar-item-name');
+      const name = nameEl.textContent;
+      const code = nameEl.dataset.code || '';
+      const prefix = code ? `[${code}] ` : '';
+      lines.push(`${prefix}${name} Quantidade: ${qty}`);
     }
   });
 

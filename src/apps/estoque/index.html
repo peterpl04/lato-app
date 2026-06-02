@@ -167,7 +167,7 @@
                 <button id="btnEditLocation" class="btn-edit-min-qty" type="button" title="Editar endereçamento" onclick="enableLocationEdit()">✏️</button>
               </div>
               <div id="locationEditRow" class="min-qty-edit-row" style="display:none">
-                <input id="locationEditInput" type="text" class="min-qty-input" placeholder="Ex: A-01-03" />
+                <input id="locationEditInput" type="text" class="min-qty-input" placeholder="Ex: EX - A" />
                 <button onclick="saveLocation()" class="btn-save-min-qty">✓</button>
                 <button onclick="cancelLocationEdit()" class="btn-cancel-min-qty">✕</button>
               </div>
@@ -248,11 +248,11 @@
         </div>
         <div class="form-field">
           <label for="itemCode">Código / SKU *</label>
-          <input id="itemCode" type="text" placeholder="Ex: CIL-32-100" required />
+          <input id="itemCode" type="text" placeholder="Ex: 1234" required />
         </div>
         <div class="form-field">
           <label for="itemLocation">Endereçamento (Local no estoque)</label>
-          <input id="itemLocation" type="text" placeholder="Ex: A-01-03" autocomplete="off" />
+          <input id="itemLocation" type="text" placeholder="Ex: EX - A" autocomplete="off" />
         </div>
         <div class="form-field">
           <label for="itemInitialQuantity">Quantidade Inicial *</label>
@@ -285,7 +285,7 @@
         </div>
         <div id="exitAddressGroup" class="form-field is-hidden">
           <label for="movementAddress">Endereço/Local de Saída <span class="required">*</span></label>
-          <input id="movementAddress" type="text" placeholder="Ex: A-01-03 (obrigatório para saídas)" />
+          <input id="movementAddress" type="text" placeholder="Ex: EX - A (obrigatório para saídas)" />
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn-primary" id="btnSubmitMovement">Registrar Movimentação</button>
@@ -397,7 +397,7 @@
         <!-- Address Field -->
         <div class="form-field">
           <label for="batchExitAddress">Endereço/Local de Saída <span class="required">*</span></label>
-          <input id="batchExitAddress" type="text" placeholder="Ex: A-01-03 (obrigatório para saídas)" />
+          <input id="batchExitAddress" type="text" placeholder="Ex: EX - A (obrigatório para saídas)" />
           <small class="field-hint">Este endereço será aplicado a todos os itens</small>
         </div>
       </div>

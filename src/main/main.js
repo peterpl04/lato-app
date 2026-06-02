@@ -22,13 +22,32 @@ const LAUNCHER_STATE_PATH = path.join(app.getPath("userData"), "launcher-state.j
 
 const { autoUpdater } = require("electron-updater");
 
-const ghToken = process.env.GH_TOKEN;
+let ghToken = process.env.GH_TOKEN;
 const GITHUB_OWNER = "peterpl04";
 const GITHUB_REPO = "lato-app";
 let globalUpdateStatusCache = null;
 let globalUpdateStatusCacheAt = 0;
+let ghTokenDisabled = false;
 
-if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
+function hasUsableGhToken() {
+  return (
+    !ghTokenDisabled &&
+    ghToken &&
+    ghToken !== "undefined" &&
+    ghToken !== "null"
+  );
+}
+
+function disableGhToken(reason) {
+  if (ghTokenDisabled) return;
+  ghTokenDisabled = true;
+  log.info(`GH_TOKEN desabilitado em runtime (${reason}). Usando acesso anônimo ao GitHub.`);
+  if (autoUpdater.requestHeaders && autoUpdater.requestHeaders.Authorization) {
+    delete autoUpdater.requestHeaders.Authorization;
+  }
+}
+
+if (hasUsableGhToken()) {
   autoUpdater.requestHeaders = {
     Authorization: `token ${ghToken}`
   };
@@ -168,7 +187,7 @@ function buildGithubHeaders() {
     Pragma: "no-cache"
   };
 
-  if (ghToken && ghToken !== "undefined" && ghToken !== "null") {
+  if (hasUsableGhToken()) {
     headers.Authorization = `token ${ghToken}`;
   }
 
@@ -182,7 +201,7 @@ async function fetchGithubJson(url) {
   // Public repositories can be queried without token. If token is invalid/expired/rate-limited,
   // retry without Authorization to avoid hard-failing status checks.
   if ((response.status === 401 || response.status === 403) && withAuthHeaders.Authorization) {
-    log.info(`GitHub request returned ${response.status}, retrying without token...`);
+    disableGhToken(`GitHub respondeu ${response.status}`);
 
     const anonymousHeaders = {
       Accept: "application/vnd.github+json",
@@ -192,7 +211,6 @@ async function fetchGithubJson(url) {
     };
 
     response = await fetch(url, { headers: anonymousHeaders });
-    log.info(`Retry without token returned: ${response.status}`);
   }
 
   if (!response.ok) {
@@ -1498,7 +1516,7 @@ app.on("window-all-closed", () => {
 function initAutoUpdater() {
   log.info("Inicializando autoUpdater");
   log.info(`App empacotado: ${app.isPackaged}`);
-  log.info(`GH_TOKEN configurado: ${Boolean(ghToken && ghToken !== "undefined" && ghToken !== "null")}`);
+  log.info(`GH_TOKEN configurado: ${hasUsableGhToken()}`);
 
   if (!app.isPackaged) {
     log.info("Modo desenvolvimento: liberando login sem bloquear por autoUpdater.");

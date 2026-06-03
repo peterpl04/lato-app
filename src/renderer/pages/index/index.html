@@ -35,80 +35,106 @@
 
     <div class="content-grid">
       <section class="main-column" aria-label="Area principal">
+        <section class="apps-hero">
+          <div class="apps-hero-text">
+            <h2>Aplicativos</h2>
+            <p>Selecione um módulo ou pressione <kbd>1</kbd>–<kbd>4</kbd> para abrir</p>
+          </div>
+          <div class="apps-search">
+            <span class="apps-search-icon" aria-hidden="true">🔍</span>
+            <input
+              id="apps-search"
+              type="search"
+              placeholder="Buscar módulo..."
+              autocomplete="off"
+              spellcheck="false"
+              aria-label="Buscar módulo"
+            />
+            <kbd class="apps-search-kbd">Ctrl+K</kbd>
+          </div>
+        </section>
+
         <section class="favorites" aria-label="Filtros de exibição">
-          <h2>Navegação</h2>
-          <div class="favorites-list">
-            <button class="favorite-chip is-active" data-filter="all" type="button">Todos</button>
-            <button class="favorite-chip" data-filter="favorites" type="button">Favoritos</button>
-            <button class="favorite-chip" data-filter="recent" type="button">Recentes</button>
+          <div class="favorites-list" role="tablist">
+            <button class="favorite-chip is-active" data-filter="all" type="button" role="tab">Todos</button>
+            <button class="favorite-chip" data-filter="favorites" type="button" role="tab">Favoritos</button>
+            <button class="favorite-chip" data-filter="recent" type="button" role="tab">Recentes</button>
           </div>
         </section>
 
         <section class="apps" aria-label="Aplicativos disponiveis">
-          <button class="app-card" data-app="dwg" data-favorite="true" type="button" aria-label="Abrir DWG Renamer" data-keywords="dwg renamer arquivo lote renomeacao">
+          <button class="app-card" data-app="dwg" data-module="dwg" data-shortcut="1" type="button" aria-label="Abrir DWG Renamer" data-keywords="dwg renamer arquivo lote renomeacao">
+            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="dwg" aria-label="Favoritar DWG Renamer" title="Favoritar">★</span>
+            <span class="app-shortcut" aria-hidden="true">1</span>
             <div class="app-icon">
               <img src="../../../assets/icons/dwg-renamer.svg" alt="">
             </div>
             <div class="app-name-row">
-              <div class="app-name">DWG RENAMER</div>
+              <div class="app-name">DWG Renamer</div>
             </div>
           </button>
 
-          <button class="app-card" data-app="pm" data-favorite="true" type="button" aria-label="Abrir Project Manager" data-keywords="project manager projetos progresso entregas dashboard">
+          <button class="app-card" data-app="pm" data-module="pm" data-shortcut="2" type="button" aria-label="Abrir Project Manager" data-keywords="project manager projetos progresso entregas dashboard">
+            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="pm" aria-label="Favoritar Project Manager" title="Favoritar">★</span>
+            <span class="app-shortcut" aria-hidden="true">2</span>
             <div class="app-icon">
               <img src="../../../assets/icons/project-manager.svg" alt="">
             </div>
             <div class="app-name-row">
-              <div class="app-name">PROJETOS</div>
+              <div class="app-name">Projetos</div>
             </div>
           </button>
 
-          <button class="app-card" data-app="fiscal" data-favorite="false" type="button" aria-label="Abrir Fiscal" data-keywords="fiscal nota fiscal busca arquivo pasta">
+          <button class="app-card" data-app="fiscal" data-module="fiscal" data-shortcut="3" type="button" aria-label="Abrir Fiscal" data-keywords="fiscal nota fiscal busca arquivo pasta">
+            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="fiscal" aria-label="Favoritar Fiscal" title="Favoritar">★</span>
+            <span class="app-shortcut" aria-hidden="true">3</span>
             <div class="app-icon">
               <img src="../../../assets/icons/fiscal.svg" alt="">
             </div>
             <div class="app-name-row">
-              <div class="app-name">FISCAL</div>
+              <div class="app-name">Fiscal</div>
             </div>
           </button>
 
-          <button class="app-card" data-app="estoque" data-favorite="false" type="button" aria-label="Abrir Estoque" data-keywords="estoque inventário pneumática fixadores elétrica movimentação">
-            <div class="app-icon">
-              📦
-            </div>
+          <button class="app-card" data-app="estoque" data-module="estoque" data-shortcut="4" type="button" aria-label="Abrir Estoque" data-keywords="estoque inventário pneumática fixadores elétrica movimentação">
+            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="estoque" aria-label="Favoritar Estoque" title="Favoritar">★</span>
+            <span class="app-shortcut" aria-hidden="true">4</span>
+            <div class="app-icon app-icon--emoji">📦</div>
             <div class="app-name-row">
-              <div class="app-name">ESTOQUE</div>
+              <div class="app-name">Estoque</div>
             </div>
           </button>
+
+          <div class="apps-empty is-hidden" id="apps-empty">
+            <div class="apps-empty-icon">🔎</div>
+            <p>Nenhum módulo corresponde ao filtro atual.</p>
+          </div>
         </section>
 
       </section>
 
       <aside class="activity" id="activity-card" aria-label="Atividade do sistema" role="button" tabindex="0">
-        <div class="section-title">
-          <h2>Atividade <span class="activity-count" id="activity-count">0</span></h2>
-          <button id="activity-clear-btn" class="activity-clear-btn" type="button" title="Limpar notificações do card" aria-label="Limpar notificações do card">🗑</button>
-        </div>
-        <ul class="activity-list" id="activity-list"></ul>
-        <div class="activity-insights" aria-label="Resumo da atividade">
-          <div class="insight-chip">
-            <span class="insight-label">Hoje</span>
-            <strong class="insight-value" id="activity-today-count">0 eventos</strong>
+        <header class="activity-head">
+          <div class="activity-head-title">
+            <h2>Atividade <span class="activity-count" id="activity-count">0</span></h2>
+            <p class="activity-head-summary" id="activity-summary">Aguardando eventos...</p>
           </div>
-          <div class="insight-chip">
-            <span class="insight-label">Último evento</span>
-            <strong class="insight-value" id="activity-last-time">--:--</strong>
-          </div>
-          <div class="insight-chip">
-            <span class="insight-label">Último módulo</span>
-            <strong class="insight-value" id="activity-last-module">-</strong>
-          </div>
+          <button id="activity-clear-btn" class="activity-clear-btn" type="button" title="Marcar todas como lidas" aria-label="Marcar todas como lidas">
+            <span aria-hidden="true">✓</span>
+          </button>
+        </header>
+
+        <ul class="activity-timeline" id="activity-list"></ul>
+
+        <div class="activity-empty is-hidden" id="activity-empty">
+          <div class="activity-empty-icon">✨</div>
+          <p class="activity-empty-title">Tudo tranquilo por aqui</p>
+          <p class="activity-empty-sub">Eventos do sistema aparecerão aqui em tempo real.</p>
         </div>
-        <div class="activity-recent" aria-label="Módulos recentes">
-          <h3>Recentes</h3>
-          <ul class="activity-recent-list" id="activity-recent-list"></ul>
-        </div>
-        <p class="activity-hint">Clique para ver todas do dia</p>
+
+        <footer class="activity-foot">
+          <span class="activity-hint">Clique para ver todas as atividades de hoje</span>
+        </footer>
       </aside>
     </div>
   </main>

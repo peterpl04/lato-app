@@ -19,7 +19,8 @@ let launcherState = {
   },
   recents: [],
   activity: [],
-  dismissedActivityKeys: []
+  dismissedActivityKeys: [],
+  favorites: ["dwg", "pm"]
 };
 const APP_STATUS_POLL_MS = 60 * 1000;
 const ACTIVITY_PREVIEW_ITEMS = 7;
@@ -34,7 +35,34 @@ let activityApiUrl = DEFAULT_ACTIVITY_API_URL;
 let activityEnv = "prod";
 let hoverTooltipEl = null;
 const dismissedActivityKeys = new Set();
+const favoriteApps = new Set(["dwg", "pm"]);
 let activeLauncherFilter = "all";
+let activeSearchQuery = "";
+
+const MODULE_ICON_MAP = {
+  dwg: "../../../assets/icons/dwg-renamer.svg",
+  pm: "../../../assets/icons/project-manager.svg",
+  fiscal: "../../../assets/icons/fiscal.svg",
+  estoque: null
+};
+
+const MODULE_LETTER_MAP = {
+  dwg: "D",
+  pm: "P",
+  fiscal: "F",
+  estoque: "E",
+  launcher: "L"
+};
+
+function normalizeModuleKey(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (!raw) return "launcher";
+  if (raw === "dwg" || raw === "dwg-renamer") return "dwg";
+  if (raw === "pm" || raw === "project-manager" || raw === "projects") return "pm";
+  if (raw === "fiscal") return "fiscal";
+  if (raw === "estoque") return "estoque";
+  return "launcher";
+}
 
 function ensureHoverTooltip() {
   if (hoverTooltipEl) {
@@ -164,26 +192,82 @@ function getRecentAppSet() {
 
 function applyAppFilter(filter = "all") {
   activeLauncherFilter = filter;
-  const cards = document.querySelectorAll(".app-card[data-app]");
-  const recentSet = getRecentAppSet();
-
-  cards.forEach((card) => {
-    let visible = true;
-
-    if (filter === "favorites") {
-      visible = card.dataset.favorite === "true";
-    }
-
-    if (filter === "recent") {
-      visible = recentSet.has(card.dataset.app);
-    }
-
-    card.style.display = visible ? "" : "none";
-  });
+  reapplyAppVisibility();
 
   document.querySelectorAll(".favorite-chip[data-filter]").forEach((button) => {
     button.classList.toggle("is-active", button.dataset.filter === filter);
   });
+}
+
+function matchesSearchQuery(card, query) {
+  if (!query) return true;
+  const haystack = [
+    card.dataset.app || "",
+    card.dataset.keywords || "",
+    card.querySelector(".app-name")?.textContent || ""
+  ].join(" ").toLowerCase();
+  return query.split(/\s+/).every((token) => haystack.includes(token));
+}
+
+function reapplyAppVisibility() {
+  const cards = document.querySelectorAll(".app-card[data-app]");
+  const recentSet = getRecentAppSet();
+  const query = activeSearchQuery.trim().toLowerCase();
+  let visibleCount = 0;
+
+  cards.forEach((card) => {
+    let visible = true;
+    const appId = card.dataset.app;
+
+    if (activeLauncherFilter === "favorites") {
+      visible = favoriteApps.has(appId);
+    } else if (activeLauncherFilter === "recent") {
+      visible = recentSet.has(appId);
+    }
+
+    if (visible && !matchesSearchQuery(card, query)) {
+      visible = false;
+    }
+
+    card.style.display = visible ? "" : "none";
+    if (visible) visibleCount++;
+  });
+
+  const emptyState = document.getElementById("apps-empty");
+  if (emptyState) {
+    emptyState.classList.toggle("is-hidden", visibleCount > 0);
+  }
+}
+
+function renderFavoritesState() {
+  document.querySelectorAll(".app-card[data-app]").forEach((card) => {
+    const appId = card.dataset.app;
+    const isFav = favoriteApps.has(appId);
+    card.classList.toggle("is-favorite", isFav);
+    const btn = card.querySelector(".app-fav-btn");
+    if (btn) {
+      btn.setAttribute("aria-pressed", String(isFav));
+      btn.title = isFav ? "Remover dos favoritos" : "Adicionar aos favoritos";
+    }
+  });
+}
+
+async function toggleFavorite(appId) {
+  if (!appId) return;
+  if (favoriteApps.has(appId)) {
+    favoriteApps.delete(appId);
+  } else {
+    favoriteApps.add(appId);
+  }
+  const favs = Array.from(favoriteApps);
+  launcherState.favorites = favs;
+  renderFavoritesState();
+  reapplyAppVisibility();
+  try {
+    await persistLauncherPatch({ favorites: favs });
+  } catch {
+    // Persist falhou; UI já reflete o estado.
+  }
 }
 
 function formatTime(iso) {
@@ -222,9 +306,11 @@ function getDateKey(value = new Date()) {
 }
 
 function mapModuleLabel(moduleName) {
-  if (moduleName === "project-manager") return "Project Manager";
-  if (moduleName === "dwg-renamer") return "DWG Renamer";
-  if (moduleName === "fiscal") return "FISCAL";
+  const key = normalizeModuleKey(moduleName);
+  if (key === "pm") return "Projetos";
+  if (key === "dwg") return "DWG Renamer";
+  if (key === "fiscal") return "Fiscal";
+  if (key === "estoque") return "Estoque";
   return "Launcher";
 }
 
@@ -442,20 +528,25 @@ function renderContext() {
 }
 
 function renderMetrics() {
-  const dwgMeta = document.getElementById("dwg-meta");
-  const pmMeta = document.getElementById("pm-meta");
-  const fiscalMeta = document.getElementById("fiscal-meta");
-  const dwgLast = document.getElementById("dwg-last-use");
-  const pmLast = document.getElementById("pm-last-use");
-  const fiscalLast = document.getElementById("fiscal-last-use");
+  const stats = {
+    dwg: { count: launcherState.moduleMetrics.dwgLaunches || 0, last: launcherState.moduleLastUsedAt.dwg },
+    pm: { count: launcherState.moduleMetrics.pmLaunches || 0, last: launcherState.moduleLastUsedAt.pm },
+    fiscal: { count: launcherState.moduleMetrics.fiscalLaunches || 0, last: launcherState.moduleLastUsedAt.fiscal },
+    estoque: { count: launcherState.moduleMetrics.estoqueLaunches || 0, last: launcherState.moduleLastUsedAt.estoque }
+  };
 
-  if (dwgMeta) dwgMeta.textContent = `${launcherState.moduleMetrics.dwgLaunches || 0} execs hoje`;
-  if (pmMeta) pmMeta.textContent = `${launcherState.moduleMetrics.pmLaunches || 0} execs hoje`;
-  if (fiscalMeta) fiscalMeta.textContent = `${launcherState.moduleMetrics.fiscalLaunches || 0} execs hoje`;
-
-  if (dwgLast) dwgLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.dwg)}`;
-  if (pmLast) pmLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.pm)}`;
-  if (fiscalLast) fiscalLast.textContent = `Último uso: ${formatAgo(launcherState.moduleLastUsedAt.fiscal)}`;
+  Object.entries(stats).forEach(([key, { count, last }]) => {
+    const el = document.querySelector(`[data-stat="${key}"]`);
+    if (!el) return;
+    if (!count && !last) {
+      el.textContent = "— sem uso ainda";
+      return;
+    }
+    const label = count
+      ? `${count} ${count === 1 ? "abertura" : "aberturas"} hoje`
+      : "Sem aberturas hoje";
+    el.textContent = last ? `${label} · ${formatAgo(last)}` : label;
+  });
 }
 
 function renderGlobalUpdateBadge(status) {
@@ -520,13 +611,44 @@ async function loadGlobalUpdateStatus(force = false) {
   }
 }
 
+function getActivityGroupKey(iso) {
+  if (!iso) return "older";
+  const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (diffMin < 2) return "now";
+  if (diffMin < 60) return "recent";
+  return "earlier";
+}
+
+const ACTIVITY_GROUP_LABELS = {
+  now: "Agora",
+  recent: "Há pouco",
+  earlier: "Mais cedo hoje",
+  older: "Anteriores"
+};
+
+function buildActivityModIcon(moduleKey) {
+  const wrap = document.createElement("span");
+  wrap.className = "activity-item-mod";
+  const iconUrl = MODULE_ICON_MAP[moduleKey];
+  if (iconUrl) {
+    const img = document.createElement("img");
+    img.src = iconUrl;
+    img.alt = "";
+    wrap.appendChild(img);
+  } else if (moduleKey === "estoque") {
+    wrap.textContent = "📦";
+    wrap.style.fontSize = "12px";
+  } else {
+    wrap.textContent = MODULE_LETTER_MAP[moduleKey] || "•";
+  }
+  return wrap;
+}
+
 function renderActivity() {
   const activityList = document.getElementById("activity-list");
   const activityCount = document.getElementById("activity-count");
-  const activityTodayCount = document.getElementById("activity-today-count");
-  const activityLastTime = document.getElementById("activity-last-time");
-  const activityLastModule = document.getElementById("activity-last-module");
-  const activityRecentList = document.getElementById("activity-recent-list");
+  const summaryEl = document.getElementById("activity-summary");
+  const emptyEl = document.getElementById("activity-empty");
   if (!activityList) return;
 
   activityList.innerHTML = "";
@@ -536,72 +658,61 @@ function renderActivity() {
     activityCount.textContent = String(visibleActivity.length);
   }
 
-  if (activityTodayCount) {
-    activityTodayCount.textContent = `${visibleActivity.length} evento(s)`;
+  if (!visibleActivity.length) {
+    if (summaryEl) summaryEl.textContent = "Aguardando eventos...";
+    activityList.classList.add("is-hidden");
+    emptyEl?.classList.remove("is-hidden");
+    return;
   }
 
-  const latestEntry = visibleActivity[0] || null;
-  if (activityLastTime) {
-    activityLastTime.textContent = latestEntry?.at ? formatActivityTime(latestEntry.at) : "--:--";
+  activityList.classList.remove("is-hidden");
+  emptyEl?.classList.add("is-hidden");
+
+  const latest = visibleActivity[0];
+  if (summaryEl) {
+    const time = latest?.at ? formatActivityTime(latest.at) : "--:--";
+    summaryEl.textContent = `${visibleActivity.length} evento(s) hoje · ültimo às ${time} · ${mapModuleLabel(latest?.module)}`;
   }
 
-  if (activityLastModule) {
-    activityLastModule.textContent = latestEntry ? mapModuleLabel(latestEntry.module) : "-";
-  }
+  const previewItems = visibleActivity.slice(0, ACTIVITY_PREVIEW_ITEMS);
 
-  const previewItems = visibleActivity.length
-    ? visibleActivity.slice(0, ACTIVITY_PREVIEW_ITEMS)
-    : [
-      {
-        message: "Aguardando eventos do launcher",
-        tone: "info",
-        at: null
-      }
-    ];
-
+  let currentGroup = null;
   previewItems.forEach((entry) => {
-    const item = document.createElement("li");
-    const dot = document.createElement("span");
-    const message = document.createElement("span");
-    const time = document.createElement("span");
+    const group = getActivityGroupKey(entry.at);
+    if (group !== currentGroup) {
+      currentGroup = group;
+      const head = document.createElement("li");
+      head.className = "activity-group-head";
+      head.textContent = ACTIVITY_GROUP_LABELS[group] || "Eventos";
+      activityList.appendChild(head);
+    }
 
-    dot.className = `dot ${entry.tone || "info"}`;
-    message.className = "activity-message";
-    message.textContent = entry.message;
-    time.className = "activity-time";
+    const moduleKey = normalizeModuleKey(entry.module);
+    const item = document.createElement("li");
+    item.className = "activity-item";
+    item.dataset.module = moduleKey;
+
+    const modIcon = buildActivityModIcon(moduleKey);
+
+    const body = document.createElement("div");
+    body.className = "activity-item-body";
+
+    const message = document.createElement("span");
+    message.className = "activity-item-message";
+    message.textContent = entry.message || "Evento registrado";
+
+    const meta = document.createElement("span");
+    meta.className = "activity-item-meta";
+    meta.textContent = `${mapModuleLabel(entry.module)}${entry.user ? " · " + entry.user : ""}`;
+
+    body.append(message, meta);
+
+    const time = document.createElement("span");
+    time.className = "activity-item-time";
     time.textContent = formatActivityTime(entry.at);
 
-    item.append(dot, message, time);
+    item.append(modIcon, body, time);
     activityList.appendChild(item);
-  });
-
-  if (!activityRecentList) {
-    return;
-  }
-
-  activityRecentList.innerHTML = "";
-
-  const recentItems = (Array.isArray(launcherState.recents) ? launcherState.recents : []).slice(0, 4);
-  if (!recentItems.length) {
-    const empty = document.createElement("li");
-    empty.innerHTML = '<span class="activity-recent-name">Sem ações recentes</span><span class="activity-recent-time">--:--</span>';
-    activityRecentList.appendChild(empty);
-    return;
-  }
-
-  recentItems.forEach((entry) => {
-    const item = document.createElement("li");
-    const name = document.createElement("span");
-    const time = document.createElement("span");
-
-    name.className = "activity-recent-name";
-    name.textContent = entry?.label || "Ação registrada";
-
-    time.className = "activity-recent-time";
-    time.textContent = formatTime(entry?.at);
-
-    item.append(name, time);
-    activityRecentList.appendChild(item);
   });
 }
 
@@ -609,19 +720,11 @@ async function clearActivityCardNotifications() {
   const visibleEntries = getVisibleActivityEntries();
   const activityList = document.getElementById("activity-list");
 
-  // Animate fade-out for all visible items
-  const items = activityList?.querySelectorAll("li");
+  const items = activityList?.querySelectorAll(".activity-item");
   if (items) {
-    items.forEach((item) => {
-      // Skip the placeholder message item
-      if (item.textContent.includes("Aguardando eventos")) {
-        return;
-      }
-      item.classList.add("fade-out");
-    });
+    items.forEach((item) => item.classList.add("fade-out"));
   }
 
-  // Mark entries as dismissed
   visibleEntries.forEach((entry) => {
     const key = getActivityEntryKey(entry);
     if (key) {
@@ -629,8 +732,7 @@ async function clearActivityCardNotifications() {
     }
   });
 
-  // Wait for animation to complete before re-rendering
-  await new Promise((resolve) => setTimeout(resolve, 200));
+  await new Promise((resolve) => setTimeout(resolve, 220));
 
   renderActivity();
   await persistDismissedKeys();
@@ -857,7 +959,8 @@ function renderLauncher() {
   renderContext();
   renderMetrics();
   renderActivity();
-  applyAppFilter(activeLauncherFilter);
+  renderFavoritesState();
+  reapplyAppVisibility();
 }
 
 async function persistLauncherPatch(patch) {
@@ -886,9 +989,14 @@ async function loadLauncherState() {
       activity: Array.isArray(loaded.activity) ? loaded.activity : [],
       dismissedActivityKeys: Array.isArray(loaded.dismissedActivityKeys)
         ? loaded.dismissedActivityKeys
-        : []
+        : [],
+      favorites: Array.isArray(loaded.favorites) && loaded.favorites.length
+        ? loaded.favorites
+        : launcherState.favorites
     };
 
+    favoriteApps.clear();
+    (launcherState.favorites || []).forEach((id) => favoriteApps.add(id));
     hydrateDismissedKeys(launcherState.dismissedActivityKeys);
   } catch {
     // Keep defaults when IPC is unavailable.
@@ -972,51 +1080,107 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   const cards = document.querySelectorAll(".app-card[data-app]");
   const filterButtons = document.querySelectorAll(".favorite-chip[data-filter]");
+  const searchInput = document.getElementById("apps-search");
+
+  const appActionMap = {
+    dwg: "open-dwg",
+    pm: "open-pm",
+    fiscal: "open-fiscal",
+    estoque: "open-estoque"
+  };
 
   cards.forEach((card, index) => {
     card.style.animationDelay = `${index * 70}ms`;
 
-    card.addEventListener("click", async () => {
+    // Spotlight hover
+    card.addEventListener("mousemove", (event) => {
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty("--mx", `${event.clientX - rect.left}px`);
+      card.style.setProperty("--my", `${event.clientY - rect.top}px`);
+    });
+
+    card.addEventListener("click", async (event) => {
+      if (event.target instanceof Element && event.target.closest(".app-fav-btn")) {
+        return;
+      }
       const app = card.dataset.app;
-      if (app === "dwg") {
-        await handleAction("open-dwg");
-        return;
-      }
+      const action = appActionMap[app];
+      if (!action) return;
+      card.classList.remove("is-pulsing");
+      // Reflow para reiniciar a animação
+      void card.offsetWidth;
+      card.classList.add("is-pulsing");
+      await handleAction(action);
+    });
 
-      if (app === "pm") {
-        await handleAction("open-pm");
-        return;
-      }
-
-      if (app === "fiscal") {
-        await handleAction("open-fiscal");
-        return;
-      }
-
-      if (app === "estoque") {
-        await handleAction("open-estoque");
-      }
+    const favBtn = card.querySelector(".app-fav-btn");
+    favBtn?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      event.preventDefault();
+      void toggleFavorite(card.dataset.app);
+    });
+    favBtn?.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.stopPropagation();
+      event.preventDefault();
+      void toggleFavorite(card.dataset.app);
     });
   });
 
   filterButtons.forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", () => {
       const filter = button.dataset.filter || "all";
       applyAppFilter(filter);
     });
   });
 
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      activeSearchQuery = searchInput.value || "";
+      reapplyAppVisibility();
+    });
+    searchInput.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        searchInput.value = "";
+        activeSearchQuery = "";
+        reapplyAppVisibility();
+        searchInput.blur();
+      } else if (event.key === "Enter") {
+        const firstVisible = document.querySelector(".app-card[data-app]:not([style*='display: none'])");
+        if (firstVisible) {
+          firstVisible.click();
+        }
+      }
+    });
+  }
+
   document.addEventListener("keydown", async (event) => {
+    // Ctrl+K / Cmd+K → focar busca
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      searchInput?.focus();
+      searchInput?.select();
+      return;
+    }
+
     if (shouldIgnoreShortcutTarget(event.target)) {
       return;
     }
 
-    if (!isSyncShortcut(event)) {
-      return;
+    // Atalhos numéricos 1-4 abrem apps
+    if (!event.ctrlKey && !event.metaKey && !event.altKey && /^[1-4]$/.test(event.key)) {
+      const target = document.querySelector(`.app-card[data-shortcut="${event.key}"]`);
+      if (target && target.style.display !== "none") {
+        event.preventDefault();
+        target.click();
+        return;
+      }
     }
 
-    event.preventDefault();
-    await handleAction("refresh");
+    if (isSyncShortcut(event)) {
+      event.preventDefault();
+      await handleAction("refresh");
+    }
   });
 
   window.addEventListener("focus", () => {

@@ -907,25 +907,26 @@ button.danger:hover {
 
 .filters-section {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   margin-bottom: 18px;
-  padding: 14px;
+  padding: 10px;
   background: var(--bg-soft);
   border-radius: 8px;
   border: 1px solid var(--border-soft);
   align-items: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .filter-group {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 140px;
+  gap: 2px;
+  min-width: 90px;
+  flex: 1;
 }
 
 .filter-group label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -933,11 +934,11 @@ button.danger:hover {
 }
 
 .filter-input {
-  padding: 6px 10px !important;
-  height: 36px !important;
+  padding: 4px 8px !important;
+  height: 32px !important;
   border-radius: 6px !important;
   border: 1px solid var(--border-soft) !important;
-  font-size: 13px !important;
+  font-size: 12px !important;
   background: white !important;
   color: var(--text-main) !important;
 }
@@ -949,15 +950,18 @@ button.danger:hover {
 }
 
 .filter-clear-btn {
-  padding: 6px 12px !important;
-  height: 36px !important;
-  font-size: 13px !important;
+  padding: 4px 8px !important;
+  height: 32px !important;
+  font-size: 12px !important;
   display: flex !important;
   align-items: center !important;
-  gap: 6px !important;
+  justify-content: center !important;
+  gap: 4px !important;
   background: var(--bg-soft) !important;
   color: var(--text-main) !important;
   border: 1px solid var(--border-soft) !important;
+  min-width: auto !important;
+  width: 32px !important;
 }
 
 .filter-clear-btn:hover {

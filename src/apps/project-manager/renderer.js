@@ -13,7 +13,8 @@ let filters = {
   obra: "",
   cliente: "",
   unidade: "",
-  alimentador: ""
+  alimentador: "",
+  girafa: ""
 };
 
 const modal = document.getElementById("modal");
@@ -112,6 +113,7 @@ function initFilters() {
   const filterCliente = document.getElementById("filterCliente");
   const filterUnidade = document.getElementById("filterUnidade");
   const filterAlimentador = document.getElementById("filterAlimentador");
+  const filterGirafa = document.getElementById("filterGirafa");
 
   filterObra?.addEventListener("input", e => {
     filters.obra = e.target.value.trim().toLowerCase();
@@ -132,26 +134,34 @@ function initFilters() {
     filters.alimentador = e.target.value.trim().toLowerCase();
     applyFilters();
   });
+
+  filterGirafa?.addEventListener("change", e => {
+    filters.girafa = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
 }
 
 function updateFilterOptions() {
   const clientesSet = new Set();
   const unidadesSet = new Set();
   const alimentadoresSet = new Set();
+  const girafasSet = new Set();
 
   projects.forEach(p => {
     if (p.cliente) clientesSet.add(p.cliente);
     if (p.unidade) unidadesSet.add(p.unidade);
     if (p.alimentador) alimentadoresSet.add(p.alimentador);
+    if (p.girafa_codigo) girafasSet.add(p.girafa_codigo);
   });
 
   const filterCliente = document.getElementById("filterCliente");
   const filterUnidade = document.getElementById("filterUnidade");
   const filterAlimentador = document.getElementById("filterAlimentador");
+  const filterGirafa = document.getElementById("filterGirafa");
 
   if (filterCliente) {
     const selectedValue = filterCliente.value;
-    filterCliente.innerHTML = '<option value="">Todos os clientes</option>';
+    filterCliente.innerHTML = '<option value="">Todos</option>';
     Array.from(clientesSet).sort().forEach(cliente => {
       const option = document.createElement("option");
       option.value = cliente.toLowerCase();
@@ -163,7 +173,7 @@ function updateFilterOptions() {
 
   if (filterUnidade) {
     const selectedValue = filterUnidade.value;
-    filterUnidade.innerHTML = '<option value="">Todas as unidades</option>';
+    filterUnidade.innerHTML = '<option value="">Todos</option>';
     Array.from(unidadesSet).sort().forEach(unidade => {
       const option = document.createElement("option");
       option.value = unidade.toLowerCase();
@@ -175,7 +185,7 @@ function updateFilterOptions() {
 
   if (filterAlimentador) {
     const selectedValue = filterAlimentador.value;
-    filterAlimentador.innerHTML = '<option value="">Todos os alimentadores</option>';
+    filterAlimentador.innerHTML = '<option value="">Todos</option>';
     Array.from(alimentadoresSet).sort().forEach(alimentador => {
       const option = document.createElement("option");
       option.value = alimentador.toLowerCase();
@@ -183,6 +193,18 @@ function updateFilterOptions() {
       filterAlimentador.appendChild(option);
     });
     filterAlimentador.value = selectedValue;
+  }
+
+  if (filterGirafa) {
+    const selectedValue = filterGirafa.value;
+    filterGirafa.innerHTML = '<option value="">Todos</option>';
+    Array.from(girafasSet).sort().forEach(girafa => {
+      const option = document.createElement("option");
+      option.value = girafa.toLowerCase();
+      option.textContent = girafa;
+      filterGirafa.appendChild(option);
+    });
+    filterGirafa.value = selectedValue;
   }
 }
 
@@ -192,8 +214,9 @@ function getFilteredProjects() {
     const clienteMatch = !filters.cliente || (p.cliente || "").toLowerCase() === filters.cliente;
     const unidadeMatch = !filters.unidade || (p.unidade || "").toLowerCase() === filters.unidade;
     const alimentadorMatch = !filters.alimentador || (p.alimentador || "").toLowerCase() === filters.alimentador;
+    const girafaMatch = !filters.girafa || (p.girafa_codigo || "").toLowerCase() === filters.girafa;
 
-    return obraMatch && clienteMatch && unidadeMatch && alimentadorMatch;
+    return obraMatch && clienteMatch && unidadeMatch && alimentadorMatch && girafaMatch;
   });
 }
 
@@ -206,13 +229,15 @@ function clearFilters() {
     obra: "",
     cliente: "",
     unidade: "",
-    alimentador: ""
+    alimentador: "",
+    girafa: ""
   };
 
   document.getElementById("filterObra").value = "";
   document.getElementById("filterCliente").value = "";
   document.getElementById("filterUnidade").value = "";
   document.getElementById("filterAlimentador").value = "";
+  document.getElementById("filterGirafa").value = "";
 
   renderTable();
 }

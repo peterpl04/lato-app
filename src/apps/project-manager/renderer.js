@@ -711,7 +711,7 @@ function renderTable() {
       <td>${p.cliente || "-"}</td>
       <td>${p.unidade || "-"}</td>
       <td>${p.alimentador || "-"}</td>
-      <td>${p.girafa || "-"}</td>
+      <td>${p.girafa_codigo || "-"}</td>
       <td>${p.esteira || "-"}</td>
       <td>${formatDateBR(p.entrega)}</td>
       <td>${formatDateBR(p.instalacao)}</td>
@@ -930,7 +930,7 @@ function openSummary(project) {
   document.getElementById("sum-cliente").textContent = project.cliente || "-";
   document.getElementById("sum-unidade").textContent = project.unidade || "-";
   document.getElementById("sum-alimentador").textContent = project.alimentador || "-";
-  document.getElementById("sum-girafa").textContent = project.girafa || "-";
+  document.getElementById("sum-girafa").textContent = project.girafa_codigo || "-";
   document.getElementById("sum-esteira").textContent = project.esteira || "-";
   document.getElementById("sum-entrega").textContent = formatDateBR(project.entrega);
   document.getElementById("sum-instalacao").textContent = formatDateBR(project.instalacao);
@@ -1025,7 +1025,17 @@ function closeValidation() {
 
 function formatDateBR(date) {
   if (!date) return "-";
-  return new Date(date).toLocaleDateString("pt-BR");
+
+  // Se for uma string no formato yyyy-mm-dd, faz parse manual
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+    const [year, month, day] = date.split("T")[0].split("-");
+    const d = new Date(year, parseInt(month) - 1, day);
+    return d.toLocaleDateString("pt-BR");
+  }
+
+  // Caso contrário, usa new Date normalmente
+  const d = new Date(date);
+  return d.toLocaleDateString("pt-BR");
 }
 
 /* =========================

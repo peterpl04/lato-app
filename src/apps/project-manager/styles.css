@@ -712,8 +712,8 @@ button.danger:hover {
 
 .girafa-highlight {
   grid-column: 1 / -1;
-  background: linear-gradient(135deg, #fef3f2, #fde8e5);
-  border-left: 6px solid #dc2626;
+  background: linear-gradient(135deg, #f5f7fa, #eef1f5);
+  border-left: 6px solid #2563eb;
   padding: 14px 16px;
   border-radius: 8px;
   margin-bottom: 12px;
@@ -729,16 +729,12 @@ button.danger:hover {
 
 .girafa-value {
   font-size: 18px;
-  font-weight: 600;
-  color: #7f1d1d;
+  font-weight: 700;
+  color: #000000;
   word-break: break-word;
   overflow-wrap: break-word;
   white-space: normal;
   line-height: 1.4;
-}
-
-.girafa-value.filled {
-  color: #991b1b;
 }
 
 .summary-tabs {

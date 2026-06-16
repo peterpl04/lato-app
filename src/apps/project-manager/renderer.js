@@ -9,6 +9,12 @@ let appEnv = "prod";
 let projects = [];
 let editingId = null;
 let deleteId = null;
+let filters = {
+  obra: "",
+  cliente: "",
+  unidade: "",
+  alimentador: ""
+};
 
 const modal = document.getElementById("modal");
 
@@ -85,6 +91,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initRealtime();
 
   initModalBindings();
+  initFilters();
   loadProjects();
 });
 
@@ -98,6 +105,116 @@ function initModalBindings() {
 
   enableKeyboardNavigation();
   modalBindingsInitialized = true;
+}
+
+function initFilters() {
+  const filterObra = document.getElementById("filterObra");
+  const filterCliente = document.getElementById("filterCliente");
+  const filterUnidade = document.getElementById("filterUnidade");
+  const filterAlimentador = document.getElementById("filterAlimentador");
+
+  filterObra?.addEventListener("input", e => {
+    filters.obra = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  filterCliente?.addEventListener("change", e => {
+    filters.cliente = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  filterUnidade?.addEventListener("change", e => {
+    filters.unidade = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+
+  filterAlimentador?.addEventListener("change", e => {
+    filters.alimentador = e.target.value.trim().toLowerCase();
+    applyFilters();
+  });
+}
+
+function updateFilterOptions() {
+  const clientesSet = new Set();
+  const unidadesSet = new Set();
+  const alimentadoresSet = new Set();
+
+  projects.forEach(p => {
+    if (p.cliente) clientesSet.add(p.cliente);
+    if (p.unidade) unidadesSet.add(p.unidade);
+    if (p.alimentador) alimentadoresSet.add(p.alimentador);
+  });
+
+  const filterCliente = document.getElementById("filterCliente");
+  const filterUnidade = document.getElementById("filterUnidade");
+  const filterAlimentador = document.getElementById("filterAlimentador");
+
+  if (filterCliente) {
+    const selectedValue = filterCliente.value;
+    filterCliente.innerHTML = '<option value="">Todos os clientes</option>';
+    Array.from(clientesSet).sort().forEach(cliente => {
+      const option = document.createElement("option");
+      option.value = cliente.toLowerCase();
+      option.textContent = cliente;
+      filterCliente.appendChild(option);
+    });
+    filterCliente.value = selectedValue;
+  }
+
+  if (filterUnidade) {
+    const selectedValue = filterUnidade.value;
+    filterUnidade.innerHTML = '<option value="">Todas as unidades</option>';
+    Array.from(unidadesSet).sort().forEach(unidade => {
+      const option = document.createElement("option");
+      option.value = unidade.toLowerCase();
+      option.textContent = unidade;
+      filterUnidade.appendChild(option);
+    });
+    filterUnidade.value = selectedValue;
+  }
+
+  if (filterAlimentador) {
+    const selectedValue = filterAlimentador.value;
+    filterAlimentador.innerHTML = '<option value="">Todos os alimentadores</option>';
+    Array.from(alimentadoresSet).sort().forEach(alimentador => {
+      const option = document.createElement("option");
+      option.value = alimentador.toLowerCase();
+      option.textContent = alimentador;
+      filterAlimentador.appendChild(option);
+    });
+    filterAlimentador.value = selectedValue;
+  }
+}
+
+function getFilteredProjects() {
+  return projects.filter(p => {
+    const obraMatch = !filters.obra || (p.obra || "").toLowerCase().includes(filters.obra);
+    const clienteMatch = !filters.cliente || (p.cliente || "").toLowerCase() === filters.cliente;
+    const unidadeMatch = !filters.unidade || (p.unidade || "").toLowerCase() === filters.unidade;
+    const alimentadorMatch = !filters.alimentador || (p.alimentador || "").toLowerCase() === filters.alimentador;
+
+    return obraMatch && clienteMatch && unidadeMatch && alimentadorMatch;
+  });
+}
+
+function applyFilters() {
+  renderTable();
+}
+
+function clearFilters() {
+  filters = {
+    obra: "",
+    cliente: "",
+    unidade: "",
+    alimentador: ""
+  };
+
+  document.getElementById("filterObra").value = "";
+  document.getElementById("filterCliente").value = "";
+  document.getElementById("filterUnidade").value = "";
+  document.getElementById("filterAlimentador").value = "";
+
+  renderTable();
 }
 
 /* =========================
@@ -118,6 +235,7 @@ async function loadProjects() {
       progresso_percent: project.progresso_percent ?? 0
     }));
 
+    updateFilterOptions();
     renderTable();
   } catch (err) {
     console.error("Erro ao carregar projetos:", err);
@@ -222,6 +340,7 @@ function describeProjectChanges(previousProject, nextProject) {
     { key: "cliente", label: "Cliente" },
     { key: "unidade", label: "Unidade" },
     { key: "alimentador", label: "Alimentador" },
+    { key: "girafa_codigo", label: "Girafa" },
     { key: "observacao", label: "Observação" },
     { key: "entrega", label: "Data de Entrega", isDate: true },
     { key: "instalacao", label: "Data de Instalação", isDate: true }
@@ -349,10 +468,25 @@ function clearForm() {
     "alimentador_tipo_produto",
     "alimentador_tipo_painel",
     "alimentador_local_botoeira",
-    "alimentador_altura_entrega"
+    "alimentador_altura_entrega",
+    "girafa_codigo",
+    "girafa_altura_recepcao",
+    "girafa_altura_entrega",
+    "girafa_tipo_produto",
+    "girafa_largura_fita",
+    "girafa_comprimento_fita",
+    "girafa_modelo_fita",
+    "girafa_taliscas",
+    "girafa_tirantes"
   ].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.value = "";
+    if (el) {
+      if (el.type === "checkbox") {
+        el.checked = false;
+      } else {
+        el.value = "";
+      }
+    }
   });
 }
 
@@ -385,6 +519,34 @@ function fillForm(p) {
   document.getElementById("alimentador_altura_entrega").value =
     p.alimentador_altura_entrega || "";
 
+  // ===== GIRAFA =====
+  document.getElementById("girafa_codigo").value =
+    p.girafa_codigo || "";
+
+  document.getElementById("girafa_altura_recepcao").value =
+    p.girafa_altura_recepcao || "";
+
+  document.getElementById("girafa_altura_entrega").value =
+    p.girafa_altura_entrega || "";
+
+  document.getElementById("girafa_tipo_produto").value =
+    p.girafa_tipo_produto || "";
+
+  document.getElementById("girafa_largura_fita").value =
+    p.girafa_largura_fita || "";
+
+  document.getElementById("girafa_comprimento_fita").value =
+    p.girafa_comprimento_fita || "";
+
+  document.getElementById("girafa_modelo_fita").value =
+    p.girafa_modelo_fita || "";
+
+  document.getElementById("girafa_taliscas").value =
+    p.girafa_taliscas || "";
+
+  document.getElementById("girafa_tirantes").checked =
+    p.girafa_tirantes === true || p.girafa_tirantes === "true";
+
   // Atualiza destaque se existir
   updateAlimentadorSelecionado(p.alimentador || "");
 }
@@ -409,7 +571,16 @@ async function save() {
     alimentador_tipo_produto: document.getElementById("alimentador_tipo_produto").value.trim(),
     alimentador_tipo_painel: document.getElementById("alimentador_tipo_painel").value.trim(),
     alimentador_local_botoeira: document.getElementById("alimentador_local_botoeira").value.trim(),
-    alimentador_altura_entrega: document.getElementById("alimentador_altura_entrega").value.trim()
+    alimentador_altura_entrega: document.getElementById("alimentador_altura_entrega").value.trim(),
+    girafa_codigo: document.getElementById("girafa_codigo").value.trim(),
+    girafa_altura_recepcao: document.getElementById("girafa_altura_recepcao").value.trim(),
+    girafa_altura_entrega: document.getElementById("girafa_altura_entrega").value.trim(),
+    girafa_tipo_produto: document.getElementById("girafa_tipo_produto").value.trim(),
+    girafa_largura_fita: document.getElementById("girafa_largura_fita").value.trim(),
+    girafa_comprimento_fita: document.getElementById("girafa_comprimento_fita").value.trim(),
+    girafa_modelo_fita: document.getElementById("girafa_modelo_fita").value.trim(),
+    girafa_taliscas: document.getElementById("girafa_taliscas").value.trim(),
+    girafa_tirantes: document.getElementById("girafa_tirantes").checked
   };
 
   if (!project.obra || !project.cliente || !project.observacao) {
@@ -514,21 +685,22 @@ async function confirmDelete() {
 function renderTable() {
   const tbody = document.getElementById("items");
   const tooltip = document.getElementById("hoverTooltip");
+  const filteredProjects = getFilteredProjects();
 
   tbody.innerHTML = "";
 
-  if (!projects.length) {
+  if (!filteredProjects.length) {
     tbody.innerHTML = `
       <tr>
         <td colspan="10" style="text-align:center; color:#94a3b8;">
-          Nenhum registro cadastrado
+          Nenhum registro encontrado
         </td>
       </tr>
     `;
     return;
   }
 
-  projects.forEach(p => {
+  filteredProjects.forEach(p => {
     const tr = document.createElement("tr");
     const createdBy = p.created_by || "Desconhecido";
     const progress = getProjectProgress(p);
@@ -791,6 +963,42 @@ function openSummary(project) {
     card.classList.remove("filled");
   }
 
+  /* ===== GIRAFA ===== */
+  document.getElementById("sum-girafa-altura-recepcao").textContent =
+    project.girafa_altura_recepcao || "-";
+
+  document.getElementById("sum-girafa-altura-entrega").textContent =
+    project.girafa_altura_entrega || "-";
+
+  document.getElementById("sum-girafa-tipo-produto").textContent =
+    project.girafa_tipo_produto || "-";
+
+  document.getElementById("sum-girafa-largura-fita").textContent =
+    project.girafa_largura_fita || "-";
+
+  document.getElementById("sum-girafa-comprimento-fita").textContent =
+    project.girafa_comprimento_fita || "-";
+
+  document.getElementById("sum-girafa-modelo-fita").textContent =
+    project.girafa_modelo_fita || "-";
+
+  document.getElementById("sum-girafa-taliscas").textContent =
+    project.girafa_taliscas || "-";
+
+  document.getElementById("sum-girafa-tirantes").textContent =
+    project.girafa_tirantes ? "Sim" : "Não";
+
+  /* ===== CARD DE DESTAQUE GIRAFA (IGUAL AO ALIMENTADOR) ===== */
+  const giraCard = document.getElementById("sum-girafa-selecionada");
+
+  if (project.girafa_codigo) {
+    giraCard.textContent = project.girafa_codigo;
+    giraCard.classList.add("filled");
+  } else {
+    giraCard.textContent = "Nenhuma girafa informada";
+    giraCard.classList.remove("filled");
+  }
+
   openModalAnimated(document.getElementById("summaryModal"));
 }
 
@@ -892,6 +1100,15 @@ function exportProjects() {
     "Unidade",
     "Alimentador",
     "Girafa",
+    "Girafa Código",
+    "Girafa Altura Recepção",
+    "Girafa Altura Entrega",
+    "Girafa Tipo Produto",
+    "Girafa Largura Fita",
+    "Girafa Comprimento Fita",
+    "Girafa Modelo Fita",
+    "Girafa Taliscas",
+    "Girafa Tirantes",
     "Esteira",
     "Entrega",
     "Instalação",
@@ -899,7 +1116,11 @@ function exportProjects() {
     "Observação",
     "Criado por",
     "Data criação",
-    "Aplicação Alimentador"
+    "Alimentador Aplicação",
+    "Alimentador Tipo Produto",
+    "Alimentador Tipo Painel",
+    "Alimentador Local Botoeira",
+    "Alimentador Altura Entrega"
   ];
 
   const keys = [
@@ -909,6 +1130,15 @@ function exportProjects() {
     "unidade",
     "alimentador",
     "girafa",
+    "girafa_codigo",
+    "girafa_altura_recepcao",
+    "girafa_altura_entrega",
+    "girafa_tipo_produto",
+    "girafa_largura_fita",
+    "girafa_comprimento_fita",
+    "girafa_modelo_fita",
+    "girafa_taliscas",
+    "girafa_tirantes",
     "esteira",
     "entrega",
     "instalacao",
@@ -916,7 +1146,11 @@ function exportProjects() {
     "observacao",
     "created_by",
     "created_at",
-    "alimentador_aplicacao"
+    "alimentador_aplicacao",
+    "alimentador_tipo_produto",
+    "alimentador_tipo_painel",
+    "alimentador_local_botoeira",
+    "alimentador_altura_entrega"
   ];
 
   const csvRows = [];
@@ -931,6 +1165,10 @@ function exportProjects() {
         if (value) {
           value = new Date(value).toLocaleDateString("pt-BR");
         }
+      }
+
+      if (key === "girafa_tirantes") {
+        value = value ? "Sim" : "Não";
       }
 
       value = String(value).replace(/"/g, '""');

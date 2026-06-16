@@ -41,6 +41,38 @@
         </div>
       </div>
 
+      <div class="filters-section">
+        <div class="filter-group">
+          <label>Obra</label>
+          <input id="filterObra" type="text" placeholder="Filtrar por obra..." class="filter-input">
+        </div>
+
+        <div class="filter-group">
+          <label>Cliente</label>
+          <select id="filterCliente" class="filter-input">
+            <option value="">Todos os clientes</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Unidade</label>
+          <select id="filterUnidade" class="filter-input">
+            <option value="">Todas as unidades</option>
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label>Alimentador</label>
+          <select id="filterAlimentador" class="filter-input">
+            <option value="">Todos os alimentadores</option>
+          </select>
+        </div>
+
+        <button onclick="clearFilters()" class="filter-clear-btn">
+          <i class="fa-solid fa-times"></i> Limpar filtros
+        </button>
+      </div>
+
       <table class="grid">
         <thead>
           <tr>
@@ -126,10 +158,21 @@
           <!-- ABA GIRAFa -->
           <div class="tab-content" id="tab-girafa">
             <div class="form-grid">
+              <input id="girafa_codigo" placeholder="Girafa">
               <input id="girafa_altura_recepcao" placeholder="Altura da Recepção">
               <input id="girafa_altura_entrega" placeholder="Altura da Entrega">
               <input id="girafa_tipo_produto" placeholder="Tipo de Produto">
-              <input id="girafa_largura" placeholder="Largura">
+              <input id="girafa_largura_fita" placeholder="Largura da Fita">
+              <input id="girafa_comprimento_fita" placeholder="Comprimento da Fita">
+              <input id="girafa_modelo_fita" placeholder="Modelo da Fita">
+              <input id="girafa_taliscas" placeholder="Dados das Taliscas" class="col-full">
+
+              <div class="field col-full">
+                <label class="checkbox-label">
+                  <input id="girafa_tirantes" type="checkbox">
+                  <span>Possui Tirantes</span>
+                </label>
+              </div>
             </div>
 
             <div class="form-actions col-full">
@@ -179,6 +222,7 @@
       <div class="summary-tabs">
         <button class="summary-tab active" data-tab="summary-geral">Geral</button>
         <button class="summary-tab" data-tab="summary-alimentador">Alimentador</button>
+        <button class="summary-tab" data-tab="summary-girafa">Girafa</button>
       </div>
 
       <!-- SUMMARY GERAL -->
@@ -247,6 +291,47 @@
             </div>
           </div>
 
+        </div>
+      </div>
+
+      <!-- SUMMARY GIRAFA -->
+      <div class="summary-content" id="summary-girafa">
+        <div class="summary-section">
+
+          <!-- CARD IGUAL AO ALIMENTADOR -->
+          <div class="girafa-highlight">
+            <div class="girafa-label">Girafa utilizada</div>
+            <div class="girafa-value" id="sum-girafa-selecionada">
+              Nenhuma girafa informada
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div><span>Altura da Recepção</span>
+              <p id="sum-girafa-altura-recepcao">-</p>
+            </div>
+            <div><span>Altura da Entrega</span>
+              <p id="sum-girafa-altura-entrega">-</p>
+            </div>
+            <div><span>Tipo de Produto</span>
+              <p id="sum-girafa-tipo-produto">-</p>
+            </div>
+            <div><span>Largura da Fita</span>
+              <p id="sum-girafa-largura-fita">-</p>
+            </div>
+            <div><span>Comprimento da Fita</span>
+              <p id="sum-girafa-comprimento-fita">-</p>
+            </div>
+            <div><span>Modelo da Fita</span>
+              <p id="sum-girafa-modelo-fita">-</p>
+            </div>
+            <div class="summary-full"><span>Dados das Taliscas</span>
+              <p id="sum-girafa-taliscas">-</p>
+            </div>
+            <div><span>Possui Tirantes</span>
+              <p id="sum-girafa-tirantes">-</p>
+            </div>
+          </div>
         </div>
       </div>
 

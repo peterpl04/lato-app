@@ -136,6 +136,24 @@ async function initDB() {
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS progresso_percent INTEGER NOT NULL DEFAULT 0`);
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS environment TEXT NOT NULL DEFAULT 'prod'`);
 
+  // ALIMENTADOR COLUMNS
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS alimentador_aplicacao TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS alimentador_tipo_produto TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS alimentador_tipo_painel TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS alimentador_local_botoeira TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS alimentador_altura_entrega TEXT`);
+
+  // GIRAFA COLUMNS
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_codigo TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_altura_recepcao TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_altura_entrega TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_tipo_produto TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_largura_fita TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_comprimento_fita TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_modelo_fita TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_taliscas TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_tirantes BOOLEAN DEFAULT FALSE`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS launcher_activities (
       id BIGSERIAL PRIMARY KEY,
@@ -258,6 +276,15 @@ app.post("/projects", async (req, res) => {
         alimentador_altura_entrega,
         observacao,
         girafa,
+        girafa_codigo,
+        girafa_altura_recepcao,
+        girafa_altura_entrega,
+        girafa_tipo_produto,
+        girafa_largura_fita,
+        girafa_comprimento_fita,
+        girafa_modelo_fita,
+        girafa_taliscas,
+        girafa_tirantes,
         esteira,
         entrega,
         instalacao,
@@ -265,7 +292,7 @@ app.post("/projects", async (req, res) => {
         created_by
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
       )
 
       RETURNING *
@@ -284,6 +311,15 @@ app.post("/projects", async (req, res) => {
 
         p.observacao,
         p.girafa || null,
+        p.girafa_codigo || null,
+        p.girafa_altura_recepcao || null,
+        p.girafa_altura_entrega || null,
+        p.girafa_tipo_produto || null,
+        p.girafa_largura_fita || null,
+        p.girafa_comprimento_fita || null,
+        p.girafa_modelo_fita || null,
+        p.girafa_taliscas || null,
+        p.girafa_tirantes || false,
         p.esteira || null,
         p.entrega || null,
         p.instalacao || null,
@@ -323,11 +359,20 @@ app.put("/projects/:id", async (req, res) => {
   alimentador_altura_entrega=$9,
   observacao=$10,
   girafa=$11,
-  esteira=$12,
-  entrega=$13,
-  instalacao=$14
-WHERE id=$15
-AND environment = $16
+  girafa_codigo=$12,
+  girafa_altura_recepcao=$13,
+  girafa_altura_entrega=$14,
+  girafa_tipo_produto=$15,
+  girafa_largura_fita=$16,
+  girafa_comprimento_fita=$17,
+  girafa_modelo_fita=$18,
+  girafa_taliscas=$19,
+  girafa_tirantes=$20,
+  esteira=$21,
+  entrega=$22,
+  instalacao=$23
+WHERE id=$24
+AND environment = $25
 
     `,
     [
@@ -344,6 +389,15 @@ AND environment = $16
 
       p.observacao,
       p.girafa,
+      p.girafa_codigo,
+      p.girafa_altura_recepcao,
+      p.girafa_altura_entrega,
+      p.girafa_tipo_produto,
+      p.girafa_largura_fita,
+      p.girafa_comprimento_fita,
+      p.girafa_modelo_fita,
+      p.girafa_taliscas,
+      p.girafa_tirantes || false,
       p.esteira,
       p.entrega,
       p.instalacao,

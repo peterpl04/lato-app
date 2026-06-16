@@ -17,8 +17,10 @@ contextBridge.exposeInMainWorld("api", {
   closeLogin: () => ipcRenderer.send("close-login-window"),
 
 
-  loginSuccess: (username) =>
-    ipcRenderer.invoke("login-success", username),
+  loginSuccess: (username, remember) =>
+    ipcRenderer.invoke("login-success", username, remember),
+
+  logout: () => ipcRenderer.invoke("logout"),
 
   getLoggedUser: () =>
     ipcRenderer.invoke("get-logged-user"),

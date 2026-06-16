@@ -3,12 +3,14 @@ const userInput = document.getElementById("user");
 const passInput = document.getElementById("pass");
 const submitButton = document.getElementById("submit-login");
 const togglePassButton = document.getElementById("toggle-pass");
+const rememberCheckbox = document.getElementById("remember");
 const wrapper = document.querySelector(".login-wrapper");
 const errorEl = document.getElementById("error");
 const capsLockEl = document.getElementById("caps-lock");
 
 let isLoading = false;
 const LAST_USER_KEY = "latoapps:last-user";
+const REMEMBER_KEY = "latoapps:remember-me";
 
 function setLoadingState(enabled) {
   isLoading = enabled;
@@ -66,7 +68,9 @@ async function login() {
     }
 
     localStorage.setItem(LAST_USER_KEY, user);
-    window.api.loginSuccess(data.user);
+    const remember = rememberCheckbox ? rememberCheckbox.checked : false;
+    localStorage.setItem(REMEMBER_KEY, remember ? "1" : "0");
+    window.api.loginSuccess(data.user, remember);
   } catch (err) {
     showError("Nao foi possivel conectar ao servidor");
     setLoadingState(false);
@@ -92,6 +96,11 @@ document.addEventListener("keyup", updateCapsLockState);
 
 window.addEventListener("DOMContentLoaded", () => {
   const lastUser = localStorage.getItem(LAST_USER_KEY);
+
+  if (rememberCheckbox) {
+    const stored = localStorage.getItem(REMEMBER_KEY);
+    rememberCheckbox.checked = stored === null ? true : stored === "1";
+  }
 
   if (lastUser) {
     userInput.value = lastUser;

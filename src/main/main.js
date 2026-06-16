@@ -6,7 +6,7 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut} = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut, safeStorage } = require("electron");
 const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
@@ -19,6 +19,8 @@ const DEFAULT_ACTIVITY_API_URL = "https://lato-app-production.up.railway.app";
 app.setPath("userData", path.join(app.getPath("documents"), "LatoApps"));
 app.setAppUserModelId("com.latoapps.desktop");
 const LAUNCHER_STATE_PATH = path.join(app.getPath("userData"), "launcher-state.json");
+const SESSION_PATH = path.join(app.getPath("userData"), "session.dat");
+const SESSION_PATH_PLAIN = path.join(app.getPath("userData"), "session.json");
 
 const { autoUpdater } = require("electron-updater");
 
@@ -108,6 +110,58 @@ function normalizeUserName(value) {
   }
 
   return "Operador";
+}
+
+function ensureUserDataDir() {
+  try {
+    fs.mkdirSync(app.getPath("userData"), { recursive: true });
+  } catch (err) {
+    log.warn("Não foi possível criar pasta userData:", err?.message || err);
+  }
+}
+
+function saveSession(user) {
+  try {
+    ensureUserDataDir();
+    const payload = JSON.stringify({ user, savedAt: new Date().toISOString() });
+
+    if (safeStorage && safeStorage.isEncryptionAvailable()) {
+      const encrypted = safeStorage.encryptString(payload);
+      fs.writeFileSync(SESSION_PATH, encrypted);
+      try { fs.unlinkSync(SESSION_PATH_PLAIN); } catch (_) {}
+    } else {
+      fs.writeFileSync(SESSION_PATH_PLAIN, payload, "utf-8");
+      try { fs.unlinkSync(SESSION_PATH); } catch (_) {}
+    }
+  } catch (err) {
+    log.warn("Falha ao salvar sessão:", err?.message || err);
+  }
+}
+
+function loadSession() {
+  try {
+    if (fs.existsSync(SESSION_PATH) && safeStorage && safeStorage.isEncryptionAvailable()) {
+      const buf = fs.readFileSync(SESSION_PATH);
+      const plain = safeStorage.decryptString(buf);
+      const data = JSON.parse(plain);
+      return data && data.user ? data.user : null;
+    }
+
+    if (fs.existsSync(SESSION_PATH_PLAIN)) {
+      const plain = fs.readFileSync(SESSION_PATH_PLAIN, "utf-8");
+      const data = JSON.parse(plain);
+      return data && data.user ? data.user : null;
+    }
+  } catch (err) {
+    log.warn("Falha ao ler sessão salva:", err?.message || err);
+  }
+
+  return null;
+}
+
+function clearSession() {
+  try { fs.unlinkSync(SESSION_PATH); } catch (_) {}
+  try { fs.unlinkSync(SESSION_PATH_PLAIN); } catch (_) {}
 }
 
 function getAppEnvironmentKey() {
@@ -334,11 +388,22 @@ function tryOpenLoginAfterStartup() {
     return;
   }
 
+  const savedUser = loadSession();
+  const skipLogin = Boolean(savedUser);
+
+  if (skipLogin) {
+    loggedUser = normalizeUserName(savedUser);
+  }
+
   if (splashWindow && !splashWindow.isDestroyed()) {
     splashWindow.webContents.send("splash-start-exit");
 
     setTimeout(() => {
-      createLoginWindow();
+      if (skipLogin) {
+        createMainWindow();
+      } else {
+        createLoginWindow();
+      }
 
       setTimeout(() => {
         if (splashWindow && !splashWindow.isDestroyed()) {
@@ -351,7 +416,11 @@ function tryOpenLoginAfterStartup() {
     return;
   }
 
-  createLoginWindow();
+  if (skipLogin) {
+    createMainWindow();
+  } else {
+    createLoginWindow();
+  }
 }
 
 function createUpdateWindow() {
@@ -1037,8 +1106,14 @@ ipcMain.on("close-login-window", () => {
 });
 
 
-ipcMain.handle("login-success", (_, username) => {
+ipcMain.handle("login-success", (_, username, remember) => {
   loggedUser = normalizeUserName(username);
+
+  if (remember) {
+    saveSession(username);
+  } else {
+    clearSession();
+  }
 
   if (loginWindow) {
     loginWindow.close();
@@ -1046,6 +1121,35 @@ ipcMain.handle("login-success", (_, username) => {
   }
 
   createMainWindow();
+});
+
+ipcMain.handle("logout", () => {
+  clearSession();
+  loggedUser = null;
+
+  const toClose = [
+    mainWindow,
+    dwgRenamerWindow,
+    projectManagerWindow,
+    fiscalWindow,
+    estoqueWindow
+  ];
+
+  for (const win of toClose) {
+    if (win && !win.isDestroyed()) {
+      try { win.close(); } catch (_) {}
+    }
+  }
+
+  mainWindow = null;
+  dwgRenamerWindow = null;
+  projectManagerWindow = null;
+  fiscalWindow = null;
+  estoqueWindow = null;
+
+  if (!loginWindow) {
+    createLoginWindow();
+  }
 });
 
 ipcMain.handle("get-logged-user", () => {

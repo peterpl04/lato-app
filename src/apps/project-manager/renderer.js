@@ -26,6 +26,7 @@ let modalBindingsInitialized = false;
 let tableLoadingCounter = 0;
 let progressEditProject = null;
 let progressDraftPercent = 0;
+let currentSummaryProjectId = null;
 
 const PROGRESS_STAGES = [
   { percent: 0, label: "Em Definição 🤔" },
@@ -69,6 +70,18 @@ function initRealtime() {
 
   socket.on("projects:update", () => {
     loadProjects();
+  });
+
+  // Quando estoque registra saída vinculada a um projeto,
+  // recarrega o consumo se o resumo estiver aberto naquele projeto.
+  socket.on("project:stock-update", (payload) => {
+    const projId = payload?.projectId;
+    if (!projId) return;
+    const summaryOpen = document.getElementById("summaryModal")?.classList.contains("active");
+    if (summaryOpen && currentSummaryProjectId === projId) {
+      const project = projects.find(p => p.id === projId);
+      if (project) loadStockConsumption(project);
+    }
   });
 }
 
@@ -933,6 +946,7 @@ async function saveProgress() {
 
 function openSummary(project) {
   initSummaryTabs();
+  currentSummaryProjectId = project?.id || null;
 
   // limpa abas
   document.querySelectorAll(".summary-tab").forEach(t =>
@@ -1024,11 +1038,114 @@ function openSummary(project) {
     giraCard.classList.remove("filled");
   }
 
+  /* ===== CONSUMO DE ESTOQUE (vínculo com módulo ESTOQUE) ===== */
+  loadStockConsumption(project);
+
   openModalAnimated(document.getElementById("summaryModal"));
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+async function loadStockConsumption(project) {
+  const alimList = document.getElementById("stock-list-alimentador");
+  const giraList = document.getElementById("stock-list-girafa");
+  const alimCount = document.getElementById("stock-count-alimentador");
+  const giraCount = document.getElementById("stock-count-girafa");
+
+  // Reset state
+  if (alimList) alimList.innerHTML = '<p class="stock-consumption-empty">Carregando...</p>';
+  if (giraList) giraList.innerHTML = '<p class="stock-consumption-empty">Carregando...</p>';
+  if (alimCount) alimCount.textContent = "0";
+  if (giraCount) giraCount.textContent = "0";
+
+  let movements = [];
+  try {
+    const res = await fetch(`${API_URL}/projects/${project.id}/stock-movements`, {
+      headers: getApiHeaders()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    movements = await res.json();
+  } catch (err) {
+    console.error("Erro ao carregar consumo de estoque:", err);
+    const errorMsg = '<p class="stock-consumption-empty">⚠️ Falha ao carregar itens de estoque.</p>';
+    if (alimList) alimList.innerHTML = errorMsg;
+    if (giraList) giraList.innerHTML = errorMsg;
+    return;
+  }
+
+  const alimMovements = movements.filter(m => m.equipment_type === "alimentador");
+  const giraMovements = movements.filter(m => m.equipment_type === "girafa");
+
+  renderStockMovementsList(alimList, alimMovements, "alimentador");
+  renderStockMovementsList(giraList, giraMovements, "girafa");
+  if (alimCount) alimCount.textContent = String(alimMovements.length);
+  if (giraCount) giraCount.textContent = String(giraMovements.length);
+}
+
+function renderStockMovementsList(container, movements, equipmentType) {
+  if (!container) return;
+
+  if (movements.length === 0) {
+    const label = equipmentType === "alimentador" ? "alimentador" : "girafa";
+    container.innerHTML = `<p class="stock-consumption-empty">Nenhum item de estoque vinculado a este ${label}.</p>`;
+    return;
+  }
+
+  // Aggregate by item (sum quantities across multiple saídas)
+  const aggregated = new Map();
+  for (const m of movements) {
+    const key = m.item_code_id || `${m.item_name}|${m.item_code}`;
+    if (!aggregated.has(key)) {
+      aggregated.set(key, {
+        name: m.item_name,
+        code: m.item_code,
+        category: m.item_category,
+        totalQuantity: 0,
+        lastDate: m.movement_date,
+        occurrences: 0
+      });
+    }
+    const entry = aggregated.get(key);
+    entry.totalQuantity += Number(m.quantity || 0);
+    entry.occurrences += 1;
+    if (new Date(m.movement_date) > new Date(entry.lastDate)) {
+      entry.lastDate = m.movement_date;
+    }
+  }
+
+  const items = Array.from(aggregated.values()).sort((a, b) =>
+    new Date(b.lastDate) - new Date(a.lastDate)
+  );
+
+  container.innerHTML = items.map(item => `
+    <div class="stock-consumption-item">
+      <div class="stock-consumption-item-info">
+        <p class="stock-consumption-item-name">${escapeHtml(item.name)}</p>
+        <p class="stock-consumption-item-meta">
+          <span>Código: ${escapeHtml(item.code)}</span>
+          <span>${escapeHtml(item.category || "")}</span>
+          <span>Última saída: ${formatDateBR(item.lastDate)}</span>
+        </p>
+      </div>
+      <div class="stock-consumption-item-qty">
+        <span class="qty-number">${item.totalQuantity}</span>
+        <span class="qty-label">${item.occurrences > 1 ? `${item.occurrences} saídas` : "unidades"}</span>
+      </div>
+    </div>
+  `).join("");
 }
 
 function closeSummary() {
   closeModalAnimated(document.getElementById("summaryModal"));
+  currentSummaryProjectId = null;
 }
 
 /* =========================

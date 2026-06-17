@@ -284,8 +284,17 @@
           <input id="movementQuantity" type="number" placeholder="0" min="1" required />
         </div>
         <div id="exitAddressGroup" class="form-field is-hidden">
-          <label for="movementAddress">Endereço/Local de Saída <span class="required">*</span></label>
-          <input id="movementAddress" type="text" placeholder="Ex: EX - A (obrigatório para saídas)" />
+          <label>Destino da Saída <span class="required">*</span></label>
+          <button type="button" id="btnPickEquipment" class="btn-equipment-picker">
+            <span class="equipment-picker-icon">📍</span>
+            <span class="equipment-picker-text" id="movementEquipmentText">Selecionar alimentador ou girafa</span>
+            <span class="equipment-picker-chevron">›</span>
+          </button>
+          <input id="movementAddress" type="hidden" />
+          <input id="movementEquipmentType" type="hidden" />
+          <input id="movementEquipmentCode" type="hidden" />
+          <input id="movementProjectId" type="hidden" />
+          <small class="field-hint">Escolha o equipamento de projeto que receberá os itens</small>
         </div>
         <div class="modal-footer">
           <button type="submit" class="btn-primary" id="btnSubmitMovement">Registrar Movimentação</button>
@@ -396,9 +405,17 @@
 
         <!-- Address Field -->
         <div class="form-field">
-          <label for="batchExitAddress">Endereço/Local de Saída <span class="required">*</span></label>
-          <input id="batchExitAddress" type="text" placeholder="Ex: EX - A (obrigatório para saídas)" />
-          <small class="field-hint">Este endereço será aplicado a todos os itens</small>
+          <label>Destino da Saída <span class="required">*</span></label>
+          <button type="button" id="btnPickEquipmentBatch" class="btn-equipment-picker">
+            <span class="equipment-picker-icon">📍</span>
+            <span class="equipment-picker-text" id="batchEquipmentText">Selecionar alimentador ou girafa</span>
+            <span class="equipment-picker-chevron">›</span>
+          </button>
+          <input id="batchExitAddress" type="hidden" />
+          <input id="batchEquipmentType" type="hidden" />
+          <input id="batchEquipmentCode" type="hidden" />
+          <input id="batchProjectId" type="hidden" />
+          <small class="field-hint">Este destino será aplicado a todos os itens</small>
         </div>
       </div>
       <div class="modal-footer">
@@ -696,6 +713,37 @@
       <div class="modal-footer" id="providenciarFooter">
         <button id="btnGerarProvidenciar" onclick="generateProvidenciarText()" class="btn-primary" type="button">Gerar</button>
         <button onclick="closeProvidenciarModal()" class="btn-secondary" type="button">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Equipment Picker (Alimentador / Girafa) -->
+  <div id="equipmentPickerModal" class="modal is-hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3>Selecionar Destino</h3>
+        <button id="btnCloseEquipmentPicker" class="btn-modal-close" type="button">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="equipment-picker-filters">
+          <input id="equipmentSearchInput" type="text" class="equipment-search" placeholder="Buscar por obra, cliente, código..." autocomplete="off" />
+          <div class="equipment-type-tabs">
+            <button type="button" class="equipment-type-tab active" data-type-filter="all">Todos</button>
+            <button type="button" class="equipment-type-tab" data-type-filter="alimentador">Alimentadores</button>
+            <button type="button" class="equipment-type-tab" data-type-filter="girafa">Girafas</button>
+          </div>
+        </div>
+        <div id="equipmentPickerList" class="equipment-picker-list">
+          <div class="equipment-picker-loading">
+            <i class="fa-solid fa-spinner"></i>
+            <span>Carregando equipamentos...</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnClearEquipmentSelection" class="btn-secondary" type="button">Limpar Seleção</button>
+        <button id="btnCancelEquipmentPicker" class="btn-secondary" type="button">Cancelar</button>
       </div>
     </div>
   </div>

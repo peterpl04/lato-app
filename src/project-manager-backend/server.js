@@ -208,6 +208,12 @@ async function initDB() {
   // Migration: add location (endereçamento do item no estoque)
   await pool.query(`ALTER TABLE estoque_items ADD COLUMN IF NOT EXISTS location TEXT`);
 
+  // Migration: link stock movements to project equipment (alimentador/girafa)
+  await pool.query(`ALTER TABLE estoque_movements ADD COLUMN IF NOT EXISTS project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL`);
+  await pool.query(`ALTER TABLE estoque_movements ADD COLUMN IF NOT EXISTS equipment_type TEXT`);
+  await pool.query(`ALTER TABLE estoque_movements ADD COLUMN IF NOT EXISTS equipment_code TEXT`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ix_estoque_movements_project ON estoque_movements(project_id)`);
+
   console.log("🟢 Tabelas projects e estoque prontas");
 }
 
@@ -666,12 +672,18 @@ app.patch("/estoque/items/:itemId", async (req, res) => {
 // ADD MOVEMENT
 app.post("/estoque/items/:itemId/movements", async (req, res) => {
   const { itemId } = req.params;
-  const { movementType, quantity, movementDate, address } = req.body;
+  const { movementType, quantity, movementDate, address, projectId, equipmentType, equipmentCode } = req.body;
   const env = getRequestEnvironment(req);
 
   if (!movementType || !quantity || !movementDate) {
     return res.status(400).json({ error: "Dados inválidos" });
   }
+
+  const normalizedEquipmentType =
+    equipmentType === "alimentador" || equipmentType === "girafa" ? equipmentType : null;
+  const normalizedProjectId = Number.isFinite(Number(projectId)) ? Number(projectId) : null;
+  const normalizedEquipmentCode =
+    typeof equipmentCode === "string" && equipmentCode.trim() ? equipmentCode.trim() : null;
 
   try {
     const itemResult = await pool.query(
@@ -687,11 +699,24 @@ app.post("/estoque/items/:itemId/movements", async (req, res) => {
 
     const movementResult = await pool.query(
       `
-      INSERT INTO estoque_movements (item_id, movement_type, quantity, movement_date, address, environment)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO estoque_movements (
+        item_id, movement_type, quantity, movement_date,
+        address, environment, project_id, equipment_type, equipment_code
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
       `,
-      [dbItemId, movementType, quantity, movementDate, address || null, env]
+      [
+        dbItemId,
+        movementType,
+        quantity,
+        movementDate,
+        address || null,
+        env,
+        normalizedProjectId,
+        normalizedEquipmentType,
+        normalizedEquipmentCode
+      ]
     );
 
     // Update item quantity
@@ -710,6 +735,9 @@ app.post("/estoque/items/:itemId/movements", async (req, res) => {
     );
 
     io.to(`estoque:${env}`).emit("estoque:update");
+    if (normalizedProjectId) {
+      io.to(`projects:${env}`).emit("project:stock-update", { projectId: normalizedProjectId });
+    }
     res.json(movementResult.rows[0]);
   } catch (err) {
     console.error("❌ ERRO AO ADICIONAR MOVIMENTO:", err);
@@ -737,6 +765,106 @@ app.delete("/estoque/items/:itemId", async (req, res) => {
   } catch (err) {
     console.error("❌ ERRO AO DELETAR ITEM:", err);
     res.status(500).json({ error: "Erro ao deletar item" });
+  }
+});
+
+/* =========================
+   PROJECT EQUIPMENT (alimentadores / girafas)
+   - Used by ESTOQUE module to bind a saída to a piece of project equipment.
+   - Returns one entry per equipment instance (a project with both
+     alimentador and girafa yields two entries).
+========================= */
+app.get("/projects/equipment", async (req, res) => {
+  const env = getRequestEnvironment(req);
+
+  try {
+    const result = await pool.query(
+      `SELECT id, obra, cliente, unidade, alimentador, girafa_codigo
+       FROM projects
+       WHERE environment = $1
+       ORDER BY obra ASC, id DESC`,
+      [env]
+    );
+
+    const equipment = [];
+    for (const row of result.rows) {
+      const baseProject = {
+        projectId: row.id,
+        obra: row.obra,
+        cliente: row.cliente,
+        unidade: row.unidade
+      };
+
+      const alim = (row.alimentador || "").trim();
+      if (alim) {
+        equipment.push({
+          ...baseProject,
+          equipmentType: "alimentador",
+          equipmentCode: alim,
+          label: alim
+        });
+      }
+
+      const gira = (row.girafa_codigo || "").trim();
+      if (gira) {
+        equipment.push({
+          ...baseProject,
+          equipmentType: "girafa",
+          equipmentCode: gira,
+          label: gira
+        });
+      }
+    }
+
+    res.json(equipment);
+  } catch (err) {
+    console.error("❌ ERRO AO BUSCAR EQUIPAMENTOS:", err);
+    res.status(500).json({ error: "Erro ao buscar equipamentos" });
+  }
+});
+
+/* =========================
+   PROJECT STOCK CONSUMPTION
+   - Returns all saída movements bound to a project, including item info.
+   - Used by GERENCIADOR DE PROJETOS summary view.
+========================= */
+app.get("/projects/:id/stock-movements", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const projectId = Number(req.params.id);
+
+  if (!Number.isFinite(projectId)) {
+    return res.status(400).json({ error: "ID de projeto inválido" });
+  }
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        m.id            AS movement_id,
+        m.movement_type,
+        m.movement_date,
+        m.quantity,
+        m.address,
+        m.equipment_type,
+        m.equipment_code,
+        m.created_at,
+        i.item_id       AS item_code_id,
+        i.name          AS item_name,
+        i.code          AS item_code,
+        i.category      AS item_category
+      FROM estoque_movements m
+      JOIN estoque_items i ON i.id = m.item_id
+      WHERE m.project_id = $1
+        AND m.environment = $2
+      ORDER BY m.movement_date DESC, m.created_at DESC
+      `,
+      [projectId, env]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ ERRO AO BUSCAR CONSUMO DE PROJETO:", err);
+    res.status(500).json({ error: "Erro ao buscar movimentações do projeto" });
   }
 });
 

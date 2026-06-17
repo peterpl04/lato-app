@@ -1022,3 +1022,125 @@ button.danger:hover {
 .checkbox-label:hover {
   opacity: 0.8;
 }
+
+/* =====================================
+   STOCK CONSUMPTION (itens do ESTOQUE
+   vinculados ao alimentador / girafa)
+===================================== */
+
+.stock-consumption {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.stock-consumption-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.stock-consumption-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stock-consumption-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 11px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.stock-consumption-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.stock-consumption-empty {
+  margin: 0;
+  padding: 16px;
+  text-align: center;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.stock-consumption-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.stock-consumption-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.stock-consumption-item-name {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stock-consumption-item-meta {
+  margin: 0;
+  font-size: 11px;
+  color: #64748b;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stock-consumption-item-meta span:not(:last-child)::after {
+  content: ' •';
+  margin-left: 4px;
+  color: #cbd5e1;
+}
+
+.stock-consumption-item-qty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  padding-left: 8px;
+  border-left: 1px solid #e2e8f0;
+}
+
+.stock-consumption-item-qty .qty-number {
+  font-size: 18px;
+  font-weight: 700;
+  color: #dc2626;
+  line-height: 1;
+}
+
+.stock-consumption-item-qty .qty-label {
+  font-size: 10px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 2px;
+}

@@ -30,13 +30,20 @@ let currentState = {
 // API Configuration
 const API_BASE_URL = "https://lato-app-production.up.railway.app";
 const REQUEST_TIMEOUT = 10000;
+let appEnv = "prod";
+
+function resolveEnvironmentLabel(value) {
+  if (!value) return "prod";
+  const lower = String(value).toLowerCase().trim();
+  return lower === "development" || lower === "dev" ? "dev" : "prod";
+}
 
 // Helper para fazer requisições
 async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const defaultHeaders = {
     'Content-Type': 'application/json',
-    'X-App-Env': 'prod'
+    'X-App-Env': appEnv
   };
 
   // Mark mutation in flight for write methods to suspend polling
@@ -152,6 +159,12 @@ const categories = {
 
 // Initialize
 async function init() {
+  try {
+    appEnv = resolveEnvironmentLabel(await window.api.getAppEnvironment());
+  } catch {
+    appEnv = "prod";
+  }
+
   setDefaultDate();
   await loadData();
   attachEventListeners();

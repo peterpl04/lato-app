@@ -681,7 +681,10 @@ app.post("/estoque/items/:itemId/movements", async (req, res) => {
 
   const normalizedEquipmentType =
     equipmentType === "alimentador" || equipmentType === "girafa" ? equipmentType : null;
-  const normalizedProjectId = Number.isFinite(Number(projectId)) ? Number(projectId) : null;
+  const projectIdNumber =
+    projectId === null || projectId === undefined || projectId === "" ? NaN : Number(projectId);
+  const normalizedProjectId =
+    Number.isFinite(projectIdNumber) && projectIdNumber > 0 ? projectIdNumber : null;
   const normalizedEquipmentCode =
     typeof equipmentCode === "string" && equipmentCode.trim() ? equipmentCode.trim() : null;
 

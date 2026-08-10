@@ -154,6 +154,20 @@ async function initDB() {
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_taliscas TEXT`);
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS girafa_tirantes BOOLEAN DEFAULT FALSE`);
 
+  // ESTEIRA COLUMNS (mesmo padrão da Girafa)
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_codigo TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_altura_recepcao TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_altura_entrega TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_tipo_produto TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_largura_fita TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_comprimento_fita TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_modelo_fita TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_taliscas TEXT`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS esteira_tirantes BOOLEAN DEFAULT FALSE`);
+
+  // Ordenação personalizada (drag & drop)
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS sort_order INTEGER`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS launcher_activities (
       id BIGSERIAL PRIMARY KEY,
@@ -249,7 +263,7 @@ app.get("/projects", async (req, res) => {
 
   try {
   const result = await pool.query(
-    "SELECT * FROM projects WHERE environment = $1 ORDER BY id DESC",
+    "SELECT * FROM projects WHERE environment = $1 ORDER BY sort_order NULLS LAST, id DESC",
     [env]
   );
   res.json(result.rows);
@@ -292,13 +306,22 @@ app.post("/projects", async (req, res) => {
         girafa_taliscas,
         girafa_tirantes,
         esteira,
+        esteira_codigo,
+        esteira_altura_recepcao,
+        esteira_altura_entrega,
+        esteira_tipo_produto,
+        esteira_largura_fita,
+        esteira_comprimento_fita,
+        esteira_modelo_fita,
+        esteira_taliscas,
+        esteira_tirantes,
         entrega,
         instalacao,
         environment,
         created_by
       )
       VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34
       )
 
       RETURNING *
@@ -327,6 +350,15 @@ app.post("/projects", async (req, res) => {
         p.girafa_taliscas || null,
         p.girafa_tirantes || false,
         p.esteira || null,
+        p.esteira_codigo || null,
+        p.esteira_altura_recepcao || null,
+        p.esteira_altura_entrega || null,
+        p.esteira_tipo_produto || null,
+        p.esteira_largura_fita || null,
+        p.esteira_comprimento_fita || null,
+        p.esteira_modelo_fita || null,
+        p.esteira_taliscas || null,
+        p.esteira_tirantes || false,
         p.entrega || null,
         p.instalacao || null,
         env,
@@ -375,10 +407,19 @@ app.put("/projects/:id", async (req, res) => {
   girafa_taliscas=$19,
   girafa_tirantes=$20,
   esteira=$21,
-  entrega=$22,
-  instalacao=$23
-WHERE id=$24
-AND environment = $25
+  esteira_codigo=$22,
+  esteira_altura_recepcao=$23,
+  esteira_altura_entrega=$24,
+  esteira_tipo_produto=$25,
+  esteira_largura_fita=$26,
+  esteira_comprimento_fita=$27,
+  esteira_modelo_fita=$28,
+  esteira_taliscas=$29,
+  esteira_tirantes=$30,
+  entrega=$31,
+  instalacao=$32
+WHERE id=$33
+AND environment = $34
 
     `,
     [
@@ -405,6 +446,15 @@ AND environment = $25
       p.girafa_taliscas,
       p.girafa_tirantes || false,
       p.esteira,
+      p.esteira_codigo,
+      p.esteira_altura_recepcao,
+      p.esteira_altura_entrega,
+      p.esteira_tipo_produto,
+      p.esteira_largura_fita,
+      p.esteira_comprimento_fita,
+      p.esteira_modelo_fita,
+      p.esteira_taliscas,
+      p.esteira_tirantes || false,
       p.entrega,
       p.instalacao,
       id,
@@ -450,6 +500,38 @@ app.patch("/projects/:id/progress", async (req, res) => {
     res.json({ success: true, progresso_percent: progressPercent });
   } catch (err) {
     res.status(500).json(err);
+  }
+});
+
+// REORDER (drag & drop) — recebe { orderedIds: [id, id, ...] } na ordem desejada
+app.patch("/projects/reorder", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const orderedIds = Array.isArray(req.body?.orderedIds) ? req.body.orderedIds : [];
+
+  if (!orderedIds.length) {
+    return res.status(400).json({ error: "orderedIds obrigatório" });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    for (let i = 0; i < orderedIds.length; i += 1) {
+      const projectId = Number(orderedIds[i]);
+      if (!Number.isFinite(projectId)) continue;
+      await client.query(
+        "UPDATE projects SET sort_order = $1 WHERE id = $2 AND environment = $3",
+        [i, projectId, env]
+      );
+    }
+    await client.query("COMMIT");
+    io.to(`projects:${env}`).emit("projects:update");
+    res.json({ success: true, count: orderedIds.length });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("❌ ERRO AO REORDENAR:", err);
+    res.status(500).json({ error: "Erro ao reordenar projetos" });
+  } finally {
+    client.release();
   }
 });
 

@@ -30,13 +30,20 @@ let currentState = {
 // API Configuration
 const API_BASE_URL = "https://lato-app-production.up.railway.app";
 const REQUEST_TIMEOUT = 10000;
+let appEnv = "prod";
+
+function resolveEnvironmentLabel(value) {
+  if (!value) return "prod";
+  const lower = String(value).toLowerCase().trim();
+  return lower === "development" || lower === "dev" ? "dev" : "prod";
+}
 
 // Helper para fazer requisições
 async function apiCall(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
   const defaultHeaders = {
     'Content-Type': 'application/json',
-    'X-App-Env': 'prod'
+    'X-App-Env': appEnv
   };
 
   // Mark mutation in flight for write methods to suspend polling
@@ -109,6 +116,11 @@ const movementModalTitle = document.getElementById('movementModalTitle');
 const movementDate = document.getElementById('movementDate');
 const movementQuantity = document.getElementById('movementQuantity');
 const movementAddress = document.getElementById('movementAddress');
+const movementEquipmentType = document.getElementById('movementEquipmentType');
+const movementEquipmentCode = document.getElementById('movementEquipmentCode');
+const movementProjectId = document.getElementById('movementProjectId');
+const movementEquipmentText = document.getElementById('movementEquipmentText');
+const btnPickEquipment = document.getElementById('btnPickEquipment');
 const exitAddressGroup = document.getElementById('exitAddressGroup');
 const btnSubmitMovement = document.getElementById('btnSubmitMovement');
 
@@ -147,6 +159,12 @@ const categories = {
 
 // Initialize
 async function init() {
+  try {
+    appEnv = resolveEnvironmentLabel(await window.api.getAppEnvironment());
+  } catch {
+    appEnv = "prod";
+  }
+
   setDefaultDate();
   await loadData();
   attachEventListeners();
@@ -209,7 +227,10 @@ function normalizeMovements(rawList) {
     type: m.movement_type,
     date: m.movement_date,
     quantity: m.quantity,
-    address: m.address
+    address: m.address,
+    projectId: m.project_id || null,
+    equipmentType: m.equipment_type || null,
+    equipmentCode: m.equipment_code || null
   }));
 }
 
@@ -370,14 +391,8 @@ function attachEventListeners() {
   btnCloseMovementModal.addEventListener('click', closeMovementModal);
   btnCancelMovementForm.addEventListener('click', closeMovementModal);
 
-  // Clear validation errors on input
-  movementAddress.addEventListener('input', () => {
-    movementAddress.classList.remove('required-error');
-  });
-
-  batchExitAddress.addEventListener('input', () => {
-    batchExitAddress.classList.remove('required-error');
-  });
+  // Equipment picker (single saída + batch saída)
+  initEquipmentPickerSystem();
 
   // Delete confirmation
   btnConfirmDelete.addEventListener('click', handleDeleteItem);
@@ -841,7 +856,10 @@ function renderMovements() {
     const quantityClass = movement.type === 'entrada' ? 'positive' : 'negative';
 
     let addressInfo = '';
-    if (movement.address) {
+    if (movement.equipmentType && movement.equipmentCode) {
+      const label = movement.equipmentType === 'alimentador' ? 'Alimentador' : 'Girafa';
+      addressInfo = `<small>${label}: ${escapeHtml(movement.equipmentCode)}</small>`;
+    } else if (movement.address) {
       addressInfo = `<small>Endereço: ${escapeHtml(movement.address)}</small>`;
     }
 
@@ -985,19 +1003,16 @@ function openMovementModal(type) {
   currentState.movementType = type;
   movementForm.reset();
   setDefaultDate();
+  clearEquipmentSelection('single');
 
   if (type === 'entrada') {
     movementModalTitle.textContent = '↓ Registrar Entrada';
     exitAddressGroup.classList.add('is-hidden');
-    movementAddress.removeAttribute('required');
+    btnPickEquipment.classList.remove('required-error');
   } else {
     movementModalTitle.textContent = '↑ Registrar Saída';
     exitAddressGroup.classList.remove('is-hidden');
-    movementAddress.setAttribute('required', 'required');
   }
-
-  // Remove error classes
-  movementAddress.classList.remove('required-error');
 
   btnSubmitMovement.textContent = 'Registrar Movimentação';
   movementModal.classList.remove('is-hidden');
@@ -1032,6 +1047,9 @@ async function handleAddMovement(e) {
   const date = movementDate.value;
   const quantity = parseInt(movementQuantity.value) || 0;
   const address = movementAddress.value.trim() || null;
+  const equipmentType = movementEquipmentType.value || null;
+  const equipmentCode = movementEquipmentCode.value || null;
+  const projectId = movementProjectId.value ? Number(movementProjectId.value) : null;
 
   if (!date || quantity <= 0) {
     showToast('Preencha todos os campos obrigatórios', 'error');
@@ -1041,15 +1059,14 @@ async function handleAddMovement(e) {
   const type = currentState.movementType;
 
   // Validação obrigatória para saídas
-  if (type === 'saida' && !address) {
-    showToast('⚠️ Endereço/Local de Saída é obrigatório para operações de saída', 'error');
-    movementAddress.classList.add('required-error');
-    movementAddress.focus();
+  if (type === 'saida' && (!equipmentType || !equipmentCode || !projectId)) {
+    showToast('⚠️ Selecione o alimentador ou girafa de destino', 'error');
+    btnPickEquipment.classList.add('required-error');
+    btnPickEquipment.focus();
     return;
   }
 
-  // Remove error class if validation passes
-  movementAddress.classList.remove('required-error');
+  btnPickEquipment.classList.remove('required-error');
 
   const item = currentState.currentItem;
 
@@ -1063,7 +1080,10 @@ async function handleAddMovement(e) {
         movementType: type,
         quantity,
         movementDate: date,
-        address: type === 'saida' ? address : null
+        address: type === 'saida' ? address : null,
+        projectId: type === 'saida' ? projectId : null,
+        equipmentType: type === 'saida' ? equipmentType : null,
+        equipmentCode: type === 'saida' ? equipmentCode : null
       })
     });
 
@@ -2009,6 +2029,11 @@ const batchSelectedCount = document.getElementById('batchSelectedCount');
 const btnConfirmBatchExit = document.getElementById('btnConfirmBatchExit');
 const btnCancelBatchExit = document.getElementById('btnCancelBatchExit');
 const batchExitAddress = document.getElementById('batchExitAddress');
+const batchEquipmentType = document.getElementById('batchEquipmentType');
+const batchEquipmentCode = document.getElementById('batchEquipmentCode');
+const batchProjectId = document.getElementById('batchProjectId');
+const batchEquipmentText = document.getElementById('batchEquipmentText');
+const btnPickEquipmentBatch = document.getElementById('btnPickEquipmentBatch');
 const availableItemsTitle = document.getElementById('availableItemsTitle');
 const btnSelectAllVisible = document.getElementById('btnSelectAllVisible');
 const btnClearSelection = document.getElementById('btnClearSelection');
@@ -2053,7 +2078,7 @@ function initBatchExitSystem() {
 function openBatchExitModal() {
   // Clear previous state
   batchSelectedItems.clear();
-  batchExitAddress.value = '';
+  clearEquipmentSelection('batch');
   currentCategoryFilter = 'all';
   batchActiveFilters = { classes: [], diameters: [], heads: [], threads: [], medida: null };
   updateBatchFilterUI();
@@ -2377,17 +2402,20 @@ async function handleBatchExit() {
     }
   }
 
-  // Validate required address for exits
+  // Validate required equipment destination for exits
   const address = batchExitAddress.value.trim();
-  if (!address) {
-    showToast('⚠️ Endereço/Local de Saída é obrigatório para operações de saída', 'error');
-    batchExitAddress.classList.add('required-error');
-    batchExitAddress.focus();
+  const equipmentType = batchEquipmentType.value || null;
+  const equipmentCode = batchEquipmentCode.value || null;
+  const projectId = batchProjectId.value ? Number(batchProjectId.value) : null;
+
+  if (!equipmentType || !equipmentCode || !projectId) {
+    showToast('⚠️ Selecione o alimentador ou girafa de destino', 'error');
+    btnPickEquipmentBatch.classList.add('required-error');
+    btnPickEquipmentBatch.focus();
     return;
   }
 
-  // Remove error class if validation passes
-  batchExitAddress.classList.remove('required-error');
+  btnPickEquipmentBatch.classList.remove('required-error');
 
   // Show loading state
   btnConfirmBatchExit.disabled = true;
@@ -2404,7 +2432,10 @@ async function handleBatchExit() {
           movementType: 'saida',
           quantity,
           movementDate: today,
-          address: address
+          address: address,
+          projectId,
+          equipmentType,
+          equipmentCode
         })
       });
       invalidateMovements(itemId);
@@ -2431,6 +2462,212 @@ async function handleBatchExit() {
 // Global functions for inline buttons
 window.openInlineMovementModal = openInlineMovementModal;
 window.viewItem = viewItem;
+
+// =====================================
+// EQUIPMENT PICKER SYSTEM
+// (alimentador / girafa selection for saídas)
+// =====================================
+
+const equipmentPickerModal = document.getElementById('equipmentPickerModal');
+const equipmentPickerList = document.getElementById('equipmentPickerList');
+const equipmentSearchInput = document.getElementById('equipmentSearchInput');
+
+// Which form opened the picker: 'single' or 'batch'
+let equipmentPickerContext = null;
+
+// Cached equipment list and current view filters
+let equipmentCache = null;
+let equipmentCacheAt = 0;
+const EQUIPMENT_CACHE_TTL_MS = 30_000;
+let equipmentTypeFilter = 'all';
+let equipmentSearchTerm = '';
+
+function initEquipmentPickerSystem() {
+  btnPickEquipment?.addEventListener('click', () => openEquipmentPicker('single'));
+  btnPickEquipmentBatch?.addEventListener('click', () => openEquipmentPicker('batch'));
+
+  document.getElementById('btnCloseEquipmentPicker')?.addEventListener('click', closeEquipmentPicker);
+  document.getElementById('btnCancelEquipmentPicker')?.addEventListener('click', closeEquipmentPicker);
+  document.getElementById('btnClearEquipmentSelection')?.addEventListener('click', () => {
+    clearEquipmentSelection(equipmentPickerContext || 'single');
+    closeEquipmentPicker();
+  });
+
+  equipmentPickerModal?.querySelector('.modal-overlay')?.addEventListener('click', closeEquipmentPicker);
+
+  equipmentSearchInput?.addEventListener('input', e => {
+    equipmentSearchTerm = (e.target.value || '').trim().toLowerCase();
+    renderEquipmentList();
+  });
+
+  document.querySelectorAll('.equipment-type-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      equipmentTypeFilter = tab.dataset.typeFilter;
+      document.querySelectorAll('.equipment-type-tab').forEach(t =>
+        t.classList.toggle('active', t === tab)
+      );
+      renderEquipmentList();
+    });
+  });
+}
+
+async function openEquipmentPicker(context) {
+  equipmentPickerContext = context;
+  equipmentSearchTerm = '';
+  equipmentTypeFilter = 'all';
+  if (equipmentSearchInput) equipmentSearchInput.value = '';
+  document.querySelectorAll('.equipment-type-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.typeFilter === 'all')
+  );
+
+  equipmentPickerModal.classList.remove('is-hidden');
+
+  const stale = !equipmentCache || (Date.now() - equipmentCacheAt) > EQUIPMENT_CACHE_TTL_MS;
+  if (stale) {
+    equipmentPickerList.innerHTML = `
+      <div class="equipment-picker-loading">
+        <i class="fa-solid fa-spinner"></i>
+        <span>Carregando equipamentos...</span>
+      </div>
+    `;
+    try {
+      equipmentCache = await apiCall('/projects/equipment');
+      equipmentCacheAt = Date.now();
+    } catch (err) {
+      console.error('Erro ao carregar equipamentos:', err);
+      equipmentPickerList.innerHTML = `
+        <div class="equipment-picker-empty">
+          <span>⚠️ Falha ao carregar equipamentos. Tente novamente.</span>
+        </div>
+      `;
+      return;
+    }
+  }
+
+  renderEquipmentList();
+  setTimeout(() => equipmentSearchInput?.focus(), 50);
+}
+
+function closeEquipmentPicker() {
+  equipmentPickerModal.classList.add('is-hidden');
+  equipmentPickerContext = null;
+}
+
+// Force refresh next time the picker is opened
+function invalidateEquipmentCache() {
+  equipmentCache = null;
+  equipmentCacheAt = 0;
+}
+
+function renderEquipmentList() {
+  if (!equipmentCache) return;
+
+  const filtered = equipmentCache.filter(eq => {
+    if (equipmentTypeFilter !== 'all' && eq.equipmentType !== equipmentTypeFilter) return false;
+    if (!equipmentSearchTerm) return true;
+    const haystack = [
+      eq.obra,
+      eq.cliente,
+      eq.unidade,
+      eq.equipmentCode,
+      eq.equipmentType
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(equipmentSearchTerm);
+  });
+
+  if (filtered.length === 0) {
+    equipmentPickerList.innerHTML = `
+      <div class="equipment-picker-empty">
+        <span>Nenhum equipamento encontrado.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  filtered.forEach(eq => {
+    const card = document.createElement('div');
+    card.className = 'equipment-card';
+    const icon = eq.equipmentType === 'alimentador' ? '⚙️' : '🦒';
+    const typeLabel = eq.equipmentType === 'alimentador' ? 'Alimentador' : 'Girafa';
+
+    const metaParts = [];
+    if (eq.obra) metaParts.push(`<span>${escapeHtml(eq.obra)}</span>`);
+    if (eq.cliente) metaParts.push(`<span>${escapeHtml(eq.cliente)}</span>`);
+    if (eq.unidade) metaParts.push(`<span>${escapeHtml(eq.unidade)}</span>`);
+
+    card.innerHTML = `
+      <div class="equipment-card-badge ${eq.equipmentType}">${icon}</div>
+      <div class="equipment-card-info">
+        <p class="equipment-card-title">
+          ${escapeHtml(eq.label || eq.equipmentCode)}
+          <span class="equipment-card-type ${eq.equipmentType}">${typeLabel}</span>
+        </p>
+        <div class="equipment-card-meta">${metaParts.join('')}</div>
+      </div>
+    `;
+
+    card.addEventListener('click', () => selectEquipment(eq));
+    frag.appendChild(card);
+  });
+
+  equipmentPickerList.innerHTML = '';
+  equipmentPickerList.appendChild(frag);
+}
+
+function buildEquipmentDisplay(eq) {
+  // Used both as the picker-button label and the persisted "address" text
+  // so that legacy consumers (any place that reads only `address`) still see
+  // a meaningful destination string.
+  const type = eq.equipmentType === 'alimentador' ? 'Alimentador' : 'Girafa';
+  const ctx = [eq.obra, eq.cliente].filter(Boolean).join(' / ');
+  return `${type} ${eq.label || eq.equipmentCode}${ctx ? ' — ' + ctx : ''}`;
+}
+
+function selectEquipment(eq) {
+  const display = buildEquipmentDisplay(eq);
+
+  if (equipmentPickerContext === 'batch') {
+    batchProjectId.value = eq.projectId;
+    batchEquipmentType.value = eq.equipmentType;
+    batchEquipmentCode.value = eq.equipmentCode;
+    batchExitAddress.value = display;
+    batchEquipmentText.innerHTML = `${escapeHtml(eq.label || eq.equipmentCode)}<span class="picker-sub">${escapeHtml((eq.equipmentType === 'alimentador' ? 'Alimentador' : 'Girafa') + (eq.obra ? ' · ' + eq.obra : ''))}</span>`;
+    btnPickEquipmentBatch.classList.add('is-filled');
+    btnPickEquipmentBatch.classList.remove('required-error');
+  } else {
+    movementProjectId.value = eq.projectId;
+    movementEquipmentType.value = eq.equipmentType;
+    movementEquipmentCode.value = eq.equipmentCode;
+    movementAddress.value = display;
+    movementEquipmentText.innerHTML = `${escapeHtml(eq.label || eq.equipmentCode)}<span class="picker-sub">${escapeHtml((eq.equipmentType === 'alimentador' ? 'Alimentador' : 'Girafa') + (eq.obra ? ' · ' + eq.obra : ''))}</span>`;
+    btnPickEquipment.classList.add('is-filled');
+    btnPickEquipment.classList.remove('required-error');
+  }
+
+  closeEquipmentPicker();
+}
+
+function clearEquipmentSelection(context) {
+  if (context === 'batch') {
+    if (batchProjectId) batchProjectId.value = '';
+    if (batchEquipmentType) batchEquipmentType.value = '';
+    if (batchEquipmentCode) batchEquipmentCode.value = '';
+    if (batchExitAddress) batchExitAddress.value = '';
+    if (batchEquipmentText) batchEquipmentText.textContent = 'Selecionar alimentador ou girafa';
+    btnPickEquipmentBatch?.classList.remove('is-filled', 'required-error');
+  } else {
+    if (movementProjectId) movementProjectId.value = '';
+    if (movementEquipmentType) movementEquipmentType.value = '';
+    if (movementEquipmentCode) movementEquipmentCode.value = '';
+    if (movementAddress) movementAddress.value = '';
+    if (movementEquipmentText) movementEquipmentText.textContent = 'Selecionar alimentador ou girafa';
+    btnPickEquipment?.classList.remove('is-filled', 'required-error');
+  }
+}
+
+// Refresh equipment cache when sockets indicate project changes
+window.addEventListener('projects:changed', invalidateEquipmentCache);
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {

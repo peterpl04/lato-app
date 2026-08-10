@@ -14,90 +14,130 @@
 
 <body>
 
-  <div class="container">
-    <header>
-      <h1>Gerenciador de Projetos</h1>
-      <span>Cadastro e organização</span>
-    </header>
+  <div class="app-shell">
 
-    <!-- LISTAGEM -->
-    <div class="list">
-      <div id="tableLoading" class="table-loading" aria-live="polite" aria-hidden="true">
-        <i class="fa-solid fa-spinner"></i>
-        <span>Atualizando projetos...</span>
-      </div>
-
-      <div class="list-header">
-        <h2>Projetos</h2>
-
-        <div class="actions">
-          <button onclick="openModal()" title="Novo Registro" class="icon-only">
-            <i class="fa-solid fa-plus"></i>
-          </button>
-
-          <button onclick="exportProjects()" title="Exportar CSV" class="icon-only">
-            <i class="fa-solid fa-download"></i>
-          </button>
+    <!-- RAIL LATERAL (identidade) -->
+    <aside class="rail">
+      <div class="rail-brand">
+        <div class="rail-mark" aria-hidden="true">
+          <img src="../../assets/icons/lato-infinite.png" alt="" class="rail-mark-img" draggable="false">
+        </div>
+        <div class="rail-brand-text">
+          <strong>Projetos</strong>
+          <small>Lato · Gerenciador</small>
         </div>
       </div>
 
-      <div class="filters-section">
-        <div class="filter-group">
-          <label>Obra</label>
-          <input id="filterObra" type="text" placeholder="Filtrar..." class="filter-input">
+      <button class="rail-cta" onclick="openModal()">
+        <i class="fa-solid fa-plus"></i>
+        <span>Novo projeto</span>
+      </button>
+
+      <div class="rail-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input id="filterObra" type="text" placeholder="Buscar obra..." autocomplete="off">
+      </div>
+
+      <div class="rail-stats">
+        <div class="rail-stat">
+          <span class="rail-stat-value" data-stat="total">0</span>
+          <span class="rail-stat-label">Total</span>
+        </div>
+        <div class="rail-stat">
+          <span class="rail-stat-value" data-stat="andamento">0</span>
+          <span class="rail-stat-label">Em andamento</span>
+        </div>
+        <div class="rail-stat">
+          <span class="rail-stat-value" data-stat="concluidos">0</span>
+          <span class="rail-stat-label">Concluídos</span>
+        </div>
+      </div>
+
+      <div class="rail-section">
+        <div class="rail-section-title">
+          <span>Filtros</span>
+          <button class="rail-section-clear" onclick="clearFilters()" title="Limpar filtros">
+            <i class="fa-solid fa-eraser"></i>
+          </button>
         </div>
 
-        <div class="filter-group">
+        <div class="rail-filter">
           <label>Cliente</label>
-          <select id="filterCliente" class="filter-input">
-            <option value="">Todos</option>
-          </select>
+          <select id="filterCliente"><option value="">Todos</option></select>
         </div>
-
-        <div class="filter-group">
+        <div class="rail-filter">
           <label>Unidade</label>
-          <select id="filterUnidade" class="filter-input">
-            <option value="">Todos</option>
-          </select>
+          <select id="filterUnidade"><option value="">Todos</option></select>
         </div>
-
-        <div class="filter-group">
+        <div class="rail-filter">
           <label>Alimentador</label>
-          <select id="filterAlimentador" class="filter-input">
-            <option value="">Todos</option>
-          </select>
+          <select id="filterAlimentador"><option value="">Todos</option></select>
         </div>
-
-        <div class="filter-group">
+        <div class="rail-filter">
           <label>Girafa</label>
-          <select id="filterGirafa" class="filter-input">
-            <option value="">Todos</option>
-          </select>
+          <select id="filterGirafa"><option value="">Todos</option></select>
         </div>
-
-        <button onclick="clearFilters()" class="filter-clear-btn">
-          <i class="fa-solid fa-times"></i>
-        </button>
       </div>
 
-      <table class="grid">
-        <thead>
-          <tr>
-            <th>Obra</th>
-            <th>Cliente</th>
-            <th>Unidade</th>
-            <th>Alimentador</th>
-            <th>Girafa</th>
-            <th>Esteira</th>
-            <th>Entrega</th>
-            <th>Instalação</th>
-            <th>Progresso</th>
-            <!-- <th>Observação</th> -->
-          </tr>
-        </thead>
-        <tbody id="items"></tbody>
-      </table>
-    </div>
+      <div class="rail-footer">
+        <button class="rail-ghost" onclick="exportProjects()" title="Exportar CSV">
+          <i class="fa-solid fa-file-arrow-down"></i>
+          <span>Exportar CSV</span>
+        </button>
+        <div class="rail-live"><span class="rail-live-dot"></span>Tempo real ativo</div>
+      </div>
+    </aside>
+
+    <!-- CONTEÚDO -->
+    <main class="main">
+      <div class="main-topbar">
+        <nav class="crumbs" aria-label="Breadcrumb">
+          <span>Lato</span>
+          <i class="fa-solid fa-angle-right"></i>
+          <span class="crumbs-current">Projetos</span>
+        </nav>
+        <div class="main-topbar-actions">
+          <div class="view-toggle" role="tablist" aria-label="Visualização">
+            <button class="view-toggle-btn active" data-view="list" role="tab" aria-selected="true" title="Lista">
+              <i class="fa-solid fa-list"></i><span>Lista</span>
+            </button>
+            <button class="view-toggle-btn" data-view="kanban" role="tab" aria-selected="false" title="Kanban">
+              <i class="fa-solid fa-columns"></i><span>Kanban</span>
+            </button>
+          </div>
+          <div class="main-topbar-meta" id="mainCountLabel">— projetos</div>
+        </div>
+      </div>
+
+      <section class="list" id="listView">
+        <div id="tableLoading" class="table-loading" aria-live="polite" aria-hidden="true">
+          <i class="fa-solid fa-spinner"></i>
+          <span>Atualizando projetos...</span>
+        </div>
+
+        <table class="grid">
+          <thead>
+            <tr>
+              <th class="col-handle" aria-label="Reordenar"></th>
+              <th>Obra</th>
+              <th>Cliente</th>
+              <th>Unidade</th>
+              <th>Alimentador</th>
+              <th>Girafa</th>
+              <th>Esteira</th>
+              <th>Entrega</th>
+              <th>Instalação</th>
+              <th>Progresso</th>
+            </tr>
+          </thead>
+          <tbody id="items"></tbody>
+        </table>
+      </section>
+
+      <section class="kanban" id="kanbanView" hidden>
+        <div class="kanban-board" id="kanbanBoard"></div>
+      </section>
+    </main>
   </div>
 
   <!-- MODAL REGISTRO -->
@@ -109,6 +149,7 @@
         <button class="tab active" data-tab="geral">Geral</button>
         <button class="tab" data-tab="alimentador">Alimentador</button>
         <button class="tab" data-tab="girafa">Girafa</button>
+        <button class="tab" data-tab="esteira">Esteira</button>
       </div>
 
       <!-- ABA GERAL -->
@@ -187,6 +228,32 @@
               <button type="button" onclick="save()">Salvar</button>
             </div>
           </div>
+
+          <!-- ABA ESTEIRA -->
+          <div class="tab-content" id="tab-esteira">
+            <div class="form-grid">
+              <input id="esteira_codigo" placeholder="Esteira">
+              <input id="esteira_altura_recepcao" placeholder="Altura da Recepção">
+              <input id="esteira_altura_entrega" placeholder="Altura da Entrega">
+              <input id="esteira_tipo_produto" placeholder="Tipo de Produto">
+              <input id="esteira_largura_fita" placeholder="Largura da Fita">
+              <input id="esteira_comprimento_fita" placeholder="Comprimento da Fita">
+              <input id="esteira_modelo_fita" placeholder="Modelo da Fita">
+              <input id="esteira_taliscas" placeholder="Dados das Taliscas" class="col-full">
+
+              <div class="field col-full">
+                <label class="checkbox-label">
+                  <input id="esteira_tirantes" type="checkbox">
+                  <span>Possui Tirantes</span>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-actions col-full">
+              <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>
+              <button type="button" onclick="save()">Salvar</button>
+            </div>
+          </div>
     </div>
   </div>
 
@@ -230,6 +297,7 @@
         <button class="summary-tab active" data-tab="summary-geral">Geral</button>
         <button class="summary-tab" data-tab="summary-alimentador">Alimentador</button>
         <button class="summary-tab" data-tab="summary-girafa">Girafa</button>
+        <button class="summary-tab" data-tab="summary-esteira">Esteira</button>
       </div>
 
       <!-- SUMMARY GERAL -->
@@ -362,6 +430,56 @@
         </div>
       </div>
 
+      <!-- SUMMARY ESTEIRA -->
+      <div class="summary-content" id="summary-esteira">
+        <div class="summary-section">
+
+          <div class="girafa-highlight">
+            <div class="girafa-label">Esteira utilizada</div>
+            <div class="girafa-value" id="sum-esteira-selecionada">
+              Nenhuma esteira informada
+            </div>
+          </div>
+
+          <div class="summary-grid">
+            <div><span>Altura da Recepção</span>
+              <p id="sum-esteira-altura-recepcao">-</p>
+            </div>
+            <div><span>Altura da Entrega</span>
+              <p id="sum-esteira-altura-entrega">-</p>
+            </div>
+            <div><span>Tipo de Produto</span>
+              <p id="sum-esteira-tipo-produto">-</p>
+            </div>
+            <div><span>Largura da Fita</span>
+              <p id="sum-esteira-largura-fita">-</p>
+            </div>
+            <div><span>Comprimento da Fita</span>
+              <p id="sum-esteira-comprimento-fita">-</p>
+            </div>
+            <div><span>Modelo da Fita</span>
+              <p id="sum-esteira-modelo-fita">-</p>
+            </div>
+            <div class="summary-full"><span>Dados das Taliscas</span>
+              <p id="sum-esteira-taliscas">-</p>
+            </div>
+            <div><span>Possui Tirantes</span>
+              <p id="sum-esteira-tirantes">-</p>
+            </div>
+          </div>
+
+          <div class="stock-consumption" id="stock-consumption-esteira">
+            <div class="stock-consumption-header">
+              <h4>📦 Itens de estoque utilizados</h4>
+              <span class="stock-consumption-count" id="stock-count-esteira">0</span>
+            </div>
+            <div class="stock-consumption-list" id="stock-list-esteira">
+              <p class="stock-consumption-empty">Nenhum item de estoque vinculado a esta esteira.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 
@@ -392,6 +510,41 @@
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
   <script src="renderer.js"></script>
+  <script>
+    // Sidebar stats + contador do topo — hook não invasivo sobre renderTable/getFilteredProjects
+    (function () {
+      function refreshSidebar() {
+        try {
+          const all = (typeof projects !== "undefined" && Array.isArray(projects)) ? projects : [];
+          const list = (typeof getFilteredProjects === "function") ? getFilteredProjects() : all;
+          const total = all.length;
+          const concluidos = list.filter(p => Number(p?.progresso_percent ?? 0) >= 100).length;
+          const andamento = list.filter(p => {
+            const v = Number(p?.progresso_percent ?? 0);
+            return v > 0 && v < 100;
+          }).length;
+          const set = (k, v) => {
+            const el = document.querySelector(`[data-stat="${k}"]`);
+            if (el) el.textContent = v;
+          };
+          set("total", total);
+          set("andamento", andamento);
+          set("concluidos", concluidos);
+          const label = document.getElementById("mainCountLabel");
+          if (label) label.textContent = `${list.length} de ${total} projetos`;
+        } catch (_) { /* silencioso */ }
+      }
+      const origRender = window.renderTable;
+      if (typeof origRender === "function") {
+        window.renderTable = function patchedRender() {
+          const r = origRender.apply(this, arguments);
+          refreshSidebar();
+          return r;
+        };
+      }
+      document.addEventListener("DOMContentLoaded", refreshSidebar);
+    })();
+  </script>
 </body>
 
 </html>

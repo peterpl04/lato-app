@@ -515,7 +515,16 @@ function clearForm() {
     "girafa_comprimento_fita",
     "girafa_modelo_fita",
     "girafa_taliscas",
-    "girafa_tirantes"
+    "girafa_tirantes",
+    "esteira_codigo",
+    "esteira_altura_recepcao",
+    "esteira_altura_entrega",
+    "esteira_tipo_produto",
+    "esteira_largura_fita",
+    "esteira_comprimento_fita",
+    "esteira_modelo_fita",
+    "esteira_taliscas",
+    "esteira_tirantes"
   ].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
@@ -585,6 +594,18 @@ function fillForm(p) {
   document.getElementById("girafa_tirantes").checked =
     p.girafa_tirantes === true || p.girafa_tirantes === "true";
 
+  // ===== ESTEIRA =====
+  document.getElementById("esteira_codigo").value = p.esteira_codigo || p.esteira || "";
+  document.getElementById("esteira_altura_recepcao").value = p.esteira_altura_recepcao || "";
+  document.getElementById("esteira_altura_entrega").value = p.esteira_altura_entrega || "";
+  document.getElementById("esteira_tipo_produto").value = p.esteira_tipo_produto || "";
+  document.getElementById("esteira_largura_fita").value = p.esteira_largura_fita || "";
+  document.getElementById("esteira_comprimento_fita").value = p.esteira_comprimento_fita || "";
+  document.getElementById("esteira_modelo_fita").value = p.esteira_modelo_fita || "";
+  document.getElementById("esteira_taliscas").value = p.esteira_taliscas || "";
+  document.getElementById("esteira_tirantes").checked =
+    p.esteira_tirantes === true || p.esteira_tirantes === "true";
+
   // Atualiza destaque se existir
   updateAlimentadorSelecionado(p.alimentador || "");
 }
@@ -618,7 +639,17 @@ async function save() {
     girafa_comprimento_fita: document.getElementById("girafa_comprimento_fita").value.trim(),
     girafa_modelo_fita: document.getElementById("girafa_modelo_fita").value.trim(),
     girafa_taliscas: document.getElementById("girafa_taliscas").value.trim(),
-    girafa_tirantes: document.getElementById("girafa_tirantes").checked
+    girafa_tirantes: document.getElementById("girafa_tirantes").checked,
+    esteira_codigo: document.getElementById("esteira_codigo").value.trim(),
+    esteira: document.getElementById("esteira_codigo").value.trim(),
+    esteira_altura_recepcao: document.getElementById("esteira_altura_recepcao").value.trim(),
+    esteira_altura_entrega: document.getElementById("esteira_altura_entrega").value.trim(),
+    esteira_tipo_produto: document.getElementById("esteira_tipo_produto").value.trim(),
+    esteira_largura_fita: document.getElementById("esteira_largura_fita").value.trim(),
+    esteira_comprimento_fita: document.getElementById("esteira_comprimento_fita").value.trim(),
+    esteira_modelo_fita: document.getElementById("esteira_modelo_fita").value.trim(),
+    esteira_taliscas: document.getElementById("esteira_taliscas").value.trim(),
+    esteira_tirantes: document.getElementById("esteira_tirantes").checked
   };
 
   if (!project.obra || !project.cliente || !project.observacao) {
@@ -730,11 +761,12 @@ function renderTable() {
   if (!filteredProjects.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" style="text-align:center; color:#94a3b8;">
+        <td colspan="10" class="empty-row">
           Nenhum registro encontrado
         </td>
       </tr>
     `;
+    renderKanban();
     return;
   }
 
@@ -743,16 +775,25 @@ function renderTable() {
     const createdBy = p.created_by || "Desconhecido";
     const progress = getProjectProgress(p);
     const tone = getProgressTone(progress.percent);
+    const esteiraLabel = p.esteira_codigo || p.esteira || "-";
+
+    tr.dataset.projectId = p.id;
+    tr.draggable = true;
 
     tr.innerHTML = `
+      <td class="handle-cell" aria-label="Arrastar">
+        <span class="drag-handle" title="Arraste para reordenar">
+          <i class="fa-solid fa-grip-vertical"></i>
+        </span>
+      </td>
       <td>${p.obra}</td>
       <td>${p.cliente || "-"}</td>
       <td>${p.unidade || "-"}</td>
       <td>${p.alimentador || "-"}</td>
       <td>${p.girafa_codigo || "-"}</td>
-      <td>${p.esteira || "-"}</td>
-      <td>${formatDateBR(p.entrega)}</td>
-      <td>${formatDateBR(p.instalacao)}</td>
+      <td>${esteiraLabel}</td>
+      <td>${renderDateChip(p.entrega)}</td>
+      <td>${renderDateChip(p.instalacao)}</td>
       <td>
         <button class="progress-pill" type="button" data-progress-id="${p.id}">
           <span class="progress-pill-bar" style="--progress:${progress.percent}%; --progress-fill:${tone.gradient}; --progress-glow-a:${tone.glowA}; --progress-glow-b:${tone.glowB};"></span>
@@ -760,10 +801,12 @@ function renderTable() {
         </button>
       </td>
     `;
-    // <td class="obs-cell">${p.observacao}</td> (removido da tabela para evitar poluição visual, mas permanece na modal de resumo)
+
+    attachRowDragHandlers(tr);
 
     tr.addEventListener("click", e => {
       if (e.button !== 0) return;
+      if (e.target.closest(".drag-handle")) return;
       openSummary(p);
     });
 
@@ -804,6 +847,8 @@ function renderTable() {
 
     tbody.appendChild(tr);
   });
+
+  renderKanban();
 }
 
 function getProjectProgress(project) {
@@ -1038,6 +1083,26 @@ function openSummary(project) {
     giraCard.classList.remove("filled");
   }
 
+  /* ===== ESTEIRA ===== */
+  const esteiraCodigo = project.esteira_codigo || project.esteira || "";
+  document.getElementById("sum-esteira-altura-recepcao").textContent = project.esteira_altura_recepcao || "-";
+  document.getElementById("sum-esteira-altura-entrega").textContent = project.esteira_altura_entrega || "-";
+  document.getElementById("sum-esteira-tipo-produto").textContent = project.esteira_tipo_produto || "-";
+  document.getElementById("sum-esteira-largura-fita").textContent = project.esteira_largura_fita || "-";
+  document.getElementById("sum-esteira-comprimento-fita").textContent = project.esteira_comprimento_fita || "-";
+  document.getElementById("sum-esteira-modelo-fita").textContent = project.esteira_modelo_fita || "-";
+  document.getElementById("sum-esteira-taliscas").textContent = project.esteira_taliscas || "-";
+  document.getElementById("sum-esteira-tirantes").textContent = project.esteira_tirantes ? "Sim" : "Não";
+
+  const estCard = document.getElementById("sum-esteira-selecionada");
+  if (esteiraCodigo) {
+    estCard.textContent = esteiraCodigo;
+    estCard.classList.add("filled");
+  } else {
+    estCard.textContent = "Nenhuma esteira informada";
+    estCard.classList.remove("filled");
+  }
+
   /* ===== CONSUMO DE ESTOQUE (vínculo com módulo ESTOQUE) ===== */
   loadStockConsumption(project);
 
@@ -1262,6 +1327,15 @@ function exportProjects() {
     "Girafa Taliscas",
     "Girafa Tirantes",
     "Esteira",
+    "Esteira Código",
+    "Esteira Altura Recepção",
+    "Esteira Altura Entrega",
+    "Esteira Tipo Produto",
+    "Esteira Largura Fita",
+    "Esteira Comprimento Fita",
+    "Esteira Modelo Fita",
+    "Esteira Taliscas",
+    "Esteira Tirantes",
     "Entrega",
     "Instalação",
     "Progresso",
@@ -1292,6 +1366,15 @@ function exportProjects() {
     "girafa_taliscas",
     "girafa_tirantes",
     "esteira",
+    "esteira_codigo",
+    "esteira_altura_recepcao",
+    "esteira_altura_entrega",
+    "esteira_tipo_produto",
+    "esteira_largura_fita",
+    "esteira_comprimento_fita",
+    "esteira_modelo_fita",
+    "esteira_taliscas",
+    "esteira_tirantes",
     "entrega",
     "instalacao",
     "progresso_percent",
@@ -1319,7 +1402,7 @@ function exportProjects() {
         }
       }
 
-      if (key === "girafa_tirantes") {
+      if (key === "girafa_tirantes" || key === "esteira_tirantes") {
         value = value ? "Sim" : "Não";
       }
 
@@ -1347,4 +1430,275 @@ function exportProjects() {
   link.click();
 
   URL.revokeObjectURL(url);
+}
+
+/* =========================
+   DATE CHIP
+========================= */
+
+const MONTH_ABBR_PT = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function renderDateChip(value) {
+  if (!value) return `<span class="date-chip date-chip--empty">—</span>`;
+
+  let year, month, day;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
+    const [y, m, d] = value.split("T")[0].split("-");
+    year = Number(y); month = Number(m) - 1; day = Number(d);
+  } else {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return `<span class="date-chip date-chip--empty">—</span>`;
+    year = d.getFullYear(); month = d.getMonth(); day = d.getDate();
+  }
+
+  const today = new Date();
+  const target = new Date(year, month, day);
+  const diffDays = Math.round((target - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+
+  let tone = "future";
+  if (diffDays < 0) tone = "past";
+  else if (diffDays <= 7) tone = "soon";
+
+  const label = `${String(day).padStart(2, "0")}/${MONTH_ABBR_PT[month]}`;
+  const yearBadge = year !== today.getFullYear() ? `<em>${String(year).slice(-2)}</em>` : "";
+  return `<span class="date-chip date-chip--${tone}" title="${formatDateBR(value)}"><i class="fa-regular fa-calendar"></i>${label}${yearBadge}</span>`;
+}
+
+/* =========================
+   DRAG & DROP REORDER
+========================= */
+
+let dragState = { rowId: null, indicator: null };
+
+function attachRowDragHandlers(tr) {
+  tr.addEventListener("dragstart", e => {
+    if (activeView !== "list") { e.preventDefault(); return; }
+    dragState.rowId = tr.dataset.projectId;
+    tr.classList.add("dragging");
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setData("text/plain", tr.dataset.projectId); } catch (_) {}
+    }
+  });
+
+  tr.addEventListener("dragend", () => {
+    tr.classList.remove("dragging");
+    clearDropIndicator();
+    persistCurrentOrder();
+    dragState.rowId = null;
+  });
+
+  tr.addEventListener("dragover", e => {
+    if (!dragState.rowId || dragState.rowId === tr.dataset.projectId) return;
+    e.preventDefault();
+    const rect = tr.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    showDropIndicator(tr, before);
+  });
+
+  tr.addEventListener("drop", e => {
+    e.preventDefault();
+    if (!dragState.rowId || dragState.rowId === tr.dataset.projectId) return;
+    const tbody = document.getElementById("items");
+    const draggingRow = tbody.querySelector(`tr[data-project-id="${dragState.rowId}"]`);
+    if (!draggingRow) return;
+    const rect = tr.getBoundingClientRect();
+    const before = (e.clientY - rect.top) < rect.height / 2;
+    if (before) tbody.insertBefore(draggingRow, tr);
+    else tbody.insertBefore(draggingRow, tr.nextSibling);
+    clearDropIndicator();
+  });
+}
+
+function showDropIndicator(tr, before) {
+  clearDropIndicator();
+  const bar = document.createElement("div");
+  bar.className = "drop-indicator";
+  dragState.indicator = bar;
+  document.body.appendChild(bar);
+  const rect = tr.getBoundingClientRect();
+  bar.style.left = `${rect.left}px`;
+  bar.style.width = `${rect.width}px`;
+  bar.style.top = `${before ? rect.top : rect.bottom}px`;
+}
+
+function clearDropIndicator() {
+  if (dragState.indicator) {
+    dragState.indicator.remove();
+    dragState.indicator = null;
+  }
+}
+
+async function persistCurrentOrder() {
+  const tbody = document.getElementById("items");
+  const orderedIds = Array.from(tbody.querySelectorAll("tr[data-project-id]"))
+    .map(tr => Number(tr.dataset.projectId))
+    .filter(Number.isFinite);
+
+  if (!orderedIds.length) return;
+
+  const previousOrder = projects.map(p => p.id);
+  const idIndex = new Map(orderedIds.map((id, i) => [id, i]));
+  projects.sort((a, b) => {
+    const ai = idIndex.has(a.id) ? idIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
+    const bi = idIndex.has(b.id) ? idIndex.get(b.id) : Number.MAX_SAFE_INTEGER;
+    return ai - bi;
+  });
+
+  const sameOrder = previousOrder.every((id, i) => id === projects[i]?.id);
+  if (sameOrder) return;
+
+  try {
+    await fetch(`${API_URL}/projects/reorder`, {
+      method: "PATCH",
+      headers: getApiHeaders(),
+      body: JSON.stringify({ orderedIds })
+    });
+  } catch (err) {
+    console.error("Erro ao salvar nova ordem:", err);
+  }
+}
+
+/* =========================
+   VIEW TOGGLE (Lista / Kanban)
+========================= */
+
+let activeView = "list";
+
+document.addEventListener("click", e => {
+  const btn = e.target.closest(".view-toggle-btn");
+  if (!btn) return;
+  const view = btn.dataset.view;
+  if (!view || view === activeView) return;
+  setActiveView(view);
+});
+
+function setActiveView(view) {
+  activeView = view;
+  const listEl = document.getElementById("listView");
+  const kanbanEl = document.getElementById("kanbanView");
+  document.querySelectorAll(".view-toggle-btn").forEach(b => {
+    const isActive = b.dataset.view === view;
+    b.classList.toggle("active", isActive);
+    b.setAttribute("aria-selected", isActive ? "true" : "false");
+  });
+  if (listEl) listEl.hidden = view !== "list";
+  if (kanbanEl) kanbanEl.hidden = view !== "kanban";
+  if (view === "kanban") renderKanban();
+}
+
+/* =========================
+   KANBAN VIEW
+========================= */
+
+function renderKanban() {
+  const board = document.getElementById("kanbanBoard");
+  if (!board) return;
+
+  const list = getFilteredProjects();
+  const buckets = new Map(PROGRESS_STAGES.map(s => [s.percent, []]));
+  list.forEach(p => {
+    const pct = getProjectProgress(p).percent;
+    if (!buckets.has(pct)) buckets.set(pct, []);
+    buckets.get(pct).push(p);
+  });
+
+  board.innerHTML = "";
+  PROGRESS_STAGES.forEach(stage => {
+    const items = buckets.get(stage.percent) || [];
+    const col = document.createElement("div");
+    col.className = "kanban-col";
+    col.dataset.stage = String(stage.percent);
+    const tone = getProgressTone(stage.percent);
+    col.style.setProperty("--stage-accent", tone.glowA);
+
+    col.innerHTML = `
+      <header class="kanban-col-header">
+        <div class="kanban-col-title">
+          <span class="kanban-col-dot"></span>
+          <strong>${stage.label}</strong>
+        </div>
+        <span class="kanban-col-count">${items.length}</span>
+      </header>
+      <div class="kanban-col-body"></div>
+    `;
+
+    const body = col.querySelector(".kanban-col-body");
+    if (!items.length) {
+      body.innerHTML = `<div class="kanban-empty">—</div>`;
+    } else {
+      items.forEach(p => body.appendChild(buildKanbanCard(p, stage)));
+    }
+
+    col.addEventListener("dragover", e => {
+      if (!dragState.kanbanCardId) return;
+      e.preventDefault();
+      col.classList.add("drop-target");
+    });
+    col.addEventListener("dragleave", () => col.classList.remove("drop-target"));
+    col.addEventListener("drop", async e => {
+      e.preventDefault();
+      col.classList.remove("drop-target");
+      const cardId = Number(dragState.kanbanCardId);
+      if (!Number.isFinite(cardId)) return;
+      const targetPct = Number(col.dataset.stage);
+      const project = projects.find(pr => pr.id === cardId);
+      if (!project) return;
+      const currentPct = getProjectProgress(project).percent;
+      if (currentPct === targetPct) return;
+      try {
+        await updateProjectProgress(cardId, targetPct);
+        await trackLauncherActivity({
+          module: "project-manager",
+          eventType: "project-progress-update",
+          tone: "ok",
+          message: `Progresso de ${project.obra || "projeto"} alterado para ${targetPct}%`,
+          user: currentUser,
+          details: {
+            projectId: cardId,
+            obra: project.obra || "",
+            fromPercent: currentPct,
+            toPercent: targetPct
+          }
+        });
+      } catch (err) {
+        console.error("Erro ao mover card:", err);
+      }
+    });
+
+    board.appendChild(col);
+  });
+}
+
+function buildKanbanCard(project, stage) {
+  const card = document.createElement("article");
+  card.className = "kanban-card";
+  card.draggable = true;
+  card.dataset.projectId = project.id;
+  const tone = getProgressTone(stage.percent);
+  card.style.setProperty("--card-accent", tone.glowA);
+
+  card.innerHTML = `
+    <div class="kanban-card-title">${project.obra || "Sem obra"}</div>
+    <div class="kanban-card-sub">${project.cliente || "Sem cliente"}</div>
+    <div class="kanban-card-meta">
+      ${project.entrega ? renderDateChip(project.entrega) : ""}
+      ${project.alimentador ? `<span class="kanban-chip">${project.alimentador}</span>` : ""}
+      ${project.girafa_codigo ? `<span class="kanban-chip">${project.girafa_codigo}</span>` : ""}
+    </div>
+  `;
+
+  card.addEventListener("dragstart", e => {
+    dragState.kanbanCardId = project.id;
+    card.classList.add("dragging");
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+  });
+  card.addEventListener("dragend", () => {
+    card.classList.remove("dragging");
+    dragState.kanbanCardId = null;
+    document.querySelectorAll(".kanban-col.drop-target").forEach(c => c.classList.remove("drop-target"));
+  });
+  card.addEventListener("click", () => openSummary(project));
+
+  return card;
 }

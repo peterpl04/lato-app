@@ -1,0 +1,46 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgPm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a5f3fc"/>
+      <stop offset="55%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bgPm)"/>
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="white" opacity="0.06"/>
+
+  <!-- Quadro do kanban -->
+  <rect x="24" y="30" width="80" height="68" rx="8" fill="white" opacity="0.95"/>
+
+  <!-- Cabeçalho -->
+  <rect x="24" y="30" width="80" height="10" rx="8" fill="#0e7490"/>
+  <rect x="24" y="34" width="80" height="6" fill="#0e7490"/>
+
+  <!-- Colunas -->
+  <g fill="#0e7490">
+    <rect x="30" y="46" width="20" height="4" rx="2" opacity="0.75"/>
+    <rect x="54" y="46" width="20" height="4" rx="2" opacity="0.55"/>
+    <rect x="78" y="46" width="20" height="4" rx="2" opacity="0.35"/>
+  </g>
+
+  <!-- Cards da coluna 1 (feitos) -->
+  <g>
+    <rect x="30" y="55" width="20" height="14" rx="3" fill="#22d3ee"/>
+    <rect x="30" y="72" width="20" height="14" rx="3" fill="#22d3ee" opacity="0.7"/>
+  </g>
+  <!-- Cards coluna 2 (em progresso) -->
+  <g>
+    <rect x="54" y="55" width="20" height="14" rx="3" fill="#0891b2"/>
+    <rect x="54" y="72" width="20" height="9" rx="3" fill="#0891b2" opacity="0.55"/>
+  </g>
+  <!-- Cards coluna 3 (a fazer) -->
+  <g>
+    <rect x="78" y="55" width="20" height="9" rx="3" fill="#0891b2" opacity="0.45"/>
+    <rect x="78" y="67" width="20" height="9" rx="3" fill="#0891b2" opacity="0.35"/>
+    <rect x="78" y="79" width="20" height="9" rx="3" fill="#0891b2" opacity="0.25"/>
+  </g>
+
+  <!-- Brilho superior -->
+  <path d="M14 14 Q30 6 60 8 L60 14 Q30 12 14 22 Z" fill="white" opacity="0.18"/>
+</svg>

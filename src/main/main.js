@@ -6,7 +6,7 @@ if (process.env.NODE_ENV === "development") {
   });
 }
 
-const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut, safeStorage } = require("electron");
+const { app, BrowserWindow, dialog, ipcMain, shell, globalShortcut, safeStorage, screen, nativeImage } = require("electron");
 const archiver = require("archiver");
 const path = require("path");
 const fs = require("fs");
@@ -23,6 +23,69 @@ const SESSION_PATH = path.join(app.getPath("userData"), "session.dat");
 const SESSION_PATH_PLAIN = path.join(app.getPath("userData"), "session.json");
 
 const { autoUpdater } = require("electron-updater");
+
+// Cache PNGs gerados dos SVGs de módulo para reuso na taskbar / setAppDetails.
+const MODULE_ICON_CACHE = new Map();
+const MODULE_ICON_PNG_DIR = path.join(app.getPath("userData"), "module-icons");
+
+async function applyModuleIcon(win, moduleKey) {
+  if (!win || win.isDestroyed()) return;
+
+  const svgPath = path.join(__dirname, "..", "assets", "icons", `mod-${moduleKey}.svg`);
+  if (!fs.existsSync(svgPath)) return;
+
+  try {
+    let entry = MODULE_ICON_CACHE.get(moduleKey);
+
+    if (!entry) {
+      const svg = fs.readFileSync(svgPath, "utf8");
+      const svgB64 = Buffer.from(svg, "utf8").toString("base64");
+
+      const dataUrl = await win.webContents.executeJavaScript(`(async () => {
+        const svgText = atob("${svgB64}");
+        const img = new Image();
+        img.src = "data:image/svg+xml;utf8," + encodeURIComponent(svgText);
+        await new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = () => reject(new Error("svg load"));
+        });
+        const canvas = document.createElement("canvas");
+        canvas.width = 256;
+        canvas.height = 256;
+        const ctx = canvas.getContext("2d");
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, 0, 0, 256, 256);
+        return canvas.toDataURL("image/png");
+      })()`);
+
+      const image = nativeImage.createFromDataURL(dataUrl);
+      if (image.isEmpty()) return;
+
+      if (!fs.existsSync(MODULE_ICON_PNG_DIR)) {
+        fs.mkdirSync(MODULE_ICON_PNG_DIR, { recursive: true });
+      }
+      const pngPath = path.join(MODULE_ICON_PNG_DIR, `mod-${moduleKey}.png`);
+      fs.writeFileSync(pngPath, image.toPNG());
+
+      entry = { image, pngPath };
+      MODULE_ICON_CACHE.set(moduleKey, entry);
+    }
+
+    win.setIcon(entry.image);
+
+    if (process.platform === "win32") {
+      win.setAppDetails({
+        appId: `com.latoapps.${moduleKey}`,
+        appIconPath: entry.pngPath,
+        relaunchCommand: process.execPath,
+        relaunchDisplayName: win.getTitle()
+      });
+    }
+  } catch {
+    // Falha silenciosa: mantém o ícone padrão.
+  }
+}
 
 let ghToken = process.env.GH_TOKEN;
 const GITHUB_OWNER = "peterpl04";
@@ -521,10 +584,18 @@ function createLoginWindow() {
 
 
 function createMainWindow() {
+  const { workAreaSize } = screen.getPrimaryDisplay();
+  // Adapta ao monitor: ~70% da área útil, com limites saudáveis.
+  const width = Math.round(Math.min(1440, Math.max(1120, workAreaSize.width * 0.7)));
+  const height = Math.round(Math.min(900, Math.max(720, workAreaSize.height * 0.78)));
+
   mainWindow = new BrowserWindow({
-    width: 900,
-    height: 600,
-    resizable: false,
+    width,
+    height,
+    minWidth: 1024,
+    minHeight: 680,
+    center: true,
+    resizable: true,
     autoHideMenuBar: true,
     icon: path.join(__dirname, "..", "assets", "icons", "lato-infinite.ico"),
     webPreferences: {
@@ -630,6 +701,10 @@ function openDWGRenamer() {
     dwgRenamerWindow = null;
   });
 
+  win.webContents.once("did-finish-load", () => {
+    applyModuleIcon(win, "dwg");
+  });
+
   win.setMenu(null);
   win.loadFile(path.join(__dirname, "../apps/dwg-renamer/index.html"));
 }
@@ -673,6 +748,10 @@ function openProjectManager() {
     projectManagerWindow = null;
   });
 
+  win.webContents.once("did-finish-load", () => {
+    applyModuleIcon(win, "pm");
+  });
+
   win.setMenu(null);
   win.loadFile(path.join(__dirname, "../apps/project-manager/index.html"));
 }
@@ -709,6 +788,10 @@ function openFiscal() {
 
   win.on("closed", () => {
     fiscalWindow = null;
+  });
+
+  win.webContents.once("did-finish-load", () => {
+    applyModuleIcon(win, "fiscal");
   });
 
   win.setMenu(null);
@@ -752,6 +835,10 @@ function openEstoque() {
 
   win.on("closed", () => {
     estoqueWindow = null;
+  });
+
+  win.webContents.once("did-finish-load", () => {
+    applyModuleIcon(win, "estoque");
   });
 
   win.setMenu(null);

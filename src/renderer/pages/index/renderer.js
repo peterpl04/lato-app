@@ -35,9 +35,6 @@ let activityApiUrl = DEFAULT_ACTIVITY_API_URL;
 let activityEnv = "prod";
 let hoverTooltipEl = null;
 const dismissedActivityKeys = new Set();
-const favoriteApps = new Set(["dwg", "pm"]);
-let activeLauncherFilter = "all";
-let activeSearchQuery = "";
 
 const MODULE_ICON_MAP = {
   dwg: "../../../assets/icons/dwg-renamer.svg",
@@ -174,100 +171,6 @@ function openFiscal() {
 
 function openEstoque() {
   window.api.openEstoque();
-}
-
-function getRecentAppSet() {
-  const entries = Array.isArray(launcherState.recents) ? launcherState.recents : [];
-  const result = new Set();
-
-  entries.slice(0, 8).forEach((entry) => {
-    if (entry?.action === "open-dwg") result.add("dwg");
-    if (entry?.action === "open-pm") result.add("pm");
-    if (entry?.action === "open-fiscal") result.add("fiscal");
-    if (entry?.action === "open-estoque") result.add("estoque");
-  });
-
-  return result;
-}
-
-function applyAppFilter(filter = "all") {
-  activeLauncherFilter = filter;
-  reapplyAppVisibility();
-
-  document.querySelectorAll(".favorite-chip[data-filter]").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.filter === filter);
-  });
-}
-
-function matchesSearchQuery(card, query) {
-  if (!query) return true;
-  const haystack = [
-    card.dataset.app || "",
-    card.dataset.keywords || "",
-    card.querySelector(".app-name")?.textContent || ""
-  ].join(" ").toLowerCase();
-  return query.split(/\s+/).every((token) => haystack.includes(token));
-}
-
-function reapplyAppVisibility() {
-  const cards = document.querySelectorAll(".app-card[data-app]");
-  const recentSet = getRecentAppSet();
-  const query = activeSearchQuery.trim().toLowerCase();
-  let visibleCount = 0;
-
-  cards.forEach((card) => {
-    let visible = true;
-    const appId = card.dataset.app;
-
-    if (activeLauncherFilter === "favorites") {
-      visible = favoriteApps.has(appId);
-    } else if (activeLauncherFilter === "recent") {
-      visible = recentSet.has(appId);
-    }
-
-    if (visible && !matchesSearchQuery(card, query)) {
-      visible = false;
-    }
-
-    card.style.display = visible ? "" : "none";
-    if (visible) visibleCount++;
-  });
-
-  const emptyState = document.getElementById("apps-empty");
-  if (emptyState) {
-    emptyState.classList.toggle("is-hidden", visibleCount > 0);
-  }
-}
-
-function renderFavoritesState() {
-  document.querySelectorAll(".app-card[data-app]").forEach((card) => {
-    const appId = card.dataset.app;
-    const isFav = favoriteApps.has(appId);
-    card.classList.toggle("is-favorite", isFav);
-    const btn = card.querySelector(".app-fav-btn");
-    if (btn) {
-      btn.setAttribute("aria-pressed", String(isFav));
-      btn.title = isFav ? "Remover dos favoritos" : "Adicionar aos favoritos";
-    }
-  });
-}
-
-async function toggleFavorite(appId) {
-  if (!appId) return;
-  if (favoriteApps.has(appId)) {
-    favoriteApps.delete(appId);
-  } else {
-    favoriteApps.add(appId);
-  }
-  const favs = Array.from(favoriteApps);
-  launcherState.favorites = favs;
-  renderFavoritesState();
-  reapplyAppVisibility();
-  try {
-    await persistLauncherPatch({ favorites: favs });
-  } catch {
-    // Persist falhou; UI já reflete o estado.
-  }
 }
 
 function formatTime(iso) {
@@ -514,17 +417,25 @@ function normalizeUserLabel(value) {
   return "Operador";
 }
 
+function setPillText(id, text) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const span = el.querySelector("span");
+  if (span) {
+    span.textContent = text;
+  } else {
+    el.textContent = text;
+  }
+}
+
 function renderContext() {
   const { context } = launcherState;
-  const user = document.getElementById("ctx-user");
-  const env = document.getElementById("ctx-env");
-  const sync = document.getElementById("ctx-sync");
-  const version = document.getElementById("ctx-version");
+  setPillText("ctx-user", normalizeUserLabel(context.user));
+  setPillText("ctx-env", context.environment || "Produção");
+  setPillText("ctx-sync", formatTime(context.lastSyncAt));
 
-  if (user) user.textContent = `Usuário: ${normalizeUserLabel(context.user)}`;
-  if (env) env.textContent = `Ambiente: ${context.environment || "Produção"}`;
-  if (sync) sync.textContent = `Sync: ${formatTime(context.lastSyncAt)}`;
-  if (version) version.textContent = ` ${context.version || "v1.0.0"}`;
+  const versionEl = document.getElementById("ctx-version");
+  if (versionEl) versionEl.textContent = context.version || "v1.0.0";
 }
 
 function renderMetrics() {
@@ -557,15 +468,23 @@ function renderGlobalUpdateBadge(status) {
   badge.title = "";
   badge.dataset.hoverTooltip = "Consultando versao remota...";
 
+  const iconEl = badge.querySelector("i");
+  const labelEl = badge.querySelector("span");
+  const setBadge = (iconClass, label) => {
+    if (iconEl) iconEl.className = iconClass;
+    if (labelEl) labelEl.textContent = label;
+    else badge.textContent = label;
+  };
+
   if (!status) {
     badge.classList.add("info");
-    badge.textContent = "Verificando...";
+    setBadge("fa-solid fa-circle-notch fa-spin", "Verificando...");
     return;
   }
 
   if (status.error || status.isOutdated == null) {
     badge.classList.add("ok");
-    badge.textContent = "Atualizado";
+    setBadge("fa-solid fa-circle-check", "Atualizado");
     const errorDetail = status.errorMsg ? ` (${status.errorMsg})` : "";
     badge.dataset.hoverTooltip = `Sem confirmacao remota no momento.<br>Mantendo ultimo estado conhecido${escapeHtml(errorDetail)}`;
     return;
@@ -577,12 +496,12 @@ function renderGlobalUpdateBadge(status) {
 
   if (status.isOutdated) {
     badge.classList.add("update");
-    badge.textContent = "Desatualizado";
+    setBadge("fa-solid fa-arrow-up-from-bracket", "Desatualizado");
     return;
   }
 
   badge.classList.add("ok");
-  badge.textContent = "Atualizado";
+  setBadge("fa-solid fa-circle-check", "Atualizado");
 }
 
 async function loadGlobalUpdateStatus(force = false) {
@@ -959,8 +878,6 @@ function renderLauncher() {
   renderContext();
   renderMetrics();
   renderActivity();
-  renderFavoritesState();
-  reapplyAppVisibility();
 }
 
 async function persistLauncherPatch(patch) {
@@ -990,13 +907,11 @@ async function loadLauncherState() {
       dismissedActivityKeys: Array.isArray(loaded.dismissedActivityKeys)
         ? loaded.dismissedActivityKeys
         : [],
-      favorites: Array.isArray(loaded.favorites) && loaded.favorites.length
+        favorites: Array.isArray(loaded.favorites) && loaded.favorites.length
         ? loaded.favorites
         : launcherState.favorites
     };
 
-    favoriteApps.clear();
-    (launcherState.favorites || []).forEach((id) => favoriteApps.add(id));
     hydrateDismissedKeys(launcherState.dismissedActivityKeys);
   } catch {
     // Keep defaults when IPC is unavailable.
@@ -1079,8 +994,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   bindActivityInteractions();
 
   const cards = document.querySelectorAll(".app-card[data-app]");
-  const filterButtons = document.querySelectorAll(".favorite-chip[data-filter]");
-  const searchInput = document.getElementById("apps-search");
 
   const appActionMap = {
     dwg: "open-dwg",
@@ -1092,89 +1005,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   cards.forEach((card, index) => {
     card.style.animationDelay = `${index * 70}ms`;
 
-    // Spotlight hover
-    card.addEventListener("mousemove", (event) => {
-      const rect = card.getBoundingClientRect();
-      card.style.setProperty("--mx", `${event.clientX - rect.left}px`);
-      card.style.setProperty("--my", `${event.clientY - rect.top}px`);
-    });
-
-    card.addEventListener("click", async (event) => {
-      if (event.target instanceof Element && event.target.closest(".app-fav-btn")) {
-        return;
-      }
+    card.addEventListener("click", async () => {
       const app = card.dataset.app;
       const action = appActionMap[app];
       if (!action) return;
       card.classList.remove("is-pulsing");
-      // Reflow para reiniciar a animação
       void card.offsetWidth;
       card.classList.add("is-pulsing");
       await handleAction(action);
     });
-
-    const favBtn = card.querySelector(".app-fav-btn");
-    favBtn?.addEventListener("click", (event) => {
-      event.stopPropagation();
-      event.preventDefault();
-      void toggleFavorite(card.dataset.app);
-    });
-    favBtn?.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      event.stopPropagation();
-      event.preventDefault();
-      void toggleFavorite(card.dataset.app);
-    });
   });
-
-  filterButtons.forEach((button) => {
-    button.addEventListener("click", () => {
-      const filter = button.dataset.filter || "all";
-      applyAppFilter(filter);
-    });
-  });
-
-  if (searchInput) {
-    searchInput.addEventListener("input", () => {
-      activeSearchQuery = searchInput.value || "";
-      reapplyAppVisibility();
-    });
-    searchInput.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
-        searchInput.value = "";
-        activeSearchQuery = "";
-        reapplyAppVisibility();
-        searchInput.blur();
-      } else if (event.key === "Enter") {
-        const firstVisible = document.querySelector(".app-card[data-app]:not([style*='display: none'])");
-        if (firstVisible) {
-          firstVisible.click();
-        }
-      }
-    });
-  }
 
   document.addEventListener("keydown", async (event) => {
-    // Ctrl+K / Cmd+K → focar busca
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-      event.preventDefault();
-      searchInput?.focus();
-      searchInput?.select();
-      return;
-    }
-
     if (shouldIgnoreShortcutTarget(event.target)) {
       return;
-    }
-
-    // Atalhos numéricos 1-4 abrem apps
-    if (!event.ctrlKey && !event.metaKey && !event.altKey && /^[1-4]$/.test(event.key)) {
-      const target = document.querySelector(`.app-card[data-shortcut="${event.key}"]`);
-      if (target && target.style.display !== "none") {
-        event.preventDefault();
-        target.click();
-        return;
-      }
     }
 
     if (isSyncShortcut(event)) {

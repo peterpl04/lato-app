@@ -1,0 +1,39 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgFiscal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6ee7b7"/>
+      <stop offset="55%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bgFiscal)"/>
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="white" opacity="0.06"/>
+
+  <!-- Recibo -->
+  <path d="M36 26 L92 26 L92 100 L86 96 L80 100 L74 96 L68 100 L62 96 L56 100 L50 96 L44 100 L36 96 Z"
+        fill="white" opacity="0.96"/>
+
+  <!-- Faixa superior -->
+  <rect x="42" y="34" width="44" height="8" rx="2" fill="#047857"/>
+
+  <!-- Linhas de itens -->
+  <g fill="#047857">
+    <rect x="42" y="50" width="30" height="4" rx="2" opacity="0.7"/>
+    <rect x="76" y="50" width="10" height="4" rx="2" opacity="0.9"/>
+
+    <rect x="42" y="60" width="24" height="4" rx="2" opacity="0.7"/>
+    <rect x="70" y="60" width="16" height="4" rx="2" opacity="0.9"/>
+
+    <rect x="42" y="70" width="28" height="4" rx="2" opacity="0.7"/>
+    <rect x="74" y="70" width="12" height="4" rx="2" opacity="0.9"/>
+  </g>
+
+  <!-- Total -->
+  <rect x="42" y="82" width="44" height="1.5" fill="#047857" opacity="0.35"/>
+  <rect x="42" y="88" width="14" height="4" rx="2" fill="#047857"/>
+  <rect x="66" y="88" width="20" height="4" rx="2" fill="#059669"/>
+
+  <!-- Brilho superior -->
+  <path d="M14 14 Q30 6 60 8 L60 14 Q30 12 14 22 Z" fill="white" opacity="0.18"/>
+</svg>

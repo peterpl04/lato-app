@@ -7,133 +7,126 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
-  <main class="launcher" aria-label="Launcher de aplicativos">
-    <div class="bg-shape bg-shape-a"></div>
-    <div class="bg-shape bg-shape-b"></div>
+  <div class="stage-bg" aria-hidden="true">
+    <div class="stage-glow stage-glow-a"></div>
+    <div class="stage-glow stage-glow-b"></div>
+    <div class="stage-grid"></div>
+  </div>
 
-    <header class="topbar">
-      <div class="brand-wrap">
-        <img src="../../../assets/icons/logo.png" class="logo" alt="Lato Tecnologia" />
-        <div>
-          <h1>Sistema Lato</h1>
-          <p>Central de módulos</p>
+  <main class="launcher" aria-label="Launcher de aplicativos">
+
+    <header class="hero">
+      <div class="hero-brand">
+        <div class="hero-mark" aria-hidden="true">
+          <img src="../../../assets/icons/lato-infinite.png" alt="" class="hero-mark-img" draggable="false">
+        </div>
+        <div class="hero-brand-text">
+          <span class="hero-eyebrow">Sistema Lato</span>
+          <h1>Central de módulos</h1>
+          <p>Selecione um aplicativo para começar</p>
         </div>
       </div>
-      <div class="context-chips" aria-label="Contexto do sistema">
-        <span class="chip" id="ctx-user">Usuário: Operador</span>
-        <span class="chip" id="ctx-env">Ambiente: Produção</span>
-        <span class="chip status-badge info" id="ctx-update-status">Verificando...</span>
-        <span class="chip" id="ctx-sync">Sync: agora</span>
-        <span class="chip" id="ctx-version">v1.0.0</span>
+
+      <div class="hero-context" aria-label="Contexto do sistema">
+        <span class="pill" id="ctx-user"><i class="fa-solid fa-user"></i><span>Operador</span></span>
+        <span class="pill" id="ctx-env"><i class="fa-solid fa-layer-group"></i><span>Produção</span></span>
+        <span class="pill pill-status" id="ctx-update-status"><i class="fa-solid fa-circle-notch fa-spin"></i><span>Verificando...</span></span>
+        <span class="pill" id="ctx-sync"><i class="fa-regular fa-clock"></i><span>—</span></span>
+        <span class="pill pill-version" id="ctx-version">v1.0.0</span>
       </div>
     </header>
 
     <div class="content-grid">
-      <section class="main-column" aria-label="Area principal">
-        <section class="apps-hero">
-          <div class="apps-hero-text">
-            <h2>Aplicativos</h2>
-            <p>Selecione um módulo ou pressione <kbd>1</kbd>–<kbd>4</kbd> para abrir</p>
-          </div>
-          <div class="apps-search">
-            <span class="apps-search-icon" aria-hidden="true">🔍</span>
-            <input
-              id="apps-search"
-              type="search"
-              placeholder="Buscar módulo..."
-              autocomplete="off"
-              spellcheck="false"
-              aria-label="Buscar módulo"
-            />
-            <kbd class="apps-search-kbd">Ctrl+K</kbd>
-          </div>
-        </section>
 
-        <section class="favorites" aria-label="Filtros de exibição">
-          <div class="favorites-list" role="tablist">
-            <button class="favorite-chip is-active" data-filter="all" type="button" role="tab">Todos</button>
-            <button class="favorite-chip" data-filter="favorites" type="button" role="tab">Favoritos</button>
-            <button class="favorite-chip" data-filter="recent" type="button" role="tab">Recentes</button>
-          </div>
-        </section>
+      <section class="modules-panel" aria-label="Aplicativos disponíveis">
+        <div class="panel-title">
+          <span class="panel-title-eyebrow">Módulos</span>
+          <span class="panel-title-hint">Clique para abrir</span>
+        </div>
 
-        <section class="apps" aria-label="Aplicativos disponiveis">
-          <button class="app-card" data-app="dwg" data-module="dwg" data-shortcut="1" type="button" aria-label="Abrir DWG Renamer" data-keywords="dwg renamer arquivo lote renomeacao">
-            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="dwg" aria-label="Favoritar DWG Renamer" title="Favoritar">★</span>
-            <span class="app-shortcut" aria-hidden="true">1</span>
+        <div class="apps">
+          <button class="app-card" data-app="dwg" data-module="dwg" type="button" aria-label="Abrir DWG Renamer">
+            <span class="app-card-halo" aria-hidden="true"></span>
             <div class="app-icon">
-              <img src="../../../assets/icons/dwg-renamer.svg" alt="">
+              <img src="../../../assets/icons/mod-dwg.svg" alt="">
             </div>
-            <div class="app-name-row">
+            <div class="app-info">
               <div class="app-name">DWG Renamer</div>
+              <div class="app-sub">Renomeação em lote</div>
             </div>
+            <span class="app-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
           </button>
 
-          <button class="app-card" data-app="pm" data-module="pm" data-shortcut="2" type="button" aria-label="Abrir Project Manager" data-keywords="project manager projetos progresso entregas dashboard">
-            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="pm" aria-label="Favoritar Project Manager" title="Favoritar">★</span>
-            <span class="app-shortcut" aria-hidden="true">2</span>
+          <button class="app-card" data-app="pm" data-module="pm" type="button" aria-label="Abrir Projetos">
+            <span class="app-card-halo" aria-hidden="true"></span>
             <div class="app-icon">
-              <img src="../../../assets/icons/project-manager.svg" alt="">
+              <img src="../../../assets/icons/mod-pm.svg" alt="">
             </div>
-            <div class="app-name-row">
+            <div class="app-info">
               <div class="app-name">Projetos</div>
+              <div class="app-sub">Cadastro e progresso</div>
             </div>
+            <span class="app-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
           </button>
 
-          <button class="app-card" data-app="fiscal" data-module="fiscal" data-shortcut="3" type="button" aria-label="Abrir Fiscal" data-keywords="fiscal nota fiscal busca arquivo pasta">
-            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="fiscal" aria-label="Favoritar Fiscal" title="Favoritar">★</span>
-            <span class="app-shortcut" aria-hidden="true">3</span>
+          <button class="app-card" data-app="fiscal" data-module="fiscal" type="button" aria-label="Abrir Fiscal">
+            <span class="app-card-halo" aria-hidden="true"></span>
             <div class="app-icon">
-              <img src="../../../assets/icons/fiscal.svg" alt="">
+              <img src="../../../assets/icons/mod-fiscal.svg" alt="">
             </div>
-            <div class="app-name-row">
+            <div class="app-info">
               <div class="app-name">Fiscal</div>
+              <div class="app-sub">Busca de notas</div>
             </div>
+            <span class="app-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
           </button>
 
-          <button class="app-card" data-app="estoque" data-module="estoque" data-shortcut="4" type="button" aria-label="Abrir Estoque" data-keywords="estoque inventário pneumática fixadores elétrica movimentação">
-            <span class="app-fav-btn" role="button" tabindex="0" data-fav-toggle="estoque" aria-label="Favoritar Estoque" title="Favoritar">★</span>
-            <span class="app-shortcut" aria-hidden="true">4</span>
-            <div class="app-icon app-icon--emoji">📦</div>
-            <div class="app-name-row">
+          <button class="app-card" data-app="estoque" data-module="estoque" type="button" aria-label="Abrir Estoque">
+            <span class="app-card-halo" aria-hidden="true"></span>
+            <div class="app-icon">
+              <img src="../../../assets/icons/mod-estoque.svg" alt="">
+            </div>
+            <div class="app-info">
               <div class="app-name">Estoque</div>
+              <div class="app-sub">Inventário e movimentações</div>
             </div>
+            <span class="app-arrow" aria-hidden="true"><i class="fa-solid fa-arrow-up-right-from-square"></i></span>
           </button>
-
-          <div class="apps-empty is-hidden" id="apps-empty">
-            <div class="apps-empty-icon">🔎</div>
-            <p>Nenhum módulo corresponde ao filtro atual.</p>
-          </div>
-        </section>
-
+        </div>
       </section>
 
       <aside class="activity" id="activity-card" aria-label="Atividade do sistema" role="button" tabindex="0">
         <header class="activity-head">
           <div class="activity-head-title">
-            <h2>Atividade <span class="activity-count" id="activity-count">0</span></h2>
-            <p class="activity-head-summary" id="activity-summary">Aguardando eventos...</p>
+            <span class="panel-title-eyebrow">Atividade</span>
+            <div class="activity-head-count">
+              <span class="activity-count" id="activity-count">0</span>
+              <span class="activity-live"><span class="activity-live-dot"></span>Tempo real</span>
+            </div>
           </div>
           <button id="activity-clear-btn" class="activity-clear-btn" type="button" title="Marcar todas como lidas" aria-label="Marcar todas como lidas">
-            <span aria-hidden="true">✓</span>
+            <i class="fa-solid fa-check-double"></i>
           </button>
         </header>
+
+        <p class="activity-summary" id="activity-summary">Aguardando eventos...</p>
 
         <ul class="activity-timeline" id="activity-list"></ul>
 
         <div class="activity-empty is-hidden" id="activity-empty">
-          <div class="activity-empty-icon">✨</div>
+          <div class="activity-empty-icon"><i class="fa-regular fa-comment-dots"></i></div>
           <p class="activity-empty-title">Tudo tranquilo por aqui</p>
           <p class="activity-empty-sub">Eventos do sistema aparecerão aqui em tempo real.</p>
         </div>
 
         <footer class="activity-foot">
-          <span class="activity-hint">Clique para ver todas as atividades de hoje</span>
+          <span class="activity-hint"><i class="fa-solid fa-arrow-right"></i> Clique para ver todas as atividades de hoje</span>
         </footer>
       </aside>
     </div>
@@ -146,7 +139,9 @@
           <h3 id="activity-modal-title">Atividades do dia</h3>
           <p id="activity-modal-subtitle">Eventos registrados hoje</p>
         </div>
-        <button class="activity-modal-close" id="activity-modal-close" type="button" aria-label="Fechar">Fechar</button>
+        <button class="activity-modal-close" id="activity-modal-close" type="button" aria-label="Fechar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
       </div>
 
       <ul class="activity-day-list" id="activity-day-list"></ul>

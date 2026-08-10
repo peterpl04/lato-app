@@ -1,0 +1,37 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgDwg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7dd3fc"/>
+      <stop offset="60%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="dwgPage" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0f2fe"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="28" fill="url(#bgDwg)"/>
+  <rect x="0" y="0" width="128" height="128" rx="28" fill="white" opacity="0.06"/>
+
+  <!-- Documento (folha) -->
+  <path d="M38 30 L72 30 L92 50 L92 96 Q92 102 86 102 L38 102 Q32 102 32 96 L32 36 Q32 30 38 30 Z"
+        fill="url(#dwgPage)"/>
+  <!-- Dobra da folha -->
+  <path d="M72 30 L72 46 Q72 50 76 50 L92 50 Z"
+        fill="#bae6fd" opacity="0.85"/>
+
+  <!-- Linhas de conteúdo -->
+  <rect x="42" y="60" width="30" height="4" rx="2" fill="#0284c7" opacity="0.35"/>
+  <rect x="42" y="70" width="42" height="4" rx="2" fill="#0284c7" opacity="0.35"/>
+
+  <!-- Setas de rename A -> B -->
+  <g transform="translate(42 82)">
+    <text x="0" y="10" font-family="Inter, Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#0284c7">A</text>
+    <path d="M15 6 L27 6 M23 2 L27 6 L23 10" fill="none" stroke="#0284c7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="32" y="10" font-family="Inter, Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#0284c7">B</text>
+  </g>
+
+  <!-- Brilho superior -->
+  <path d="M14 14 Q30 6 60 8 L60 14 Q30 12 14 22 Z" fill="white" opacity="0.18"/>
+</svg>

@@ -175,6 +175,25 @@
             <input id="instalacao" type="date">
           </div>
 
+          <!-- Anexos (PDF + imagens) -->
+          <div class="attachments-section col-full">
+            <div class="attachments-head">
+              <label class="attachments-label">Anexos</label>
+              <span class="attachments-hint">Fotos ou PDFs · até 15 MB por arquivo</span>
+            </div>
+
+            <label for="attachmentsInput" class="attachments-dropzone" id="attachmentsDropzone">
+              <input type="file" id="attachmentsInput" hidden multiple accept="image/*,application/pdf">
+              <div class="dropzone-icon" aria-hidden="true">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+              </div>
+              <div class="dropzone-title">Arraste arquivos aqui ou <span class="dropzone-link">clique para escolher</span></div>
+              <div class="dropzone-sub">JPG · PNG · WEBP · PDF</div>
+            </label>
+
+            <ul class="attachments-list" id="attachmentsList"></ul>
+          </div>
+
           <!-- Ações -->
           <div class="form-actions col-full">
             <button type="button" class="cancel" onclick="closeModal()">Cancelar</button>

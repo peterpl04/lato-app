@@ -28,6 +28,15 @@ let progressEditProject = null;
 let progressDraftPercent = 0;
 let currentSummaryProjectId = null;
 
+/* Attachments (aba Geral) */
+const ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024;
+const ATTACHMENT_MAX_COUNT = 20;
+const ATTACHMENT_ACCEPT_MIME = /^(image\/|application\/pdf$)/i;
+let pendingAttachments = [];       // arquivos escolhidos, ainda não enviados
+let existingAttachments = [];      // metadata carregada do servidor (id, filename...)
+let attachmentsToDelete = new Set();
+let attachmentDropzoneBound = false;
+
 const PROGRESS_STAGES = [
   { percent: 0, label: "Em Definição 🤔" },
   { percent: 25, label: "Desenho/Projeto 🖼️" },
@@ -116,6 +125,8 @@ function initModalBindings() {
   inputAlimentador?.addEventListener("input", e => {
     updateAlimentadorSelecionado(e.target.value.trim());
   });
+
+  initAttachmentsDropzone();
 
   enableKeyboardNavigation();
   modalBindingsInitialized = true;
@@ -315,11 +326,15 @@ function endTableLoading(token) {
 }
 
 async function createProject(project) {
-  await fetch(`${API_URL}/projects`, {
+  const res = await fetch(`${API_URL}/projects`, {
     method: "POST",
     headers: getApiHeaders(),
     body: JSON.stringify(project)
   });
+  if (!res.ok) {
+    throw new Error("Falha ao criar projeto");
+  }
+  return res.json();
 }
 
 async function updateProject(id, project) {
@@ -343,6 +358,345 @@ async function updateProjectProgress(id, percent) {
     headers: getApiHeaders(),
     body: JSON.stringify({ progressPercent: percent })
   });
+}
+
+/* =========================
+   ATTACHMENTS (aba Geral)
+========================= */
+
+function formatBytes(bytes) {
+  const n = Number(bytes) || 0;
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function isImageMime(mime) {
+  return String(mime || "").toLowerCase().startsWith("image/");
+}
+
+function attachmentDownloadUrl(projectId, attId, forceDownload = false) {
+  const suffix = forceDownload ? "?download=1" : "";
+  return `${API_URL}/projects/${projectId}/attachments/${attId}${suffix}`;
+}
+
+async function loadProjectAttachments(projectId) {
+  try {
+    const res = await fetch(`${API_URL}/projects/${projectId}/attachments`, {
+      headers: { "x-app-env": appEnv }
+    });
+    if (!res.ok) throw new Error("Falha ao listar anexos");
+    const rows = await res.json();
+    existingAttachments = Array.isArray(rows) ? rows : [];
+  } catch (err) {
+    console.error("Erro ao carregar anexos:", err);
+    existingAttachments = [];
+  }
+  renderAttachmentsList();
+}
+
+async function uploadPendingAttachments(projectId) {
+  if (!pendingAttachments.length) return;
+
+  const form = new FormData();
+  pendingAttachments.forEach(file => form.append("files", file, file.name));
+  form.append("uploadedBy", currentUser || "Operador");
+
+  try {
+    const res = await fetch(`${API_URL}/projects/${projectId}/attachments`, {
+      method: "POST",
+      headers: { "x-app-env": appEnv },
+      body: form
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || "Falha ao enviar anexos");
+    }
+  } catch (err) {
+    console.error("Erro ao enviar anexos:", err);
+    showValidation(err.message || "Não foi possível enviar os anexos.");
+  }
+}
+
+async function deleteMarkedAttachments(projectId) {
+  const ids = Array.from(attachmentsToDelete);
+  if (!ids.length) return;
+
+  await Promise.all(
+    ids.map(id =>
+      fetch(`${API_URL}/projects/${projectId}/attachments/${id}`, {
+        method: "DELETE",
+        headers: { "x-app-env": appEnv }
+      }).catch(err => console.error("Erro ao excluir anexo", id, err))
+    )
+  );
+}
+
+function resetAttachmentsState() {
+  pendingAttachments = [];
+  existingAttachments = [];
+  attachmentsToDelete = new Set();
+  const input = document.getElementById("attachmentsInput");
+  if (input) input.value = "";
+  renderAttachmentsList();
+}
+
+function validateAttachmentFile(file) {
+  if (!ATTACHMENT_ACCEPT_MIME.test(file.type || "")) {
+    return "Tipo não permitido. Envie PDF ou imagens.";
+  }
+  if (file.size > ATTACHMENT_MAX_BYTES) {
+    return `"${file.name}" excede 15 MB.`;
+  }
+  return null;
+}
+
+function addPendingAttachments(fileList) {
+  if (!fileList || !fileList.length) return;
+
+  const totalCount =
+    pendingAttachments.length +
+    existingAttachments.length -
+    attachmentsToDelete.size;
+
+  const files = Array.from(fileList);
+  const errors = [];
+
+  for (const file of files) {
+    if (totalCount + pendingAttachments.length >= ATTACHMENT_MAX_COUNT) {
+      errors.push(`Máximo de ${ATTACHMENT_MAX_COUNT} anexos por projeto.`);
+      break;
+    }
+    const err = validateAttachmentFile(file);
+    if (err) {
+      errors.push(err);
+      continue;
+    }
+    pendingAttachments.push(file);
+  }
+
+  if (errors.length) {
+    showValidation(errors[0]);
+  }
+
+  renderAttachmentsList();
+}
+
+function removePendingAttachment(index) {
+  pendingAttachments.splice(index, 1);
+  renderAttachmentsList();
+}
+
+function markExistingAttachmentForDeletion(id) {
+  attachmentsToDelete.add(Number(id));
+  renderAttachmentsList();
+}
+
+function unmarkExistingAttachmentForDeletion(id) {
+  attachmentsToDelete.delete(Number(id));
+  renderAttachmentsList();
+}
+
+function openExistingAttachment(projectId, attId) {
+  const url = attachmentDownloadUrl(projectId, attId, false);
+  try {
+    if (window.api && typeof window.api.openExternal === "function") {
+      window.api.openExternal(url);
+      return;
+    }
+  } catch (_) { /* ignore */ }
+  window.open(url, "_blank", "noopener");
+}
+
+function attachmentIconForMime(mime) {
+  if (isImageMime(mime)) return "fa-solid fa-image";
+  if (String(mime || "").toLowerCase() === "application/pdf") return "fa-solid fa-file-pdf";
+  return "fa-solid fa-paperclip";
+}
+
+function renderAttachmentsList() {
+  const list = document.getElementById("attachmentsList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  // Existentes (que não estão marcados para deleção)
+  existingAttachments.forEach(att => {
+    const marked = attachmentsToDelete.has(Number(att.id));
+
+    const li = document.createElement("li");
+    li.className = `attachment-chip is-existing${marked ? " is-removed" : ""}`;
+
+    const thumb = document.createElement("div");
+    thumb.className = "attachment-thumb";
+    if (isImageMime(att.mime_type) && editingId) {
+      const img = document.createElement("img");
+      img.src = attachmentDownloadUrl(editingId, att.id, false);
+      img.alt = att.filename;
+      img.loading = "lazy";
+      thumb.appendChild(img);
+    } else {
+      const icon = document.createElement("i");
+      icon.className = attachmentIconForMime(att.mime_type);
+      thumb.appendChild(icon);
+    }
+
+    const info = document.createElement("div");
+    info.className = "attachment-info";
+    const name = document.createElement("span");
+    name.className = "attachment-name";
+    name.textContent = att.filename;
+    name.title = att.filename;
+    const meta = document.createElement("span");
+    meta.className = "attachment-meta";
+    meta.textContent = formatBytes(att.size_bytes);
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "attachment-actions";
+
+    if (!marked && editingId) {
+      const openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "attachment-btn attachment-open";
+      openBtn.title = "Abrir";
+      openBtn.innerHTML = '<i class="fa-solid fa-arrow-up-right-from-square"></i>';
+      openBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        openExistingAttachment(editingId, att.id);
+      });
+      actions.appendChild(openBtn);
+    }
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.type = "button";
+    toggleBtn.className = "attachment-btn attachment-remove";
+    if (marked) {
+      toggleBtn.title = "Restaurar";
+      toggleBtn.innerHTML = '<i class="fa-solid fa-rotate-left"></i>';
+      toggleBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        unmarkExistingAttachmentForDeletion(att.id);
+      });
+    } else {
+      toggleBtn.title = "Remover";
+      toggleBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+      toggleBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        markExistingAttachmentForDeletion(att.id);
+      });
+    }
+    actions.appendChild(toggleBtn);
+
+    li.appendChild(thumb);
+    li.appendChild(info);
+    li.appendChild(actions);
+    list.appendChild(li);
+  });
+
+  // Pendentes
+  pendingAttachments.forEach((file, index) => {
+    const li = document.createElement("li");
+    li.className = "attachment-chip is-pending";
+
+    const thumb = document.createElement("div");
+    thumb.className = "attachment-thumb";
+    if (isImageMime(file.type)) {
+      const img = document.createElement("img");
+      img.src = URL.createObjectURL(file);
+      img.alt = file.name;
+      img.addEventListener("load", () => URL.revokeObjectURL(img.src), { once: true });
+      thumb.appendChild(img);
+    } else {
+      const icon = document.createElement("i");
+      icon.className = attachmentIconForMime(file.type);
+      thumb.appendChild(icon);
+    }
+
+    const info = document.createElement("div");
+    info.className = "attachment-info";
+    const name = document.createElement("span");
+    name.className = "attachment-name";
+    name.textContent = file.name;
+    name.title = file.name;
+    const meta = document.createElement("span");
+    meta.className = "attachment-meta";
+    meta.innerHTML = `<span class="attachment-badge">Novo</span> ${formatBytes(file.size)}`;
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "attachment-actions";
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "attachment-btn attachment-remove";
+    removeBtn.title = "Remover";
+    removeBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+    removeBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      removePendingAttachment(index);
+    });
+    actions.appendChild(removeBtn);
+
+    li.appendChild(thumb);
+    li.appendChild(info);
+    li.appendChild(actions);
+    list.appendChild(li);
+  });
+
+  const dropzone = document.getElementById("attachmentsDropzone");
+  if (dropzone) {
+    dropzone.classList.toggle(
+      "has-files",
+      pendingAttachments.length + existingAttachments.length > 0
+    );
+  }
+}
+
+function initAttachmentsDropzone() {
+  if (attachmentDropzoneBound) return;
+  const dropzone = document.getElementById("attachmentsDropzone");
+  const input = document.getElementById("attachmentsInput");
+  if (!dropzone || !input) return;
+
+  input.addEventListener("change", () => {
+    addPendingAttachments(input.files);
+    input.value = "";
+  });
+
+  const prevent = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  ["dragenter", "dragover"].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      prevent(e);
+      dropzone.classList.add("is-dragover");
+    });
+  });
+
+  ["dragleave", "dragend"].forEach(evt => {
+    dropzone.addEventListener(evt, (e) => {
+      prevent(e);
+      dropzone.classList.remove("is-dragover");
+    });
+  });
+
+  dropzone.addEventListener("drop", (e) => {
+    prevent(e);
+    dropzone.classList.remove("is-dragover");
+    if (e.dataTransfer?.files?.length) {
+      addPendingAttachments(e.dataTransfer.files);
+    }
+  });
+
+  attachmentDropzoneBound = true;
 }
 
 async function trackLauncherActivity(payload) {
@@ -481,6 +835,7 @@ function openModal(id = null) {
   if (id) {
     const p = projects.find(p => p.id === id);
     if (p) fillForm(p);
+    loadProjectAttachments(id);
   }
 
   setTimeout(() => {
@@ -535,6 +890,8 @@ function clearForm() {
       }
     }
   });
+
+  resetAttachmentsState();
 }
 
 function fillForm(p) {
@@ -665,6 +1022,9 @@ async function save() {
 
       await updateProject(editingId, project);
 
+      await deleteMarkedAttachments(editingId);
+      await uploadPendingAttachments(editingId);
+
       await trackLauncherActivity({
         module: "project-manager",
         eventType: dateChanged ? "project-date-change" : "project-update",
@@ -678,7 +1038,12 @@ async function save() {
         }
       });
     } else {
-      await createProject(project);
+      const created = await createProject(project);
+      const newId = created?.id;
+
+      if (newId) {
+        await uploadPendingAttachments(newId);
+      }
 
       await trackLauncherActivity({
         module: "project-manager",
@@ -687,6 +1052,7 @@ async function save() {
         message: `Projeto ${project.obra || "sem nome"} criado`,
         user: currentUser,
         details: {
+          projectId: newId,
           obra: project.obra || "",
           cliente: project.cliente || ""
         }

@@ -1247,6 +1247,18 @@ ipcMain.handle("get-app-environment", () => {
   return getAppEnvironmentKey();
 });
 
+ipcMain.handle("open-external", async (_, url) => {
+  try {
+    const target = String(url || "");
+    if (!/^https?:\/\//i.test(target)) return false;
+    await shell.openExternal(target);
+    return true;
+  } catch (err) {
+    console.error("open-external falhou:", err);
+    return false;
+  }
+});
+
 
 ipcMain.handle("open-dwg-renamer", () => {
   openDWGRenamer();

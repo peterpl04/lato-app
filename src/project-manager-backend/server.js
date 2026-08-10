@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const http = require("http");
+const multer = require("multer");
 const { Server } = require("socket.io");
 const pool = require("./db");
 const bcrypt = require("bcrypt");
@@ -8,6 +9,33 @@ const bcrypt = require("bcrypt");
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+const ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024;
+const ATTACHMENT_ALLOWED_MIME = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/heic",
+  "image/heif"
+]);
+
+const attachmentUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: ATTACHMENT_MAX_BYTES,
+    files: 20
+  },
+  fileFilter: (_req, file, cb) => {
+    const mime = String(file.mimetype || "").toLowerCase();
+    if (ATTACHMENT_ALLOWED_MIME.has(mime) || mime.startsWith("image/")) {
+      return cb(null, true);
+    }
+    return cb(new Error("Tipo de arquivo não permitido. Envie apenas PDF ou imagens."));
+  }
+});
 const ACTIVITY_RETENTION_DAYS = 30;
 const ACTIVITY_CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
@@ -167,6 +195,22 @@ async function initDB() {
 
   // Ordenação personalizada (drag & drop)
   await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS sort_order INTEGER`);
+
+  // Anexos de projeto (PDF + imagens)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS project_attachments (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      environment TEXT NOT NULL DEFAULT 'prod',
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size_bytes INTEGER NOT NULL,
+      data BYTEA NOT NULL,
+      uploaded_by TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS ix_project_attachments_project ON project_attachments(project_id, environment, created_at DESC)`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS launcher_activities (
@@ -553,6 +597,149 @@ app.delete("/projects/:id", async (req, res) => {
   res.json({ success: true });
   } catch (err) {
     res.status(500).json(err);
+  }
+});
+
+/* =========================
+   ATTACHMENTS
+========================= */
+
+// LIST attachments (metadata only)
+app.get("/projects/:id/attachments", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const projectId = Number(req.params.id);
+  if (!Number.isFinite(projectId)) {
+    return res.status(400).json({ error: "id inválido" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT id, filename, mime_type, size_bytes, uploaded_by, created_at
+         FROM project_attachments
+        WHERE project_id = $1 AND environment = $2
+        ORDER BY created_at DESC, id DESC`,
+      [projectId, env]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("❌ ERRO AO LISTAR ANEXOS:", err);
+    res.status(500).json({ error: "Erro ao listar anexos" });
+  }
+});
+
+// UPLOAD attachments (accepts multipart/form-data, field name "files")
+app.post(
+  "/projects/:id/attachments",
+  (req, res, next) => {
+    attachmentUpload.array("files", 20)(req, res, (err) => {
+      if (!err) return next();
+      const status = err.code === "LIMIT_FILE_SIZE" ? 413 : 400;
+      const message =
+        err.code === "LIMIT_FILE_SIZE"
+          ? "Arquivo excede 15 MB."
+          : err.message || "Falha ao processar upload.";
+      res.status(status).json({ error: message });
+    });
+  },
+  async (req, res) => {
+    const env = getRequestEnvironment(req);
+    const projectId = Number(req.params.id);
+    if (!Number.isFinite(projectId)) {
+      return res.status(400).json({ error: "id inválido" });
+    }
+    if (!Array.isArray(req.files) || !req.files.length) {
+      return res.status(400).json({ error: "Nenhum arquivo enviado." });
+    }
+
+    const uploadedBy = String(req.body?.uploadedBy || req.headers["x-user"] || "Operador").slice(0, 120);
+
+    try {
+      const projectCheck = await pool.query(
+        "SELECT id FROM projects WHERE id = $1 AND environment = $2",
+        [projectId, env]
+      );
+      if (!projectCheck.rowCount) {
+        return res.status(404).json({ error: "Projeto não encontrado para este ambiente." });
+      }
+
+      const inserted = [];
+      for (const file of req.files) {
+        const filename = String(file.originalname || "arquivo").slice(0, 255);
+        const mime = String(file.mimetype || "application/octet-stream").slice(0, 120);
+        const result = await pool.query(
+          `INSERT INTO project_attachments (project_id, environment, filename, mime_type, size_bytes, data, uploaded_by)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
+           RETURNING id, filename, mime_type, size_bytes, uploaded_by, created_at`,
+          [projectId, env, filename, mime, file.size, file.buffer, uploadedBy]
+        );
+        inserted.push(result.rows[0]);
+      }
+
+      io.to(`projects:${env}`).emit("project-attachments:update", { projectId });
+      res.json(inserted);
+    } catch (err) {
+      console.error("❌ ERRO AO SALVAR ANEXO:", err);
+      res.status(500).json({ error: "Erro ao salvar anexos." });
+    }
+  }
+);
+
+// DOWNLOAD attachment (raw bytes with content-type)
+app.get("/projects/:id/attachments/:attId", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const projectId = Number(req.params.id);
+  const attId = Number(req.params.attId);
+  if (!Number.isFinite(projectId) || !Number.isFinite(attId)) {
+    return res.status(400).json({ error: "ids inválidos" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT filename, mime_type, data
+         FROM project_attachments
+        WHERE id = $1 AND project_id = $2 AND environment = $3`,
+      [attId, projectId, env]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Anexo não encontrado." });
+    }
+
+    const row = result.rows[0];
+    const disposition = req.query.download === "1" ? "attachment" : "inline";
+    const safeName = encodeURIComponent(row.filename || "arquivo");
+    res.setHeader("Content-Type", row.mime_type || "application/octet-stream");
+    res.setHeader("Content-Disposition", `${disposition}; filename*=UTF-8''${safeName}`);
+    res.setHeader("Cache-Control", "private, max-age=60");
+    res.send(row.data);
+  } catch (err) {
+    console.error("❌ ERRO AO BAIXAR ANEXO:", err);
+    res.status(500).json({ error: "Erro ao baixar anexo." });
+  }
+});
+
+// DELETE attachment
+app.delete("/projects/:id/attachments/:attId", async (req, res) => {
+  const env = getRequestEnvironment(req);
+  const projectId = Number(req.params.id);
+  const attId = Number(req.params.attId);
+  if (!Number.isFinite(projectId) || !Number.isFinite(attId)) {
+    return res.status(400).json({ error: "ids inválidos" });
+  }
+
+  try {
+    const result = await pool.query(
+      `DELETE FROM project_attachments
+        WHERE id = $1 AND project_id = $2 AND environment = $3`,
+      [attId, projectId, env]
+    );
+    if (!result.rowCount) {
+      return res.status(404).json({ error: "Anexo não encontrado." });
+    }
+    io.to(`projects:${env}`).emit("project-attachments:update", { projectId });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ ERRO AO EXCLUIR ANEXO:", err);
+    res.status(500).json({ error: "Erro ao excluir anexo." });
   }
 });
 

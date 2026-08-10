@@ -58,5 +58,7 @@ contextBridge.exposeInMainWorld("api", {
       destino,
       multiplicador,
       deleteOrigem
-    )
+    ),
+
+  openExternal: (url) => ipcRenderer.invoke("open-external", url)
 });

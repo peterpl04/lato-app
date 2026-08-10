@@ -92,6 +92,16 @@ function initRealtime() {
       if (project) loadStockConsumption(project);
     }
   });
+
+  socket.on("project-attachments:update", (payload) => {
+    const projId = payload?.projectId;
+    if (!projId) return;
+    const summaryOpen = document.getElementById("summaryModal")?.classList.contains("active");
+    if (summaryOpen && currentSummaryProjectId === projId) {
+      const project = projects.find(p => p.id === projId);
+      if (project) loadSummaryAttachments(project);
+    }
+  });
 }
 
 /* =========================
@@ -376,8 +386,9 @@ function isImageMime(mime) {
 }
 
 function attachmentDownloadUrl(projectId, attId, forceDownload = false) {
-  const suffix = forceDownload ? "?download=1" : "";
-  return `${API_URL}/projects/${projectId}/attachments/${attId}${suffix}`;
+  const params = new URLSearchParams({ env: appEnv });
+  if (forceDownload) params.set("download", "1");
+  return `${API_URL}/projects/${projectId}/attachments/${attId}?${params.toString()}`;
 }
 
 async function loadProjectAttachments(projectId) {
@@ -498,7 +509,7 @@ function unmarkExistingAttachmentForDeletion(id) {
 }
 
 function openExistingAttachment(projectId, attId) {
-  const url = attachmentDownloadUrl(projectId, attId, false);
+  const url = attachmentDownloadUrl(projectId, attId, true);
   try {
     if (window.api && typeof window.api.openExternal === "function") {
       window.api.openExternal(url);
@@ -656,6 +667,104 @@ function renderAttachmentsList() {
       pendingAttachments.length + existingAttachments.length > 0
     );
   }
+}
+
+async function loadSummaryAttachments(project) {
+  const list = document.getElementById("sum-attachments-list");
+  const empty = document.getElementById("sum-attachments-empty");
+  const count = document.getElementById("sum-attachments-count");
+  if (!list || !empty || !count) return;
+
+  const projectId = project?.id;
+  list.innerHTML = "";
+  empty.textContent = "Carregando anexos…";
+  empty.style.display = "block";
+  list.style.display = "none";
+  count.textContent = "0";
+
+  if (!projectId) {
+    empty.textContent = "Nenhum arquivo anexado a este registro.";
+    return;
+  }
+
+  let rows = [];
+  try {
+    const res = await fetch(`${API_URL}/projects/${projectId}/attachments`, {
+      headers: { "x-app-env": appEnv }
+    });
+    if (!res.ok) throw new Error("Falha ao listar anexos");
+    rows = await res.json();
+  } catch (err) {
+    console.error("Erro ao carregar anexos do resumo:", err);
+    empty.textContent = "Não foi possível carregar os anexos.";
+    return;
+  }
+
+  // Garante que ainda estamos exibindo o mesmo projeto (evita corrida em cliques rápidos)
+  if (currentSummaryProjectId !== projectId) return;
+
+  count.textContent = String(rows.length);
+
+  if (!Array.isArray(rows) || !rows.length) {
+    empty.textContent = "Nenhum arquivo anexado a este registro.";
+    empty.style.display = "block";
+    list.style.display = "none";
+    return;
+  }
+
+  empty.style.display = "none";
+  list.style.display = "";
+
+  rows.forEach(att => {
+    const li = document.createElement("li");
+    li.className = "summary-attachment-chip";
+    li.setAttribute("role", "button");
+    li.tabIndex = 0;
+    li.title = `${att.filename} · ${formatBytes(att.size_bytes)}`;
+
+    const thumb = document.createElement("div");
+    thumb.className = "summary-attachment-thumb";
+    if (isImageMime(att.mime_type)) {
+      const img = document.createElement("img");
+      img.src = attachmentDownloadUrl(projectId, att.id, false);
+      img.alt = att.filename;
+      img.loading = "lazy";
+      thumb.appendChild(img);
+    } else {
+      const icon = document.createElement("i");
+      icon.className = attachmentIconForMime(att.mime_type);
+      thumb.appendChild(icon);
+    }
+
+    const info = document.createElement("div");
+    info.className = "summary-attachment-info";
+    const name = document.createElement("span");
+    name.className = "summary-attachment-name";
+    name.textContent = att.filename;
+    const meta = document.createElement("span");
+    meta.className = "summary-attachment-meta";
+    meta.textContent = formatBytes(att.size_bytes);
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    const openIcon = document.createElement("i");
+    openIcon.className = "fa-solid fa-arrow-up-right-from-square summary-attachment-open";
+
+    li.appendChild(thumb);
+    li.appendChild(info);
+    li.appendChild(openIcon);
+
+    const open = () => openExistingAttachment(projectId, att.id);
+    li.addEventListener("click", open);
+    li.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    });
+
+    list.appendChild(li);
+  });
 }
 
 function initAttachmentsDropzone() {
@@ -1471,6 +1580,9 @@ function openSummary(project) {
 
   /* ===== CONSUMO DE ESTOQUE (vínculo com módulo ESTOQUE) ===== */
   loadStockConsumption(project);
+
+  /* ===== ANEXOS ===== */
+  loadSummaryAttachments(project);
 
   openModalAnimated(document.getElementById("summaryModal"));
 }
